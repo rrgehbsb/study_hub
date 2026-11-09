@@ -14,7 +14,7 @@
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.1.1">
+<link rel="stylesheet" href="/app.css?v=0.2.0">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -39,7 +39,7 @@
   <div class="list" id="materials"></div>
 </main>
 <button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
-<script src="/app.js?v=0.1.1"></script>
+<script src="/app.js?v=0.2.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc } = S;
@@ -48,7 +48,7 @@
   $('#back').innerHTML = S.ic('back');
   if (!(await S.session())) return;
   let topic = null, lessons = [], materials = [], topics = [], poll = null;
-  const KIND = { board: 'Board photo', notes: 'Notes', teacher_summary: 'Teacher summary', old_test: 'Old test', worksheet: 'Worksheet' };
+  const KIND = { board: 'Board photo', notes: 'Notes', teacher_summary: 'Teacher summary', teacher_message: 'Message from Mashov', old_test: 'Old test', worksheet: 'Worksheet' };
   const STATE = { new: 'Not yet', with_help: 'With help', alone: 'Solved alone' };
   const STATUS = { uploaded: ['busy', 'Waiting'], transcribing: ['busy', 'Transcribing…'], reading: ['busy', 'Reading…'], error: ['err', 'Failed · retry'] };
 

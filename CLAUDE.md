@@ -64,7 +64,10 @@ dashboard:school:v1:subjects    [{id, name, color, hidden}]
 dashboard:school:v1:assignments [{id, subjectId, title, type, dueDate, priority, status:'Not started'|'In progress'|'Done', completedAt, notes, createdAt, updatedAt}]
 dashboard:school:v1:tests       [{id, subjectId, name, testDate, topics, studyStatus, importance, notes, createdAt, updatedAt}]
 dashboard:school:v1:grades      [{id, subjectId, type, gradeValue, maxGrade, date, weight, notes, testId?}]
+dashboard:school:v1:timetable   {cls:"11-3", mine:["מתמטיקה|teacher name", …]}  ← main Dashboard's; Study Hub only READS it
+study:v1:settings               {cls}  ← Study Hub's own (class when the Dashboard has none)
 ```
+Imported items keep a `source` (`'calendar'` / `'mashov'`) and stable ids (`cal-<uid>`, `mashov-hw-<id>`), so re-imports and other devices never duplicate them. Calendar tests also carry `calUid`, which is how the main Dashboard hides its own read-only calendar copy.
 
 **Sync rules (copied from the main Dashboard; they were learned the hard way, do NOT regress):**
 1. `await client.auth.getSession()` before every read and write.
@@ -81,7 +84,7 @@ All have `user_id uuid default auth.uid()` and row-level security "own rows only
 | Table | What | Notes |
 |---|---|---|
 | `study_lessons` | One recorded lesson | `subject_id` (matches school subjects), `lesson_date`, `title`, `status` (`uploaded` → `transcribing` → `ready` / `error`), `audio_path`, `transcript`, `summary`, `topics text[]`, `error` |
-| `study_materials` | Everything else the tutor learns from | `kind`: `board` (photo of the board), `notes` (owner's or a classmate's notes), `teacher_summary` (WhatsApp/Mashov text), `old_test`, `worksheet`. `file_path` (Storage), `content` (text; for files, filled by `api/read-file.js`), optional `lesson_id`, `status` |
+| `study_materials` | Everything else the tutor learns from | `kind`: `board` (photo of the board), `notes` (owner's or a classmate's notes), `teacher_summary` (pasted WhatsApp text), `teacher_message` (imported from Mashov; `subject_id` may be `inbox` when the teacher couldn't be matched), `old_test`, `worksheet`. `source_ref` (unique per user) stops duplicates. `file_path` (Storage), `content` (text; for files, filled by `api/read-file.js`), optional `lesson_id`, `status` |
 | `study_topics` | Topics per subject and how ready the owner is | `state`: `new` / `with_help` / `alone`. Only `alone` counts as ready. |
 | `study_attempts` | Each question the owner tried | `question`, `answer`, `verdict` (`correct` / `partial` / `wrong`), `feedback`, `alone bool` |
 | `study_chats` | Tutor conversations | `mode` (`teach` / `test`), `topic`, `messages jsonb` |
@@ -111,6 +114,8 @@ api/_lib.js     Shared server helpers: auth check, Supabase REST with the user's
 api/transcribe.js  lesson audio → Groq → transcript → Gemini summary + topics → delete audio
 api/read-file.js   board photo / notes / old test (image or PDF) → Claude → text
 api/tutor.js       one tutor turn: builds the context from the subject's material and calls Claude
+api/calendar.js    GET: tests + events from the Handasaim class calendar (.ics), public
+api/mashov.js      the owner's Mashov homework + teacher messages (unofficial endpoints, read only)
 supabase/schema.sql  tables, policies, storage bucket
 tools/serve.js  local static server (port 5178)
 vendor/         Supabase, KaTeX, marked (self-hosted)
@@ -170,5 +175,6 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 | `GROQ_API_KEY` | transcription | set during owner setup |
 | `ANTHROPIC_API_KEY` | tutor, reading photos/PDFs | set during owner setup (with the $10/month cap) |
 | `GEMINI_API_KEY` | summaries (optional) | optional |
+| `MASHOV_USER`, `MASHOV_PASS` | Mashov import | set by the owner; optional `MASHOV_SCHOOL` (default 570358), `MASHOV_YEAR`, `MASHOV_API_VERSION` |
 | `TUTOR_MODEL`, `GEMINI_MODEL`, `WHISPER_MODEL`, `DAILY_TUTOR_CALLS`, `CONTEXT_CHARS` | overrides | optional |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | optional; the defaults in `api/_lib.js` are the shared project's public values | optional |

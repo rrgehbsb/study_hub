@@ -8,12 +8,14 @@
 (function () {
 'use strict';
 
-const VERSION = '0.1.1';
+const VERSION = '0.2.0';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
 const BUCKET = 'study';
-const K = { subj: 'dashboard:school:v1:subjects', as: 'dashboard:school:v1:assignments', te: 'dashboard:school:v1:tests' };
+const K = { subj: 'dashboard:school:v1:subjects', as: 'dashboard:school:v1:assignments', te: 'dashboard:school:v1:tests',
+  tt: 'dashboard:school:v1:timetable', // owned by the main Dashboard: read only here ({cls, mine:["subject|teacher"]})
+  set: 'study:v1:settings' };          // owned by Study Hub: {cls} when the Dashboard has no class set
 
 /* ================= helpers ================= */
 const $ = (s, r) => (r || document).querySelector(s);
@@ -146,6 +148,7 @@ school.load = async () => {
     if (res.error) throw res.error;
     const cloud = isObj(res.data && res.data.data) ? res.data.data : {};
     [K.subj, K.as, K.te].forEach(k => { school.data[k] = mergeById(school.data[k], cloud[k]); });
+    [K.tt, K.set].forEach(k => { if (isObj(cloud[k])) school.data[k] = cloud[k]; });
     school.ready = true;
     writeJSON(schoolLS(), school.data);
     emit();
@@ -162,7 +165,11 @@ school.save = async keys => {
     if (res.error) throw res.error;
     const cloud = isObj(res.data && res.data.data) ? res.data.data : {};
     const patch = { _pushAt: Date.now() };
-    keys.forEach(k => { patch[k] = mergeById(cloud[k], school.data[k]); school.data[k] = patch[k]; });
+    keys.forEach(k => {
+      if (k === K.tt) return; // never written from here
+      patch[k] = Array.isArray(school.data[k]) ? mergeById(cloud[k], school.data[k]) : school.data[k];
+      school.data[k] = patch[k];
+    });
     const rpc = await sb().rpc('app_state_patch', { p_key: key, p_patch: patch });
     if (rpc.error) {
       const up = await sb().from('app_state').upsert({ key, data: Object.assign({}, cloud, patch), updated_at: stamp() }, { onConflict: 'key' });
@@ -174,14 +181,14 @@ school.save = async keys => {
 const subjects = () => school.get(K.subj).filter(s => s && !s.hidden);
 const subject = id => school.get(K.subj).find(s => s.id === id) || null;
 const subjectName = id => { const s = subject(id); return s ? s.name : 'General'; };
-function ensureSubject(name) {
+function ensureSubject(name, fixedId) {
   name = String(name || '').trim();
   if (!name) return null;
   const low = name.toLowerCase();
   const hit = school.get(K.subj).find(s => s && String(s.name || '').trim().toLowerCase() === low);
   if (hit) return hit.id;
   const colors = ['#1F5AE0', '#6A43E8', '#FF5A2B', '#13B3C6', '#9BD23A', '#FFB21E', '#E0457B'];
-  const s = { id: newId(), name, color: colors[school.get(K.subj).length % colors.length], createdAt: stamp(), updatedAt: stamp() };
+  const s = { id: fixedId || newId(), name, color: colors[school.get(K.subj).length % colors.length], createdAt: stamp(), updatedAt: stamp() };
   school.data[K.subj] = school.get(K.subj).concat([s]);
   return s.id;
 }
@@ -199,6 +206,109 @@ function addTest(subjectId, name, testDate, topics) {
   school.data[K.te] = school.get(K.te).concat([{ id: newId(), subjectId, name, testDate, topics: topics || '', studyStatus: 'Not started', importance: 'Medium', notes: '', createdAt: stamp(), updatedAt: stamp() }]);
   return school.save([K.subj, K.te]);
 }
+
+/* ================= pulled in automatically: school calendar + Mashov =================
+   Both write into the SHARED school row (tests, homework) with stable ids, so the main
+   Dashboard shows them too and two devices never create duplicates. Teacher messages
+   go to study_materials (kind teacher_message) so the tutor can learn from them. */
+const HE_SUBJ = { 'מתמטיקה': 'math', 'אנגלית': 'english', 'פיזיקה': 'physics', 'פיסיקה': 'physics', 'ביולוגיה': 'biology', 'כימיה': 'chemistry', 'היסטוריה': 'history', 'ספרות': 'literature', 'תנך': 'bible', 'תנ"ך': 'bible', 'אזרחות': 'civics', 'לשון': 'hebrew', 'עברית': 'hebrew', 'גאוגרפיה': 'geography', 'גיאוגרפיה': 'geography', 'מדעי המחשב': 'computerscience', 'ערבית': 'arabic', 'חינוך גופני': 'physicaleducation', 'רובוטיקה': 'robotics' };
+const heNorm = s => String(s || '').replace(/["״׳']/g, '').replace(/\d+|יח"?ל|יחידות|מואץ|טכניונית|מעבדת|מעבדה|הקבצה|קבוצה/g, ' ').replace(/\s+/g, ' ').trim();
+// Hebrew subject (calendar / Mashov) → one of the school subjects; creates it when nothing fits
+function subjectFromHe(he) {
+  const n = heNorm(he);
+  if (!n) return ensureSubject('General');
+  const key = HE_SUBJ[n] || Object.keys(HE_SUBJ).filter(k => n.indexOf(k) >= 0).map(k => HE_SUBJ[k])[0];
+  const flat = x => String(x || '').toLowerCase().replace(/[^a-z֐-׿]/g, '');
+  const subs = school.get(K.subj);
+  const hit = subs.find(s => key && (s.id === key || flat(s.name) === key)) || subs.find(s => flat(s.name) === flat(n));
+  if (hit) return hit.id;
+  // a stable id from the name, so two devices importing the same subject don't create two
+  let h = 0; for (const c of n) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return ensureSubject(n, 'he-' + h.toString(36));
+}
+// teacher name → subject, from the timetable the main Dashboard keeps ("מתמטיקה|צפריר דלית")
+function subjectFromTeacher(name) {
+  const mine = (school.data[K.tt] && school.data[K.tt].mine) || [];
+  const last = String(name || '').trim().split(/\s+/).pop();
+  const row = last && mine.find(m => String(m).split('|')[1] && String(m).split('|')[1].indexOf(last) >= 0);
+  return row ? subjectFromHe(String(row).split('|')[0]) : null;
+}
+const myClass = () => (school.data[K.tt] && school.data[K.tt].cls) || (school.data[K.set] && school.data[K.set].cls) || '';
+async function setMyClass(cls) {
+  school.data[K.set] = Object.assign({}, school.data[K.set] || {}, { cls, updatedAt: stamp() });
+  await school.save([K.set]);
+}
+const syncState = { calendar: null, mashov: null }; // null = not tried, else 'ok' | message
+
+async function syncCalendar() {
+  const cls = myClass();
+  if (!cls) { syncState.calendar = 'no class'; return 0; }
+  const r = await fetch('/api/calendar?cls=' + encodeURIComponent(cls));
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.ok) { syncState.calendar = j.error || 'school site unreachable'; return 0; }
+  let added = 0, changed = false;
+  const tests = school.get(K.te).slice();
+  j.tests.forEach(c => {
+    const linked = tests.findIndex(t => t && t.calUid === c.uid);
+    if (linked >= 0) { // the school moved or renamed it: follow
+      const t = tests[linked];
+      if (t.source === 'calendar' && (t.testDate !== c.date || t.name !== c.title)) { tests[linked] = Object.assign({}, t, { testDate: c.date, name: c.title, updatedAt: stamp() }); changed = true; }
+      return;
+    }
+    const sid = subjectFromHe(c.subject || c.title);
+    const sameDay = tests.findIndex(t => t && !t.calUid && t.testDate === c.date && t.subjectId === sid);
+    if (sameDay >= 0) { tests[sameDay] = Object.assign({}, tests[sameDay], { calUid: c.uid, updatedAt: stamp() }); changed = true; return; }
+    tests.push({ id: 'cal-' + String(c.uid).replace(/[^\w-]/g, '').slice(0, 60), subjectId: sid, name: c.title, testDate: c.date, topics: c.details || '', type: c.quiz ? 'Quiz' : 'Test', calUid: c.uid, source: 'calendar', studyStatus: 'Not started', importance: 'Medium', notes: '', createdAt: stamp(), updatedAt: stamp() });
+    added++; changed = true;
+  });
+  if (changed) { school.data[K.te] = tests; await school.save([K.subj, K.te]); }
+  syncState.calendar = 'ok';
+  return added;
+}
+
+async function syncMashov() {
+  let j;
+  try { j = await api('mashov'); }
+  catch (e) { syncState.mashov = e.message; return 0; }
+  let added = 0;
+  const as = school.get(K.as).slice(), have = new Set(as.map(a => a.id));
+  const cutoff = addDays(todayKey(), -14);
+  (j.homework || []).forEach(h => {
+    if (have.has(h.ref) || (h.given && h.given < cutoff && !h.due)) return;
+    const first = h.text.split('\n')[0];
+    as.push({ id: h.ref, subjectId: subjectFromHe(h.subject), title: first.length > 120 ? first.slice(0, 117) + '…' : first, type: 'Homework', dueDate: h.due || null, givenDate: h.given || null, priority: 'Medium', status: 'Not started', notes: h.text, source: 'mashov', createdAt: stamp(), updatedAt: stamp() });
+    added++;
+  });
+  if (added) { school.data[K.as] = as; await school.save([K.subj, K.as]); }
+  const msgs = (j.messages || []).map(m => ({
+    subject_id: subjectFromTeacher(m.sender) || 'inbox', kind: 'teacher_message', source_ref: m.ref,
+    title: (m.subject || 'Message') + (m.sender ? ' · ' + m.sender : ''),
+    content: (m.body || '') + (m.files && m.files.length ? '\n\n[attached files: ' + m.files.join(', ') + ']' : ''),
+    status: 'ready', taken_at: m.date ? m.date + 'T12:00:00Z' : stamp()
+  }));
+  if (msgs.length && !DEMO) {
+    await fresh();
+    const r = await sb().from(T.materials).upsert(msgs, { onConflict: 'user_id,source_ref', ignoreDuplicates: true }).select('id');
+    if (r.error) { syncState.mashov = /source_ref/.test(r.error.message || '') ? 'run the updated supabase/schema.sql' : r.error.message; return added; }
+    added += (r.data || []).length;
+  }
+  if (j.problems && j.problems.length) console.warn('mashov', j.problems);
+  syncState.mashov = 'ok';
+  return added;
+}
+
+// Runs when the home page opens (at most every 30 minutes), or when asked.
+async function syncAll(force) {
+  if (DEMO) return 0;
+  const LS = 'sh:sync:' + uid, last = Number(localStorage.getItem(LS) || 0);
+  if (!force && Date.now() - last < 30 * 60e3) return 0;
+  try { localStorage.setItem(LS, String(Date.now())); } catch (e) {}
+  const n = (await syncCalendar().catch(e => { syncState.calendar = e.message; return 0; })) + (await syncMashov().catch(e => { syncState.mashov = e.message; return 0; }));
+  try { localStorage.setItem(LS + ':state', JSON.stringify({ at: Date.now(), calendar: syncState.calendar, mashov: syncState.mashov })); } catch (e) {}
+  if (n) { toast(n + ' new from school'); emitStudy(); }
+  return n;
+}
+const lastSync = () => readJSON('sh:sync:' + uid + ':state');
 
 /* ================= study tables ================= */
 const T = { lessons: 'study_lessons', materials: 'study_materials', topics: 'study_topics', attempts: 'study_attempts', chats: 'study_chats' };
@@ -412,12 +522,13 @@ function demoSchool() {
     [K.subj]: [{ id: 'phys', name: 'Physics', color: '#1F5AE0' }, { id: 'math', name: 'Maths', color: '#6A43E8' }, { id: 'eng', name: 'English', color: '#FF5A2B' }],
     [K.te]: [
       { id: 't1', subjectId: 'math', name: 'Maths retest', testDate: addDays(t, 3), topics: 'Derivatives, tangent lines' },
-      { id: 't2', subjectId: 'phys', name: 'Kinematics test', testDate: addDays(t, 12), topics: 'Free fall, two bodies meeting, graphs' }
+      { id: 't2', subjectId: 'phys', name: 'Kinematics test', testDate: addDays(t, 12), topics: 'Free fall, two bodies meeting, graphs', source: 'calendar', calUid: 'x' }
     ],
     [K.as]: [
       { id: 'a1', subjectId: 'phys', title: 'Questions 4–7, page 112', dueDate: addDays(t, 1), status: 'Not started' },
       { id: 'a2', subjectId: 'eng', title: 'Essay draft', dueDate: addDays(t, 4), status: 'Not started' },
-      { id: 'a3', subjectId: 'math', title: 'Worksheet 3', dueDate: addDays(t, -1), status: 'Not started' }
+      { id: 'a3', subjectId: 'math', title: 'Worksheet 3', dueDate: addDays(t, -1), status: 'Not started' },
+      { id: 'mashov-hw-1', subjectId: 'phys', title: 'דף עבודה 4, שאלות 1–3', givenDate: addDays(t, -1), status: 'Not started', source: 'mashov' }
     ]
   };
 }
@@ -431,7 +542,8 @@ const DEMO_ROWS = {
     { id: 'm1', subject_id: 'phys', kind: 'old_test', title: 'מבחן קינמטיקה תשפ״ו', status: 'ready', content: 'שאלה 1 (35 נק׳)…', created_at: addDays(todayKey(), -20) },
     { id: 'm2', subject_id: 'phys', kind: 'board', title: null, status: 'ready', content: '$v=v_0+at$', created_at: addDays(todayKey(), -1), lesson_id: 'l1' },
     { id: 'm3', subject_id: 'phys', kind: 'teacher_summary', title: 'סיכום שיעור – נפילה חופשית', status: 'ready', content: 'סיכום…', created_at: addDays(todayKey(), -1) },
-    { id: 'm4', subject_id: 'math', kind: 'board', title: null, status: 'reading', created_at: addDays(todayKey(), 0) }
+    { id: 'm4', subject_id: 'math', kind: 'board', title: null, status: 'reading', created_at: addDays(todayKey(), 0) },
+    { id: 'm5', subject_id: 'phys', kind: 'teacher_message', title: 'חומר למבחן · דנה כהן', status: 'ready', content: 'שלום לכולם,\nהמבחן יכלול: נפילה חופשית, מפגש שני גופים, גרפים.\nבהצלחה!', taken_at: addDays(todayKey(), -1) + 'T12:00:00Z', created_at: addDays(todayKey(), -1) }
   ],
   study_topics: [
     { id: 'tp1', subject_id: 'phys', name: 'נפילה חופשית', state: 'with_help' },
@@ -447,6 +559,7 @@ function demoRows(table, filter) {
 }
 async function demoApi(name, p) {
   await wait(700);
+  if (name === 'mashov') return { homework: [{ ref: 'mashov-hw-9', subject: 'מתמטיקה 5 יח"ל', text: 'שאלות 1-5 עמוד 40', given: todayKey(), due: null }], messages: [] };
   if (name !== 'tutor') return {};
   const last = (p.messages || []).slice(-1)[0] || {};
   if (p.mode === 'test' && (last.image || (p.messages || []).length > 2)) {
@@ -461,7 +574,9 @@ window.SH = {
   todayKey, daysUntil, fmtDay, rel, addDays, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,
-  rows, insert, update, setTopicState, upload, api, shrinkImage, renderRich, openAdd, onStudy, emitStudy
+  rows, insert, update, setTopicState, upload, api, shrinkImage, renderRich, openAdd, onStudy, emitStudy,
+  syncAll, lastSync, myClass, setMyClass, subjectFromHe,
+  _test: { syncCalendar, syncMashov, subjectFromTeacher } // used by tools/shot.js
 };
 errorBanner();
 if ('serviceWorker' in navigator && !DEMO && location.hostname !== 'localhost') navigator.serviceWorker.register('/sw.js').catch(() => {});

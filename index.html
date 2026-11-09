@@ -14,7 +14,7 @@
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.1.1">
+<link rel="stylesheet" href="/app.css?v=0.2.0">
 <title>Study Hub</title>
 </head>
 <body>
@@ -23,20 +23,38 @@
     <div class="top-text"><span class="sub" id="date"></span><h1>Study</h1></div>
     <button class="icon-btn" id="account" aria-label="Account"></button>
   </header>
+  <section id="setup" hidden></section>
   <section id="hero"></section>
   <div class="sec-h"><h2>Up next</h2><span class="meta" id="next-meta"></span></div>
   <div class="list" id="next"></div>
+  <div class="sec-h" id="msgs-h" hidden><h2>From teachers</h2><span class="meta">Mashov</span></div>
+  <div class="list" id="msgs" hidden></div>
   <div class="sec-h"><h2>Subjects</h2></div>
   <div class="subjects" id="subjects"></div>
 </main>
 <button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
-<script src="/app.js?v=0.1.1"></script>
+<script src="/app.js?v=0.2.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic } = S;
   $('#date').textContent = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
   $('#account').innerHTML = S.ic('out');
-  $('#account').onclick = () => S.sheet('<h2>Account</h2><p class="hint" style="margin-bottom:14px">Signed in as ' + esc((S.user() || {}).email || '') + '. Same account as your Dashboard.</p><button class="btn block" id="so">Sign out</button>', s => { s.querySelector('#so').onclick = S.signOut; });
+  const STATE_TXT = v => v === 'ok' ? 'Connected' : v === 'no class' ? 'Set your class above' : v ? v : 'Not checked yet';
+  $('#account').onclick = () => {
+    const st = S.lastSync() || {};
+    S.sheet('<h2>Account</h2><p class="hint" style="margin-bottom:14px">Signed in as ' + esc((S.user() || {}).email || '') + '. Same account as your Dashboard.</p>' +
+      '<div class="list" style="margin-bottom:14px"><div class="item"><span class="body"><span class="title">School calendar</span><span class="meta" dir="auto">' + esc(S.myClass() ? 'Class ' + S.myClass() + ' · ' + STATE_TXT(st.calendar) : 'No class set') + '</span></span></div>' +
+      '<div class="item"><span class="body"><span class="title">Mashov</span><span class="meta" dir="auto">' + esc(STATE_TXT(st.mashov)) + '</span></span></div></div>' +
+      '<form class="form" id="cls-f"><label class="field"><span>Your class</span><input name="cls" placeholder="e.g. 11-3" value="' + esc(S.myClass()) + '" autocomplete="off"></label></form>' +
+      '<div class="row2" style="margin-top:12px"><button class="btn primary" id="sync">Sync now</button><button class="btn" id="so">Sign out</button></div>', sh => {
+      sh.querySelector('#so').onclick = S.signOut;
+      sh.querySelector('#sync').onclick = async () => {
+        const v = sh.querySelector('[name=cls]').value.trim();
+        if (v && v !== S.myClass()) { if (!/^\d{1,2}-\d{1,2}$/.test(v)) return S.toast('Class looks like 11-3'); await S.setMyClass(v); }
+        S.closeSheet(); S.toast('Syncing…'); await S.syncAll(true); loadStudy(); loadMsgs();
+      };
+    });
+  };
   if (!(await S.session())) return;
 
   let topicsBySubj = {}, lessonsBySubj = {};
@@ -73,15 +91,15 @@
   function upNext() {
     const items = [];
     S.openTests().filter(t => S.daysUntil(t.testDate) <= 21).forEach(t => items.push({ kind: 'test', date: t.testDate, x: t }));
-    S.openHomework().filter(a => !a.dueDate || (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 14)).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999-12-31', x: a }));
+    S.openHomework().filter(a => a.dueDate ? (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 14) : S.daysUntil(String(a.givenDate || a.createdAt || '').slice(0, 10) || S.todayKey()) >= -14).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999-12-31', x: a }));
     items.sort((a, b) => a.date.localeCompare(b.date));
     $('#next-meta').textContent = items.length ? items.length + ' item' + (items.length === 1 ? '' : 's') : '';
     if (!items.length) { $('#next').innerHTML = '<p class="empty">Nothing due in the next two weeks.</p>'; return; }
     $('#next').innerHTML = items.slice(0, 12).map(it => {
       const x = it.x, subj = S.subject(x.subjectId), n = S.daysUntil(it.x.testDate || it.x.dueDate);
-      const when = '<span class="when' + (n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || 'no date') + '</span>';
-      if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="dot" style="background:' + esc((subj && subj.color) || '') + '"></span><span class="body"><span class="title" dir="auto">' + esc(x.name) + '</span><span class="meta"><span class="badge test">Test</span> ' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</a>';
-      return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="Mark done"><span class="check">' + ic('check', 'sm') + '</span></button><span class="body"><span class="title" dir="auto">' + esc(x.title) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</div>';
+      const when = '<span class="when' + (n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || (x.givenDate ? 'given ' + S.rel(x.givenDate) : 'no date')) + '</span>';
+      if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="dot" style="background:' + esc((subj && subj.color) || '') + '"></span><span class="body"><span class="title" dir="auto">' + esc(x.name) + '</span><span class="meta"><span class="badge test">' + (x.type === 'Quiz' ? 'Quiz' : 'Test') + '</span> ' + esc(S.subjectName(x.subjectId)) + (x.source === 'calendar' ? ' · school site' : '') + '</span></span>' + when + '</a>';
+      return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="Mark done"><span class="check">' + ic('check', 'sm') + '</span></button><span class="body"><span class="title" dir="auto">' + esc(x.title) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + (x.source === 'mashov' ? ' · Mashov' : '') + '</span></span>' + when + '</div>';
     }).join('');
     S.$$('[data-done]').forEach(b => b.onclick = () => {
       const id = b.dataset.done;
@@ -110,12 +128,36 @@
     const b = $('#all-subj'); if (b) b.onclick = () => { showAll = !showAll; subjectsGrid(); };
   }
 
-  function render() { hero(); upNext(); subjectsGrid(); }
+  function setup() {
+    const need = S.school.ready && !S.myClass() && !S.DEMO;
+    $('#setup').hidden = !need;
+    if (!need) return;
+    $('#setup').innerHTML = '<div class="card"><h2 style="font-size:19px">Which class are you in?</h2><p class="hint" style="margin:4px 0 12px">Tests from the school website come in by themselves once Study Hub knows your class.</p><form class="row2" id="cls-q"><label class="field"><input name="cls" placeholder="e.g. 11-3" autocomplete="off" aria-label="Class"></label><button class="btn primary" type="submit">Save</button></form></div>';
+    $('#cls-q').onsubmit = async e => {
+      e.preventDefault();
+      const v = e.target.cls.value.trim();
+      if (!/^\d{1,2}-\d{1,2}$/.test(v)) return S.toast('Class looks like 11-3');
+      await S.setMyClass(v); S.toast('Saved. Checking the school calendar…'); await S.syncAll(true); render();
+    };
+  }
+  async function loadMsgs() {
+    let ms = [];
+    try { ms = (await S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 5)); } catch (e) {}
+    $('#msgs-h').hidden = $('#msgs').hidden = !ms.length;
+    $('#msgs').innerHTML = ms.map(m => '<button class="item" data-msg="' + esc(m.id) + '"><span class="body"><span class="title" dir="auto">' + esc(m.title || 'Message') + '</span><span class="meta">' + esc(m.subject_id === 'inbox' ? 'Inbox' : S.subjectName(m.subject_id)) + ' · ' + esc(S.rel(String(m.taken_at || m.created_at).slice(0, 10))) + '</span></span>' + S.ic('chev', 'sm') + '</button>').join('');
+    S.$$('[data-msg]').forEach(b => b.onclick = () => {
+      const m = ms.find(x => x.id === b.dataset.msg); if (!m) return;
+      S.sheet('<h2 dir="auto">' + esc(m.title || 'Message') + '</h2><div class="prose card" dir="auto" style="white-space:pre-wrap">' + esc(m.content || '') + '</div><p class="hint" style="margin-top:10px">The tutor reads this' + (m.subject_id === 'inbox' ? ' once it’s matched to a subject.' : ' when you study ' + esc(S.subjectName(m.subject_id)) + '.') + '</p>');
+    });
+  }
+  function render() { setup(); hero(); upNext(); subjectsGrid(); }
   S.school.on(render);
   S.onStudy(loadStudy);
   $('#add').onclick = () => S.openAdd(null, () => loadStudy());
   await S.school.load();
   await loadStudy();
+  loadMsgs();
+  S.syncAll().then(n => { if (n) { loadStudy(); loadMsgs(); } });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { S.school.load(); loadStudy(); } });
 })();
 </script>

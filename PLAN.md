@@ -16,7 +16,9 @@ The owner's full wish list is in `docs/vision.md`. This plan is the order to bui
   - `GROQ_API_KEY` from console.groq.com (free, no card)
   - `ANTHROPIC_API_KEY` from console.anthropic.com, **with a monthly spend limit of $10** (Settings → Limits)
   - optional: `GEMINI_API_KEY` from aistudio.google.com (free)
+  - `MASHOV_USER` and `MASHOV_PASS`: the Mashov login (after changing the password that was shared in a screenshot)
   - then Deployments → Redeploy
+- [ ] Re-run `supabase/schema.sql` once after v0.2.0 (adds `source_ref` for Mashov messages). Safe to run again.
 - [ ] Open the site on the iPhone → Share → Add to Home Screen. Sign in with the main Dashboard account.
 - [ ] Ask each teacher whether recording lessons is OK.
 
@@ -57,8 +59,10 @@ Known limits to handle in this phase if they bite:
 
 - [ ] **Share-to-Study inbox** `api/inbox.js` + an iPhone Shortcut ("Send to Study") in the share sheet: WhatsApp teacher summaries, board photos, PDFs. Auth with a personal inbox token (Shortcuts can't sign in). The subject is guessed from the timetable and the text, and can be changed with one tap.
 - [ ] **"Record lesson" Shortcut**: starts a Voice Memo; when stopped, uploads it with the subject from the timetable slot.
-- [ ] **School calendar**: tests and events from `https://handasaim.co.il/calendar/<class>.ics` (code to copy: the main Dashboard's `api/school.js`).
-- [ ] **Mashov collector**: a GitHub Action every few hours using the unofficial Mashov API (`mashovapi-js` on npm or the `MashovAPI` repo). Login = username + password + school code 570358, from GitHub Secrets (`MASHOV_USER`, `MASHOV_PASS`). Pulls homework, teacher messages (with files) and grades into the school row and `study_materials`. Unofficial: if it breaks, the app keeps working and the owner adds items by hand.
+- [x] **School calendar** (v0.2.0): `api/calendar.js` reads `https://handasaim.co.il/calendar/<class>.ics`; the home page adds new tests to the shared school row (id `cal-<uid>`, `calUid`, `source:'calendar'`), follows date changes, and links to an own test on the same day. Class from the Dashboard's timetable (`cls`) or Study Hub's own setting.
+- [x] **Mashov** (v0.2.0, **untested against the real Mashov**: the dev sandbox can't reach web.mashov.info): `api/mashov.js` logs in with `MASHOV_USER`/`MASHOV_PASS` (school 570358, year computed) using the endpoints of the unofficial libraries, returns homework + the last 30 days of teacher messages. The home page runs it at most every 30 min: homework → school row (id `mashov-hw-<id>`), messages → `study_materials` kind `teacher_message` (subject guessed from the teacher's name in the Dashboard timetable, else `inbox`). It returns `homeworkFields` so the field mapping can be fixed after the first real run.
+- [ ] First real Mashov run: check homework fields, due dates, message subjects; fix the mapping.
+- [ ] Mashov files (PDFs teachers attach) → `read-file` so the tutor can read them.
 - [ ] **Ofek**: some teachers post homework only there. First find out how its login works (likely the Ministry of Education login). Options in order: an API the Ofek site itself calls; a headless browser in a GitHub Action; manual add (current fallback).
 - [ ] De-duplicate: the same homework from Mashov and Ofek is one item.
 
@@ -75,4 +79,5 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-09 (later): v0.2.0 — school calendar + Mashov import, class setup, "From teachers" on home, sync status in Account. Owner wants everything pulled in automatically, not typed.
 - 2026-11-09: Repo started. Phase 1 code written in one night (unattended): pages, functions, schema, demo mode. Not yet tested against real Supabase/API keys.

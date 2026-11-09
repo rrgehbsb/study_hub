@@ -83,6 +83,13 @@ create table if not exists public.study_usage (
   primary key (user_id, day)
 );
 
+-- v0.2: items pulled in automatically (Mashov messages, files) carry where they came from,
+-- so the same message is never saved twice.
+alter table public.study_materials add column if not exists source_ref text;
+create unique index if not exists study_materials_source on public.study_materials (user_id, source_ref); -- NULLs never clash
+alter table public.study_materials drop constraint if exists study_materials_kind_check;
+alter table public.study_materials add constraint study_materials_kind_check check (kind in ('board','notes','teacher_summary','teacher_message','old_test','worksheet'));
+
 create index if not exists study_lessons_subject on public.study_lessons (user_id, subject_id, lesson_date desc);
 create index if not exists study_materials_subject on public.study_materials (user_id, subject_id, created_at desc);
 create index if not exists study_topics_subject on public.study_topics (user_id, subject_id);
