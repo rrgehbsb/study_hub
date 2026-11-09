@@ -1,0 +1,78 @@
+# Study Hub — build plan
+
+Tick items (`[x]`) as they're done and add a dated line to the log at the bottom. Phases go in order: a phase starts only when the one before it is used for real, not just built. Exception: the owner can ask to jump ahead.
+
+The owner's full wish list is in `docs/vision.md`. This plan is the order to build it in.
+
+---
+
+## Owner setup (the owner does these; Claude can't)
+
+- [ ] Make the GitHub repo `rrgehbsb/study_hub` reachable by Claude (public, or install the Claude GitHub app on it).
+- [ ] Supabase (the same project as the main Dashboard): SQL Editor → New query → paste `supabase/schema.sql` → Run.
+- [ ] Vercel: Add New → Project → import `study_hub` → Deploy (no build settings needed).
+- [ ] Vercel → Settings → Environment Variables:
+  - `ALLOWED_EMAILS` = the owner's login email
+  - `GROQ_API_KEY` from console.groq.com (free, no card)
+  - `ANTHROPIC_API_KEY` from console.anthropic.com, **with a monthly spend limit of $10** (Settings → Limits)
+  - optional: `GEMINI_API_KEY` from aistudio.google.com (free)
+  - then Deployments → Redeploy
+- [ ] Open the site on the iPhone → Share → Add to Home Screen. Sign in with the main Dashboard account.
+- [ ] Ask each teacher whether recording lessons is OK.
+
+---
+
+## Phase 1 — the tutor works on real material (target: first week)
+
+Goal: upload a real lesson, then study it with a tutor at the teacher's level.
+
+- [x] `CLAUDE.md`, `PLAN.md`, `docs/vision.md`
+- [x] `supabase/schema.sql`: study tables, policies, private `study` bucket
+- [x] Home: next-test hero, "Up next" (tests + homework from the shared `uid:school` row, tap to finish homework with Undo), subjects, + Add sheet
+- [x] Add sheet: lesson recording, board photo, notes, teacher summary (paste), old test (photo/PDF), homework, test — all saved to the shared school row or study tables
+- [x] Subject page: Teach me / Test me, topics with state, lessons, materials
+- [x] Lesson page: transcript + summary
+- [x] `api/transcribe.js`: Groq Whisper (Hebrew) → transcript → Gemini summary + topics → audio deleted
+- [x] `api/read-file.js`: board photo / notes / old test (image or PDF) → Claude → text
+- [x] `api/tutor.js`: context from old tests + transcripts + materials, cached; teach and test modes; daily call limit
+- [x] Tutor page: chat, math rendering (KaTeX), photo of your solution, "solved alone / needed help" → attempts + topic state
+- [x] `?demo` mode and `tools/shot.js`
+- [ ] **Owner:** run the setup above, upload one real physics lesson, check the Hebrew transcript.
+- [ ] Test sync both directions with the main Dashboard: add homework in each app, see it in the other.
+- [ ] Fix whatever the first real lesson shows (likely: transcript quality, upload size, tutor tone).
+
+Known limits to handle in this phase if they bite:
+- **Recordings over 25 MB** (Groq's free cap). Voice Memos "Compressed" quality is about 0.5 MB/min, so 45 minutes is close. If uploads fail: split the audio server-side (ffmpeg in the function, or a GitHub Action), or record two shorter files.
+- **Vercel function time limit.** `vercel.json` asks for 60 s; Groq usually transcribes 45 min in well under that. If it times out, move transcription to a background job (GitHub Action triggered by a webhook).
+
+## Phase 2 — the best possible transcript and teaching
+
+- [ ] Compare Groq Whisper with ivrit.ai's Hebrew Whisper (`ivrit-ai/whisper-large-v3`) on the same real lesson; keep the winner. ivrit.ai has no hosted API, so if it wins it runs in a GitHub Action (free minutes) or on the owner's PC.
+- [ ] Link board photos to the lesson by time (a photo taken during a lesson's timetable slot belongs to that lesson), so the tutor sees "what was on the board when the teacher said X".
+- [ ] Topics: build the topic list per subject from transcripts and old tests (Gemini), owner can rename/merge with one tap.
+- [ ] "Timed practice test" mode: 2 to 4 questions in the style of the teacher's test, timer, checked at the end.
+- [ ] Maths subject with the owner's maths material (the owner wants maths explained in Hebrew).
+
+## Phase 3 — everything comes in by itself
+
+- [ ] **Share-to-Study inbox** `api/inbox.js` + an iPhone Shortcut ("Send to Study") in the share sheet: WhatsApp teacher summaries, board photos, PDFs. Auth with a personal inbox token (Shortcuts can't sign in). The subject is guessed from the timetable and the text, and can be changed with one tap.
+- [ ] **"Record lesson" Shortcut**: starts a Voice Memo; when stopped, uploads it with the subject from the timetable slot.
+- [ ] **School calendar**: tests and events from `https://handasaim.co.il/calendar/<class>.ics` (code to copy: the main Dashboard's `api/school.js`).
+- [ ] **Mashov collector**: a GitHub Action every few hours using the unofficial Mashov API (`mashovapi-js` on npm or the `MashovAPI` repo). Login = username + password + school code 570358, from GitHub Secrets (`MASHOV_USER`, `MASHOV_PASS`). Pulls homework, teacher messages (with files) and grades into the school row and `study_materials`. Unofficial: if it breaks, the app keeps working and the owner adds items by hand.
+- [ ] **Ofek**: some teachers post homework only there. First find out how its login works (likely the Ministry of Education login). Options in order: an API the Ofek site itself calls; a headless browser in a GitHub Action; manual add (current fallback).
+- [ ] De-duplicate: the same homework from Mashov and Ofek is one item.
+
+## Phase 4 — the planner
+
+- [ ] Weekly fixed activities (volleyball, robotics, gym, travel) entered once. When the main Dashboard's weekly planner exists, read it from the shared database instead.
+- [ ] Free slots = timetable + fixed activities + travel, per day.
+- [ ] Study need per test: topics × readiness (topics not `alone` need time), minimum lead time (start 5 to 7 days before).
+- [ ] The plan: 25–40 minute blocks in free slots, at most one block on a training day unless a test is within 3 days. Re-plans when a test date, topic list or readiness changes.
+- [ ] Afternoon push notification with tonight's block; tapping it opens the tutor on that topic. (Copy web-push from the main Dashboard: `api/notify.js`, VAPID keys.)
+- [ ] Tonight's block + homework due soon on the main Dashboard's Today (a small change in the main repo, through the shared database).
+
+---
+
+## Log
+
+- 2026-11-09: Repo started. Phase 1 code written in one night (unattended): pages, functions, schema, demo mode. Not yet tested against real Supabase/API keys.
