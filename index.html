@@ -14,7 +14,7 @@
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.1.0">
+<link rel="stylesheet" href="/app.css?v=0.1.1">
 <title>Study Hub</title>
 </head>
 <body>
@@ -30,7 +30,7 @@
   <div class="subjects" id="subjects"></div>
 </main>
 <button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
-<script src="/app.js?v=0.1.0"></script>
+<script src="/app.js?v=0.1.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic } = S;
@@ -53,9 +53,9 @@
   function hero() {
     const t = S.openTests().find(x => S.daysUntil(x.testDate) <= 21);
     if (!t) {
-      const first = S.subjects()[0];
+      const first = S.subjects().find(s => (lessonsBySubj[s.id] || []).length || (topicsBySubj[s.id] || []).length);
       $('#hero').innerHTML = '<div class="hero calm"><span class="eyebrow">No tests in the next 3 weeks</span><h2>Good time to get ahead</h2>' +
-        (first ? '<div class="row"><a class="btn primary" href="' + S.link('/subject.html', { id: first.id }) + '">Practice ' + esc(first.name) + '</a></div>' : '<p class="line">Add a subject, a lesson or a test with + Add.</p>') + '</div>';
+        (first ? '<div class="row"><a class="btn primary" href="' + S.link('/subject.html', { id: first.id }) + '">Practice ' + esc(first.name) + '</a></div>' : '<p class="line">Add your next test with + Add → Test date, then record the next lesson.</p>') + '</div>';
       return;
     }
     const n = S.daysUntil(t.testDate), name = S.subjectName(t.subjectId);
@@ -90,14 +90,24 @@
     });
   }
 
+  let showAll = false;
   function subjectsGrid() {
-    const list = S.subjects();
-    if (!list.length) { $('#subjects').innerHTML = '<p class="empty card" style="grid-column:1/-1">No subjects yet. They come from your Dashboard’s School page, or tap + Add.</p>'; return; }
-    $('#subjects').innerHTML = list.map(s => {
+    const all = S.subjects();
+    // only subjects with something in them; the rest fold away (the Dashboard ships a long default list)
+    const busy = new Set();
+    Object.keys(lessonsBySubj).concat(Object.keys(topicsBySubj)).forEach(k => busy.add(k));
+    S.openTests().forEach(t => busy.add(t.subjectId));
+    S.openHomework().forEach(a => busy.add(a.subjectId));
+    const active = all.filter(s => busy.has(s.id));
+    const list = showAll ? all : active;
+    if (!all.length) { $('#subjects').innerHTML = '<p class="empty card" style="grid-column:1/-1">No subjects yet. Tap + Add.</p>'; return; }
+    $('#subjects').innerHTML = (list.length ? list.map(s => {
       const tps = topicsBySubj[s.id] || [], ls = lessonsBySubj[s.id] || [];
       const line = (ls.length ? ls.length + ' lesson' + (ls.length === 1 ? '' : 's') : 'No lessons yet') + (tps.length ? ' · ' + tps.filter(t => t.state === 'alone').length + '/' + tps.length + ' ready' : '');
       return '<a class="subj" style="--c:' + esc(s.color || '') + '" href="' + S.link('/subject.html', { id: s.id }) + '"><b dir="auto">' + esc(s.name) + '</b><span>' + esc(line) + '</span></a>';
-    }).join('');
+    }).join('') : '<p class="empty card" style="grid-column:1/-1">Subjects show up here once they have a lesson, a test or homework. Start with + Add.</p>') +
+      (active.length < all.length ? '<button class="btn" id="all-subj" style="grid-column:1/-1">' + (showAll ? 'Show only active subjects' : 'All subjects (' + all.length + ')') + '</button>' : '');
+    const b = $('#all-subj'); if (b) b.onclick = () => { showAll = !showAll; subjectsGrid(); };
   }
 
   function render() { hero(); upNext(); subjectsGrid(); }

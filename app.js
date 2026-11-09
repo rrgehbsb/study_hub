@@ -8,7 +8,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.1.0';
+const VERSION = '0.1.1';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
