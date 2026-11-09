@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.1.0">
+<title>Sign in · Study Hub</title>
+</head>
+<body>
+<main class="login">
+  <h1>Study Hub</h1>
+  <p class="hint" style="font-size:15px">Sign in with your Dashboard account. Your homework and tests come from there.</p>
+  <form class="form" id="f" novalidate>
+    <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required></label>
+    <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
+    <button class="btn primary block" type="submit">Sign in</button>
+    <p class="hint" id="msg" role="alert"></p>
+  </form>
+</main>
+<script src="/app.js?v=0.1.0"></script>
+<script>
+(async function () {
+  const S = window.SH, f = document.getElementById('f'), msg = document.getElementById('msg');
+  const next = (() => { const n = S.qs('next') || '/'; return n.startsWith('/') && !n.startsWith('//') ? n : '/'; })();
+  if (S.DEMO) { location.href = '/?demo'; return; }
+  if (await S.session({ optional: true })) { location.href = next; return; }
+  f.onsubmit = async e => {
+    e.preventDefault();
+    const btn = f.querySelector('button'); btn.disabled = true; msg.textContent = '';
+    try {
+      const r = await S.sb().auth.signInWithPassword({ email: f.email.value.trim(), password: f.password.value });
+      if (r.error) throw r.error;
+      location.href = next;
+    } catch (err) {
+      btn.disabled = false;
+      msg.textContent = /invalid/i.test(err.message || '') ? 'Wrong email or password. It’s the same as your Dashboard login.' : (err.message || 'Could not sign in.');
+    }
+  };
+})();
+</script>
+</body>
+</html>

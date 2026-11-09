@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.1.0">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/vendor/katex/auto-render.min.js"></script>
+<script src="/vendor/marked.min.js"></script>
+<title>Subject · Study Hub</title>
+</head>
+<body>
+<main class="page" id="page">
+  <header class="top">
+    <a class="icon-btn" id="back" aria-label="Back"></a>
+    <div class="top-text"><span class="sub" id="sub"></span><h1 id="name" dir="auto">Subject</h1></div>
+  </header>
+  <section class="big-actions">
+    <a class="big-btn teach" id="teach"><b>Teach me</b><span>From zero, the way your teacher taught it</span></a>
+    <a class="big-btn test" id="testme"><b>Test me</b><span>Test-level questions, no hints until you try</span></a>
+  </section>
+  <div class="sec-h"><h2>Topics</h2><span class="meta">tap one to focus on it</span></div>
+  <div class="chips" id="topics"></div>
+  <div class="sec-h"><h2>Lessons</h2></div>
+  <div class="list" id="lessons"></div>
+  <div class="sec-h"><h2>Material</h2></div>
+  <div class="list" id="materials"></div>
+</main>
+<button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
+<script src="/app.js?v=0.1.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc } = S;
+  const id = S.qs('id');
+  $('#back').href = S.link('/');
+  $('#back').innerHTML = S.ic('back');
+  if (!(await S.session())) return;
+  let topic = null, lessons = [], materials = [], topics = [], poll = null;
+  const KIND = { board: 'Board photo', notes: 'Notes', teacher_summary: 'Teacher summary', old_test: 'Old test', worksheet: 'Worksheet' };
+  const STATE = { new: 'Not yet', with_help: 'With help', alone: 'Solved alone' };
+  const STATUS = { uploaded: ['busy', 'Waiting'], transcribing: ['busy', 'Transcribing…'], reading: ['busy', 'Reading…'], error: ['err', 'Failed · retry'] };
+
+  function header() {
+    const s = S.subject(id);
+    $('#name').textContent = s ? s.name : 'Subject';
+    document.title = (s ? s.name : 'Subject') + ' · Study Hub';
+    const t = S.openTests().find(x => x.subjectId === id);
+    const n = t ? S.daysUntil(t.testDate) : null;
+    $('#sub').textContent = t ? (n < 7 ? 'Test ' + S.rel(t.testDate) + ' · ' + S.fmtDay(t.testDate) : 'Test on ' + S.fmtDay(t.testDate)) : 'No test scheduled';
+    const p = { subject: id }; if (topic) p.topic = topic; if (t) p.test = t.id;
+    $('#teach').href = S.link('/tutor.html', Object.assign({ mode: 'teach' }, p));
+    $('#testme').href = S.link('/tutor.html', Object.assign({ mode: 'test' }, p));
+  }
+  function renderTopics() {
+    $('#topics').innerHTML = topics.length
+      ? topics.map(t => '<button class="chip" data-topic="' + esc(t.name) + '" aria-pressed="' + (topic === t.name) + '" title="' + esc(STATE[t.state]) + '"><span class="st ' + esc(t.state) + '"></span><span dir="auto">' + esc(t.name) + '</span></button>').join('')
+      : '<p class="empty card" style="width:100%">Topics appear here once a lesson is transcribed. Green = solved alone, orange = with help.</p>';
+    S.$$('[data-topic]').forEach(b => b.onclick = () => { topic = topic === b.dataset.topic ? null : b.dataset.topic; renderTopics(); header(); });
+  }
+  const statusBadge = st => STATUS[st] ? '<span class="badge ' + STATUS[st][0] + '">' + STATUS[st][1] + '</span>' : '';
+  function renderLessons() {
+    $('#lessons').innerHTML = lessons.length ? lessons.map(l =>
+      (l.status === 'ready'
+        ? '<a class="item" href="' + S.link('/lesson.html', { id: l.id }) + '">'
+        : '<button class="item" data-retry-lesson="' + esc(l.id) + '"' + (l.status === 'error' ? '' : ' disabled') + '>') +
+      '<span class="body"><span class="title" dir="auto">' + esc(l.title || 'Lesson') + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + (l.status === 'error' && l.error ? '<br><span dir="auto">' + esc(l.error) + '</span>' : '') + '</span></span>' +
+      (statusBadge(l.status) || S.ic('chev', 'sm')) + (l.status === 'ready' ? '</a>' : '</button>')
+    ).join('') : '<p class="empty">No lessons yet. Record the next lesson and add it with + Add.</p>';
+    S.$$('[data-retry-lesson]').forEach(b => b.onclick = () => {
+      S.toast('Transcribing again…');
+      S.api('transcribe', { lessonId: b.dataset.retryLesson, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); });
+      setTimeout(load, 800);
+    });
+  }
+  function renderMaterials() {
+    $('#materials').innerHTML = materials.length ? materials.map(m =>
+      '<button class="item" data-mat="' + esc(m.id) + '"><span class="body"><span class="title" dir="auto">' + esc(m.title || KIND[m.kind] || 'Material') + '</span><span class="meta">' + esc(KIND[m.kind] || m.kind) + ' · ' + esc(S.fmtDay(m.created_at)) + '</span></span>' + (statusBadge(m.status) || S.ic('chev', 'sm')) + '</button>'
+    ).join('') : '<p class="empty">Board photos, teacher summaries and old tests go here. Old tests matter most: they show the tutor your teacher’s level.</p>';
+    S.$$('[data-mat]').forEach(b => b.onclick = () => {
+      const m = materials.find(x => x.id === b.dataset.mat);
+      if (!m) return;
+      if (m.status === 'error') {
+        S.toast('Reading it again…');
+        S.api('read-file', { materialId: m.id, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); });
+        setTimeout(load, 800); return;
+      }
+      if (m.status !== 'ready') return;
+      S.sheet('<h2 dir="auto">' + esc(m.title || KIND[m.kind]) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(KIND[m.kind]) + ' · ' + esc(S.fmtDay(m.created_at)) + ' · what the tutor reads</p><div class="prose card" dir="auto" id="mat-body"></div>', s => S.renderRich(s.querySelector('#mat-body'), m.content || ''));
+    });
+  }
+  async function load() {
+    try {
+      [lessons, materials, topics] = await Promise.all([
+        S.rows(S.T.lessons, { subject_id: id }, 'lesson_date', 60),
+        S.rows(S.T.materials, { subject_id: id }, 'created_at', 100),
+        S.rows(S.T.topics, { subject_id: id })
+      ]);
+    } catch (e) { S.toast(e.message); }
+    topics.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    renderTopics(); renderLessons(); renderMaterials(); header();
+    const busy = lessons.concat(materials).some(x => ['uploaded', 'transcribing', 'reading'].includes(x.status));
+    clearTimeout(poll); if (busy && !S.DEMO) poll = setTimeout(load, 6000);
+  }
+  S.school.on(header);
+  S.onStudy(load);
+  $('#add').onclick = () => S.openAdd(id, () => load());
+  await S.school.load();
+  await load();
+})();
+</script>
+</body>
+</html>

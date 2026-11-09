@@ -113,7 +113,7 @@ module.exports = handler(async (req, res) => {
       photos++;
       messages.unshift({ role, content: [{ type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: String(m.image).replace(/^data:[^,]+,/, '') } }, { type: 'text', text: text || '(my solution)' }] });
     } else {
-      messages.unshift({ role, content: (m.image ? '[photo of my solution, sent earlier] ' : '') + (text || '…') });
+      messages.unshift({ role, content: (m.image || m.hadImage ? '[photo of my solution, sent earlier] ' : '') + (text || '…') });
     }
   }
   while (messages.length && messages[0].role !== 'user') messages.shift(); // the API wants a user turn first

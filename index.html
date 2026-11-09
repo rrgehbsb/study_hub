@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.1.0">
+<title>Study Hub</title>
+</head>
+<body>
+<main class="page" id="page">
+  <header class="top">
+    <div class="top-text"><span class="sub" id="date"></span><h1>Study</h1></div>
+    <button class="icon-btn" id="account" aria-label="Account"></button>
+  </header>
+  <section id="hero"></section>
+  <div class="sec-h"><h2>Up next</h2><span class="meta" id="next-meta"></span></div>
+  <div class="list" id="next"></div>
+  <div class="sec-h"><h2>Subjects</h2></div>
+  <div class="subjects" id="subjects"></div>
+</main>
+<button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
+<script src="/app.js?v=0.1.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc, ic } = S;
+  $('#date').textContent = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+  $('#account').innerHTML = S.ic('out');
+  $('#account').onclick = () => S.sheet('<h2>Account</h2><p class="hint" style="margin-bottom:14px">Signed in as ' + esc((S.user() || {}).email || '') + '. Same account as your Dashboard.</p><button class="btn block" id="so">Sign out</button>', s => { s.querySelector('#so').onclick = S.signOut; });
+  if (!(await S.session())) return;
+
+  let topicsBySubj = {}, lessonsBySubj = {};
+  async function loadStudy() {
+    try {
+      const [topics, lessons] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons)]);
+      topicsBySubj = {}; lessonsBySubj = {};
+      topics.forEach(t => (topicsBySubj[t.subject_id] = topicsBySubj[t.subject_id] || []).push(t));
+      lessons.forEach(l => (lessonsBySubj[l.subject_id] = lessonsBySubj[l.subject_id] || []).push(l));
+    } catch (e) { S.toast(e.message); }
+    render();
+  }
+
+  function hero() {
+    const t = S.openTests().find(x => S.daysUntil(x.testDate) <= 21);
+    if (!t) {
+      const first = S.subjects()[0];
+      $('#hero').innerHTML = '<div class="hero calm"><span class="eyebrow">No tests in the next 3 weeks</span><h2>Good time to get ahead</h2>' +
+        (first ? '<div class="row"><a class="btn primary" href="' + S.link('/subject.html', { id: first.id }) + '">Practice ' + esc(first.name) + '</a></div>' : '<p class="line">Add a subject, a lesson or a test with + Add.</p>') + '</div>';
+      return;
+    }
+    const n = S.daysUntil(t.testDate), name = S.subjectName(t.subjectId);
+    const tps = topicsBySubj[t.subjectId] || [];
+    const ready = tps.filter(x => x.state === 'alone').length;
+    const readiness = tps.length ? ready + ' of ' + tps.length + ' topics solved alone' : 'No topics yet: the tutor builds them from your lessons';
+    $('#hero').innerHTML = '<div class="hero"><span class="eyebrow">Next test · ' + esc(name) + '</span>' +
+      '<h2 dir="auto">' + esc(t.name || name + ' test') + '</h2>' +
+      '<p class="line">' + (n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : 'In ' + n + ' days') + ' · ' + esc(S.fmtDay(t.testDate)) + (t.topics ? ' · <span dir="auto">' + esc(t.topics) + '</span>' : '') + '</p>' +
+      '<p class="line">' + esc(readiness) + '</p>' +
+      '<div class="row"><a class="btn light" href="' + S.link('/tutor.html', { subject: t.subjectId, mode: 'test', test: t.id }) + '">Test me</a>' +
+      '<a class="btn ghost-light" href="' + S.link('/tutor.html', { subject: t.subjectId, mode: 'teach', test: t.id }) + '">Teach me</a></div></div>';
+  }
+
+  function upNext() {
+    const items = [];
+    S.openTests().filter(t => S.daysUntil(t.testDate) <= 21).forEach(t => items.push({ kind: 'test', date: t.testDate, x: t }));
+    S.openHomework().filter(a => !a.dueDate || (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 14)).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999-12-31', x: a }));
+    items.sort((a, b) => a.date.localeCompare(b.date));
+    $('#next-meta').textContent = items.length ? items.length + ' item' + (items.length === 1 ? '' : 's') : '';
+    if (!items.length) { $('#next').innerHTML = '<p class="empty">Nothing due in the next two weeks.</p>'; return; }
+    $('#next').innerHTML = items.slice(0, 12).map(it => {
+      const x = it.x, subj = S.subject(x.subjectId), n = S.daysUntil(it.x.testDate || it.x.dueDate);
+      const when = '<span class="when' + (n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || 'no date') + '</span>';
+      if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="dot" style="background:' + esc((subj && subj.color) || '') + '"></span><span class="body"><span class="title" dir="auto">' + esc(x.name) + '</span><span class="meta"><span class="badge test">Test</span> ' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</a>';
+      return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="Mark done"><span class="check">' + ic('check', 'sm') + '</span></button><span class="body"><span class="title" dir="auto">' + esc(x.title) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</div>';
+    }).join('');
+    S.$$('[data-done]').forEach(b => b.onclick = () => {
+      const id = b.dataset.done;
+      b.querySelector('.check').classList.add('on');
+      setTimeout(() => { S.setHomeworkDone(id, true); S.toast('Done', () => S.setHomeworkDone(id, false)); }, 180);
+    });
+  }
+
+  function subjectsGrid() {
+    const list = S.subjects();
+    if (!list.length) { $('#subjects').innerHTML = '<p class="empty card" style="grid-column:1/-1">No subjects yet. They come from your Dashboard’s School page, or tap + Add.</p>'; return; }
+    $('#subjects').innerHTML = list.map(s => {
+      const tps = topicsBySubj[s.id] || [], ls = lessonsBySubj[s.id] || [];
+      const line = (ls.length ? ls.length + ' lesson' + (ls.length === 1 ? '' : 's') : 'No lessons yet') + (tps.length ? ' · ' + tps.filter(t => t.state === 'alone').length + '/' + tps.length + ' ready' : '');
+      return '<a class="subj" style="--c:' + esc(s.color || '') + '" href="' + S.link('/subject.html', { id: s.id }) + '"><b dir="auto">' + esc(s.name) + '</b><span>' + esc(line) + '</span></a>';
+    }).join('');
+  }
+
+  function render() { hero(); upNext(); subjectsGrid(); }
+  S.school.on(render);
+  S.onStudy(loadStudy);
+  $('#add').onclick = () => S.openAdd(null, () => loadStudy());
+  await S.school.load();
+  await loadStudy();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) { S.school.load(); loadStudy(); } });
+})();
+</script>
+</body>
+</html>

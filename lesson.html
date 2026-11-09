@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.1.0">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/vendor/katex/auto-render.min.js"></script>
+<script src="/vendor/marked.min.js"></script>
+<title>Lesson · Study Hub</title>
+</head>
+<body>
+<main class="page" id="page">
+  <header class="top">
+    <a class="icon-btn" id="back" aria-label="Back"></a>
+    <div class="top-text"><span class="sub" id="sub"></span><h1 id="name" dir="auto">Lesson</h1></div>
+  </header>
+  <a class="btn teach block" id="study">Study this lesson</a>
+  <div class="chips" id="topics"></div>
+  <section class="card"><h2 style="font-size:19px;margin-bottom:8px">Summary</h2><div class="prose" dir="auto" id="summary"></div></section>
+  <details class="card" id="tx"><summary>Full transcript <span class="hint" id="tx-len"></span></summary><div class="transcript" dir="rtl" id="transcript"></div></details>
+  <p class="hint">The tutor teaches from the full transcript, not the summary.</p>
+</main>
+<script src="/app.js?v=0.1.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc } = S;
+  $('#back').innerHTML = S.ic('back');
+  if (!(await S.session())) return;
+  await S.school.load();
+  const id = S.qs('id');
+  let l = null;
+  try { l = (await S.rows(S.T.lessons, { id }))[0]; } catch (e) { S.toast(e.message); }
+  if (!l) { $('#name').textContent = 'Lesson not found'; $('#back').href = S.link('/'); return; }
+  $('#back').href = S.link('/subject.html', { id: l.subject_id });
+  $('#name').textContent = l.title || 'Lesson';
+  $('#sub').textContent = S.subjectName(l.subject_id) + ' · ' + S.fmtDay(l.lesson_date);
+  document.title = (l.title || 'Lesson') + ' · Study Hub';
+  const topic = (l.topics || [])[0];
+  $('#study').href = S.link('/tutor.html', Object.assign({ subject: l.subject_id, mode: 'teach' }, topic ? { topic } : {}));
+  $('#topics').innerHTML = (l.topics || []).map(t => '<a class="chip" dir="auto" href="' + S.link('/tutor.html', { subject: l.subject_id, mode: 'teach', topic: t }) + '">' + esc(t) + '</a>').join('');
+  if (l.summary) S.renderRich($('#summary'), l.summary);
+  else $('#summary').innerHTML = '<p class="hint">No summary (it needs the free Gemini key). The tutor still has the full transcript.</p>';
+  $('#transcript').textContent = l.transcript || '';
+  $('#tx-len').textContent = l.transcript ? '· about ' + Math.max(1, Math.round(l.transcript.split(/\s+/).length / 130)) + ' min of speech' : '';
+})();
+</script>
+</body>
+</html>

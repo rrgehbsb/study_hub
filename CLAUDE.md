@@ -38,7 +38,7 @@ So the app's three jobs, in order of importance:
 
 ## 2. Stack
 
-- **Vanilla HTML/CSS/JS, no build step, no framework.** Same as the main Dashboard, so the owner can read it. Libraries load from `/vendor/` (Supabase) or cdnjs (KaTeX, marked). `package.json` is empty on purpose.
+- **Vanilla HTML/CSS/JS, no build step, no framework.** Same as the main Dashboard, so the owner can read it. Libraries are self-hosted in `/vendor/` (Supabase, KaTeX, marked), so the installed app works offline. `package.json` is empty on purpose.
 - **Supabase** (auth + Postgres + Storage), project `mtuoqwbrujxutofhyahb`, shared with the main Dashboard. The browser uses the public publishable key. Same login as the main Dashboard (email + password).
 - **Vercel** hosts the pages and the serverless functions in `api/` (CommonJS). Pushing to `main` deploys (once the Vercel project is linked; see PLAN.md "Owner setup").
 - **AI:**
@@ -113,6 +113,8 @@ api/read-file.js   board photo / notes / old test (image or PDF) → Claude → 
 api/tutor.js       one tutor turn: builds the context from the subject's material and calls Claude
 supabase/schema.sql  tables, policies, storage bucket
 tools/serve.js  local static server (port 5178)
+vendor/         Supabase, KaTeX, marked (self-hosted)
+icons/          app icons
 tools/shot.js   Playwright screenshots of ?demo at phone + desktop width
 ```
 
@@ -120,7 +122,7 @@ tools/shot.js   Playwright screenshots of ?demo at phone + desktop width
 
 ## 5. The tutor (the most important part)
 
-`api/tutor.js` builds every request from the subject's material, newest first, trimmed to about 60k tokens:
+`api/tutor.js` builds every request from the subject's material, newest first, trimmed to `CONTEXT_CHARS` characters (default 90,000, roughly 30–45k tokens of Hebrew):
 1. The teacher's **old tests** (they set the level and style of every question).
 2. **Lesson transcripts** about the topic (full transcript, not the summary).
 3. **Board photos and notes** as text, and **teacher summaries**.
@@ -168,5 +170,5 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 | `GROQ_API_KEY` | transcription | set during owner setup |
 | `ANTHROPIC_API_KEY` | tutor, reading photos/PDFs | set during owner setup (with the $10/month cap) |
 | `GEMINI_API_KEY` | summaries (optional) | optional |
-| `TUTOR_MODEL`, `GEMINI_MODEL`, `DAILY_TUTOR_CALLS` | overrides | optional |
+| `TUTOR_MODEL`, `GEMINI_MODEL`, `WHISPER_MODEL`, `DAILY_TUTOR_CALLS`, `CONTEXT_CHARS` | overrides | optional |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | optional; the defaults in `api/_lib.js` are the shared project's public values | optional |
