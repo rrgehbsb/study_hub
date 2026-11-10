@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.3.1';
+const VERSION = '0.4.0';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -41,6 +41,7 @@ const ICONS = {
   hw: '<path d="M9 5h10M9 12h10M9 19h10"/><path d="M4 5l1 1 2-2M4 12l1 1 2-2M4 19l1 1 2-2"/>', book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7"/>',
   inbox: '<path d="M4 13l2.5-8h11L20 13v6H4z"/><path d="M4 13h4l1.5 2.5h5L16 13h4"/>', chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  cap: '<path d="M2 9.5 12 5l10 4.5L12 14z"/><path d="M6 11.5V16c0 1.4 2.7 3 6 3s6-1.6 6-3v-4.5M22 9.5V15"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>', flag: '<path d="M5 21V4h12l-2.5 4L17 12H5"/>',
   play: '<path d="M7 4.5v15l13-7.5z" fill="currentColor" stroke="none"/>', clock: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2"/>',
   file: '<path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><path d="M14 3v6h6"/>', paste: '<rect x="8" y="3" width="8" height="4" rx="1"/><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2"/>'
@@ -93,6 +94,29 @@ const HE = {
   'Plan my week with Claude': 'לתכנן את השבוע עם Claude', 'Import from Claude': 'ייבוא מ־Claude', 'Prompt copied: paste it in Claude.': 'הפרומפט הועתק: הדבק אותו ב־Claude.',
   'Paste what Claude gave you at the end (or upload the file).': 'הדבק את מה ש־Claude נתן לך בסוף (או העלה את הקובץ).', 'Import': 'ייבוא', 'Or choose the file': 'או לבחור את הקובץ',
   'That doesn’t look like a Study plan. Copy the whole block Claude gave you.': 'זה לא נראה כמו תוכנית. העתק את כל הבלוק ש־Claude נתן.', 'Plan imported': 'התוכנית יובאה',
+  'Home': 'בית', 'Tutor': 'מורה פרטי', 'Record': 'הקלטה', 'Notebook': 'מחברת', 'Messages': 'הודעות', 'School stuff': 'בית ספר (כללי)', 'All': 'הכל', 'Quiz': 'בוחן', 'Test': 'מבחן',
+  'You said it’s not yours': 'סימנת שזה לא שלך', 'For another class': 'לכיתה אחרת', 'Group you don’t take: {x}': 'קבוצה שאתה לא בה: {x}',
+  'Your groups show up here once your class is set.': 'הקבוצות שלך יופיעו כאן כשהכיתה מוגדרת.', 'Everything from school, in one place': 'כל מה שמגיע מבית הספר, במקום אחד',
+  'One time: which groups are you in?': 'פעם אחת: באילו קבוצות אתה?', 'Your class splits for these. Tests of groups you’re not in fold away (never deleted).': 'בשיעורים האלה הכיתה מתחלקת. מבחנים של קבוצות שאתה לא בהן מתקפלים הצידה (לא נמחקים).',
+  'Probably not yours': 'כנראה לא שלך', 'Other groups and classes': 'קבוצות וכיתות אחרות', 'Mine': 'שלי', 'Study for it': 'ללמוד לזה', 'Not my test': 'זה לא המבחן שלי',
+  'Moved to “Probably not yours”': 'הועבר ל״כנראה לא שלך״', 'Back in your list': 'חזר לרשימה שלך', 'Tap the groups you’re in': 'סמן את הקבוצות שלך',
+  'No lessons yet. Record one and it shows up here with a summary and the full transcript.': 'עוד אין שיעורים. הקלט שיעור והוא יופיע כאן עם סיכום ותמלול מלא.',
+  'Who teaches what? (once)': 'מי מלמד מה? (פעם אחת)', 'After this, their messages sort themselves.': 'אחרי זה ההודעות שלהם מסתדרות לבד.',
+  'No messages yet. Mashov messages arrive by themselves.': 'עוד אין הודעות. הודעות ממשו״ב מגיעות לבד.', 'Long-press the teacher’s message → Copy, then paste it here.': 'לחיצה ארוכה על ההודעה של המורה ← העתקה, ואז כאן ← הדבקה.',
+  '{n} messages sorted': '{n} הודעות סודרו', 'Subjects show up here once they have a lesson, a test or homework.': 'מקצועות מופיעים כאן כשיש להם שיעור, מבחן או שיעורי בית.',
+  'Now · lesson {n}': 'עכשיו · שיעור {n}', 'Lesson {n}': 'שיעור {n}', 'Stops by itself at {x}': 'נעצר לבד ב־{x}', 'Now: your class splits. Which one is yours?': 'עכשיו הכיתה מתחלקת. איזה שיעור שלך?',
+  'Next lesson {x}': 'השיעור הבא ב־{x}', 'No lesson right now': 'אין שיעור עכשיו', 'Today’s lessons': 'השיעורים של היום', 'Another subject': 'מקצוע אחר', 'Record another': 'להקליט עוד שיעור',
+  'Knows your tests. Teaches at your teacher’s level.': 'מכיר את המבחנים שלך. מלמד ברמה של המורה.', 'No test in the next two weeks': 'אין מבחן בשבועיים הקרובים',
+  'Pick anything below, or record a lesson so the tutor has more to teach from.': 'בחר משהו למטה, או הקלט שיעור כדי שלמורה הפרטי יהיה ממה ללמד.', 'Study now': 'ללמוד עכשיו',
+  'You solved this with help. Now alone.': 'פתרת את זה עם עזרה. עכשיו לבד.', 'All topics solved alone: a full practice test.': 'כל הנושאים נפתרו לבד: מבחן תרגול מלא.',
+  'From zero, step by step, then a test question alone.': 'מאפס, צעד אחרי צעד, ואז שאלת מבחן לבד.', 'Your tests': 'המבחנים שלך', 'Next: {x}': 'הבא: {x}', 'No tests in the next month.': 'אין מבחנים בחודש הקרוב.',
+  'Homework with the tutor': 'שיעורי בית עם המורה הפרטי', 'Learn something else': 'ללמוד משהו אחר', 'The tutor teaches from': 'המורה הפרטי מלמד מתוך',
+  '{a} recorded lessons · {b} old tests · {c} board photos and notes': '{a} שיעורים מוקלטים · {b} מבחנים ישנים · {c} צילומי לוח וסיכומים',
+  'Add your teacher’s old tests: they set the level of every question.': 'הוסף מבחנים ישנים של המורה: הם קובעים את הרמה של כל שאלה.', 'Add an old test': 'הוספת מבחן ישן',
+  '{n} tests probably not yours (other groups or classes)': '{n} מבחנים כנראה לא שלך (קבוצות או כיתות אחרות)', 'Last lesson': 'השיעור האחרון', 'All lessons': 'כל השיעורים',
+  'Summary ready': 'הסיכום מוכן', 'Transcript ready': 'התמלול מוכן', 'Your groups and teachers': 'הקבוצות והמורים שלך', 'Groups you’re in': 'הקבוצות שלך',
+  'Taken from Mashov. Fix it if something’s wrong.': 'נלקח ממשו״ב. אפשר לתקן אם משהו לא נכון.', 'Guessed from your Dashboard timetable. Fix it if something’s wrong.': 'נוחש מהמערכת בדשבורד. אפשר לתקן אם משהו לא נכון.',
+  'You set this': 'הגדרת את זה', 'Not known yet': 'עוד לא ידוע', 'Teachers show up here from Mashov and their messages.': 'מורים מופיעים כאן ממשו״ב ומההודעות שלהם.',
   'Quick change in your own words': 'שינוי מהיר במילים שלך', 'Signed in as {x}': 'מחובר בתור {x}', 'Sun': 'א׳', 'Mon': 'ב׳', 'Tue': 'ג׳', 'Wed': 'ד׳', 'Thu': 'ה׳', 'Fri': 'ו׳', 'Sat': 'ש׳'
 };
 let LANG = (() => { try { return localStorage.getItem('sh:lang') === 'he' ? 'he' : 'en'; } catch (e) { return 'en'; } })();
@@ -182,18 +206,18 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-const TABS = [['today', '/', 'today', 'Today'], ['homework', '/homework.html', 'hw', 'Homework'], ['subjects', '/subjects.html', 'book', 'Subjects'], ['teachers', '/teachers.html', 'inbox', 'Teachers'], ['progress', '/progress.html', 'chart', 'Progress']];
+const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['record', '/record.html', 'mic', 'Record'], ['notebook', '/notebook.html', 'book', 'Notebook'], ['progress', '/progress.html', 'chart', 'Progress']];
 function nav(active) {
   const top = document.createElement('header');
   top.className = 'topbar';
   top.innerHTML = '<a class="brand" href="' + link('/') + '">Study</a><nav aria-label="Main">' +
-    TABS.map(x => '<a href="' + link(x[1]) + '"' + (x[0] === active ? ' aria-current="page"' : '') + '>' + esc(t(x[0] === 'teachers' ? 'From teachers' : x[3])) + '</a>').join('') + '</nav>' +
-    langToggle() + '<a class="btn" href="' + link('/record.html') + '"><span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson')) + '</a>' +
+    TABS.filter(x => x[0] !== 'record').map(x => '<a href="' + link(x[1]) + '"' + (x[0] === active ? ' aria-current="page"' : '') + '>' + esc(t(x[3])) + '</a>').join('') + '</nav>' +
+    langToggle() + '<a class="btn rec-btn" href="' + link('/record.html') + '"' + (active === 'record' ? ' aria-current="page"' : '') + '><span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson')) + '</a>' +
     '<a class="icon-btn" href="' + link('/settings.html') + '" aria-label="' + esc(t('Settings')) + '">' + ic('gear', 'sm') + '</a>';
   document.body.prepend(top);
   const tabs = document.createElement('nav');
   tabs.className = 'tabs'; tabs.setAttribute('aria-label', 'Main');
-  tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab" href="' + link(x[1]) + '"' + (x[0] === active ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
+  tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab' + (x[0] === 'record' ? ' tab-rec' : '') + '" href="' + link(x[1]) + '"' + (x[0] === active ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
   document.body.appendChild(tabs);
 }
 
@@ -286,7 +310,7 @@ function saveSettings(p) {
 }
 const subjects = () => school.get(K.subj).filter(s => s && !s.hidden);
 const subject = id => school.get(K.subj).find(s => s.id === id) || null;
-const subjectName = id => { const s = subject(id); return s ? s.name : (id === 'inbox' ? t('Pick a subject') : 'General'); };
+const subjectName = id => { const s = subject(id); return s ? s.name : (id === 'inbox' ? t('Pick a subject') : id === 'school' ? t('School stuff') : 'General'); };
 function ensureSubject(name, fixedId) {
   name = String(name || '').trim();
   if (!name) return null;
@@ -298,7 +322,9 @@ function ensureSubject(name, fixedId) {
   school.data[K.subj] = school.get(K.subj).concat([s]);
   return s.id;
 }
-const openTests = () => school.get(K.te).filter(x => x && x.testDate && daysUntil(x.testDate) >= 0 && !x.hidden && !x.deleted).sort((a, b) => a.testDate.localeCompare(b.testDate));
+const upcomingTests = () => school.get(K.te).filter(x => x && x.testDate && daysUntil(x.testDate) >= 0 && !x.hidden && !x.deleted).sort((a, b) => a.testDate.localeCompare(b.testDate));
+const openTests = () => upcomingTests().filter(x => testFit(x) !== 'other');
+const otherTests = () => upcomingTests().filter(x => testFit(x) === 'other');
 const openHomework = () => school.get(K.as).filter(a => a && a.status !== 'Done' && !a.hidden && !a.deleted).sort((a, b) => String(a.dueDate || '9999').localeCompare(String(b.dueDate || '9999')));
 function setHomeworkDone(id, done) {
   school.data[K.as] = school.get(K.as).map(a => a.id === id ? Object.assign({}, a, { status: done ? 'Done' : 'Not started', completedAt: done ? stamp() : null, updatedAt: stamp() }) : a);
@@ -330,11 +356,53 @@ function subjectFromHe(he) {
   let h = 0; for (const c of n) h = (h * 31 + c.charCodeAt(0)) >>> 0; // stable id: two devices never create two
   return ensureSubject(n, 'he-' + h.toString(36));
 }
+const nameTok = n => String(n || '').replace(/["״׳'.(),-]/g, ' ').split(/\s+/).filter(x => x.length >= 2);
+// "צפריר דלית" = "דלית צפריר" = "גב' דלית צפריר"
+function sameTeacher(a, b) {
+  const A = nameTok(a), B = nameTok(b);
+  if (!A.length || !B.length) return false;
+  if (A.join(' ') === B.join(' ')) return true;
+  const small = A.length <= B.length ? A : B, big = small === A ? B : A;
+  return small.length >= 2 && small.every(x => big.indexOf(x) >= 0);
+}
 function subjectFromTeacher(name) {
+  if (!String(name || '').trim()) return null;
+  const st = settings(), man = st.teachers || {};
+  const k = Object.keys(man).find(n => sameTeacher(n, name));
+  if (k) return man[k];
+  const g = (st.mashovGroups || []).find(x => (x.teachers || []).some(tn => sameTeacher(tn, name)));
+  if (g) return subjectFromHe(g.subject);
   const mine = (school.data[K.tt] && school.data[K.tt].mine) || [];
-  const last = String(name || '').trim().split(/\s+/).pop();
-  const row = last && mine.find(m => String(m).split('|')[1] && String(m).split('|')[1].indexOf(last) >= 0);
+  const row = mine.find(m => String(m).split('|')[1] && sameTeacher(String(m).split('|')[1], name));
   return row ? subjectFromHe(String(row).split('|')[0]) : null;
+}
+// who teaches what: Mashov's list + what you told Study once
+function teacherList() {
+  const st = settings(), out = [];
+  (st.mashovGroups || []).forEach(g => (g.teachers || []).forEach(n => { if (!out.some(x => sameTeacher(x.name, n))) out.push({ name: n, sid: subjectFromHe(g.subject), from: 'mashov' }); }));
+  Object.keys(st.teachers || {}).forEach(n => { const i = out.findIndex(x => sameTeacher(x.name, n)); const row = { name: n, sid: st.teachers[n], from: 'you' }; if (i >= 0) out[i] = row; else out.push(row); });
+  return out;
+}
+const senderOf = m => { const p = String(m.title || '').split(' · '); return p.length > 1 ? p[p.length - 1].trim() : ''; };
+// tell once: every message from this teacher (old and new) goes to that subject
+async function setTeacher(name, sid, msgs) {
+  const all = Object.assign({}, settings().teachers || {});
+  Object.keys(all).forEach(n => { if (sameTeacher(n, name)) delete all[n]; });
+  all[name] = sid;
+  await saveSettings({ teachers: all });
+  const move = (msgs || []).filter(m => m.kind === 'teacher_message' && sameTeacher(senderOf(m), name) && m.subject_id !== sid);
+  for (const m of move) { try { await update(T.materials, m.id, { subject_id: sid }); m.subject_id = sid; } catch (e) {} }
+  return move.length;
+}
+// messages that came in before the teacher was known: sort them now
+async function resortMessages(msgs) {
+  let n = 0;
+  for (const m of msgs || []) {
+    if (m.kind !== 'teacher_message' || m.subject_id !== 'inbox') continue;
+    const sid = subjectFromTeacher(senderOf(m));
+    if (sid) { try { await update(T.materials, m.id, { subject_id: sid }); m.subject_id = sid; n++; } catch (e) {} }
+  }
+  return n;
 }
 function subjectByName(name) {
   const n = String(name || '').trim().toLowerCase();
@@ -358,13 +426,13 @@ async function syncCalendar() {
     const linked = tests.findIndex(x => x && x.calUid === c.uid);
     if (linked >= 0) {
       const x = tests[linked];
-      if (x.source === 'calendar' && (x.testDate !== c.date || x.name !== c.title)) { tests[linked] = Object.assign({}, x, { testDate: c.date, name: c.title, updatedAt: stamp() }); changed = true; }
+      if (x.source === 'calendar' && (x.testDate !== c.date || x.name !== c.title || (c.subject && !x.heSubject))) { tests[linked] = Object.assign({}, x, { testDate: c.date, name: c.title, heSubject: c.subject || x.heSubject || '', updatedAt: stamp() }); changed = true; }
       return;
     }
     const sid = subjectFromHe(c.subject || c.title);
     const sameDay = tests.findIndex(x => x && !x.calUid && x.testDate === c.date && x.subjectId === sid);
     if (sameDay >= 0) { tests[sameDay] = Object.assign({}, tests[sameDay], { calUid: c.uid, updatedAt: stamp() }); changed = true; return; }
-    tests.push({ id: 'cal-' + String(c.uid).replace(/[^\w-]/g, '').slice(0, 60), subjectId: sid, name: c.title, testDate: c.date, topics: c.details || '', type: c.quiz ? 'Quiz' : 'Test', calUid: c.uid, source: 'calendar', studyStatus: 'Not started', importance: 'Medium', notes: '', createdAt: stamp(), updatedAt: stamp() });
+    tests.push({ id: 'cal-' + String(c.uid).replace(/[^\w-]/g, '').slice(0, 60), subjectId: sid, name: c.title, heSubject: c.subject || '', testDate: c.date, topics: c.details || '', type: c.quiz ? 'Quiz' : 'Test', calUid: c.uid, source: 'calendar', studyStatus: 'Not started', importance: 'Medium', notes: '', createdAt: stamp(), updatedAt: stamp() });
     added++; changed = true;
   });
   if (changed) { school.data[K.te] = tests; await school.save([K.subj, K.te]); }
@@ -391,6 +459,8 @@ async function syncMashov() {
     newGrades++;
   });
   if (added || newGrades) { school.data[K.as] = as; school.data[K.gr] = gr; await school.save([K.subj, K.as, K.gr]); }
+  const groups = (j.groups || []).filter(g => g && g.subject).map(g => ({ subject: g.subject, teachers: (g.teachers || []).filter(Boolean) }));
+  if (groups.length && JSON.stringify(groups) !== JSON.stringify(settings().mashovGroups || [])) await saveSettings({ mashovGroups: groups });
   const msgs = (j.messages || []).map(m => ({
     subject_id: subjectFromTeacher(m.sender) || 'inbox', kind: 'teacher_message', source_ref: m.ref,
     title: (m.subject || 'Message') + (m.sender ? ' · ' + m.sender : ''),
@@ -447,8 +517,110 @@ function currentLesson(tt) {
   const p = ps.find(x => toMin(x.start) - 10 <= m && m < toMin(x.end)) || null;
   if (!p) return null;
   let he = p.subjects[0];
-  if (p.subjects.length > 1) { const hit = p.subjects.find(s => mine.some(x => heNorm(String(x).split('|')[0]) === heNorm(s))); if (hit) he = hit; }
+  if (p.subjects.length > 1) { const my = (myGroups() || []).concat(mine.map(x => String(x).split('|')[0])); const hit = p.subjects.find(s => my.some(x => heNorm(x) === heNorm(s))); if (hit) he = hit; }
   return { he, subjectId: subjectFromHe(he), start: p.start, end: p.end };
+}
+
+/* ================= your groups, and which tests are yours =================
+   Class 11-3 splits into groups for some subjects (majors, maths levels), and the school
+   calendar lists every group's tests, sometimes other classes' too ("יא2 ויא4").
+   Nothing is ever deleted: a test that is clearly someone else's folds into
+   "Probably not yours", one tap brings it back. */
+const GRADE_HE = { 9: 'ט', 10: 'י', 11: 'יא', 12: 'יב' };
+function classMention(text) { // true = names your class, false = names only other classes, null = says nothing
+  const m = /^(\d{1,2})-(\d{1,2})$/.exec(myClass());
+  if (!m || !GRADE_HE[+m[1]]) return null;
+  const g = GRADE_HE[+m[1]], mine = +m[2], nums = [];
+  const re = /(?:^|[^א-ת])[ובל]?(יא|יב|י|ט)\s*(\d{1,2})(?!\d)/g;
+  const clean = String(text || '').replace(/["״׳']/g, '');
+  let hit; while ((hit = re.exec(clean))) { if (hit[1] === g) nums.push(+hit[2]); re.lastIndex = hit.index + hit[0].length; }
+  return nums.length ? nums.indexOf(mine) >= 0 : null;
+}
+const GROUP_STOP = new Set(['יישומים', 'מדעי', 'פיתוח', 'מבחן', 'בוחן']);
+function groupKeys(name) {
+  return heNorm(name).split(' ').map(w => w.replace(/^[ובהל](?=[א-ת]{4,})/, '')).filter(w => w.length >= 4 && !GROUP_STOP.has(w));
+}
+function classGroups() {
+  if (DEMO) return demoGroups();
+  const c = readJSON('sh:groups:' + myClass());
+  return (c && c.list) || [];
+}
+async function loadGroups() {
+  const cls = myClass();
+  if (DEMO || !cls) return classGroups();
+  const c = readJSON('sh:groups:' + cls);
+  if (c && c.list && Date.now() - c.at < 864e5) return c.list;
+  try {
+    const r = await fetch('/api/school?groups=1&cls=' + encodeURIComponent(cls));
+    const j = await r.json();
+    if (j && j.ok && Array.isArray(j.groups)) { writeJSON('sh:groups:' + cls, { at: Date.now(), list: j.groups }); return j.groups; }
+  } catch (e) {}
+  return classGroups();
+}
+// the class's groups a piece of text is about ("מבחן באלקטרוניקה" → חשמל ואלקטרוניקה)
+function groupsIn(text) {
+  const tx = heNorm(text);
+  return classGroups().filter(g => groupKeys(g.name).some(k => tx.indexOf(k) >= 0));
+}
+// your groups: what you picked > Mashov's list > the main Dashboard's timetable picks > unknown (null)
+function myGroups() {
+  const st = settings();
+  if (Array.isArray(st.myGroups)) return st.myGroups;
+  const fromMashov = (st.mashovGroups || []).map(g => g.subject);
+  const fromDash = ((school.data[K.tt] && school.data[K.tt].mine) || []).map(x => String(x).split('|')[0]);
+  const src = fromMashov.length ? fromMashov : fromDash;
+  if (!src.length) return null;
+  const keys = new Set(src.map(heNorm));
+  const hits = classGroups().filter(g => keys.has(heNorm(g.name)) || src.some(x => groupKeys(g.name).some(k => heNorm(x).indexOf(k) >= 0))).map(g => g.name);
+  return hits.length ? hits : null;
+}
+const groupsGuessed = () => !Array.isArray(settings().myGroups) && !!myGroups();
+// 'mine' | 'maybe' (we don't know your groups yet) | 'other'
+function testFit(x) {
+  const over = (settings().testMine || {})[x.id];
+  if (over === true) return 'mine';
+  if (over === false) return 'other';
+  if (x.source !== 'calendar') return 'mine'; // yours: you, Mashov or the main Dashboard added it
+  const text = [x.name, x.heSubject, subjectName(x.subjectId)].filter(Boolean).join(' ');
+  const cm = classMention(text);
+  if (cm !== null) return cm ? 'mine' : 'other';
+  const gs = groupsIn(text);
+  if (!gs.length) return 'mine'; // a whole-class subject
+  const my = myGroups();
+  if (!my) return 'maybe';
+  const keys = new Set(my.map(heNorm));
+  return gs.some(g => keys.has(heNorm(g.name))) ? 'mine' : 'other';
+}
+// why a test was folded away, in plain words
+function fitWhy(x) {
+  const text = [x.name, x.heSubject, subjectName(x.subjectId)].filter(Boolean).join(' ');
+  if ((settings().testMine || {})[x.id] === false) return t('You said it’s not yours');
+  if (classMention(text) === false) return t('For another class');
+  const gs = groupsIn(text);
+  return gs.length ? t('Group you don’t take: {x}', { x: gs.map(g => g.name).join(', ') }) : '';
+}
+function setTestMine(id, v) {
+  const all = Object.assign({}, settings().testMine || {});
+  if (v == null) delete all[id]; else all[id] = v;
+  return saveSettings({ testMine: all });
+}
+// one-time pick: which of the class's groups you're in
+function groupsPicker(el, done) {
+  const list = classGroups();
+  if (!list.length) { el.innerHTML = '<p class="hint">' + esc(t('Your groups show up here once your class is set.')) + '</p>'; return; }
+  const sel = new Set(myGroups() || []);
+  let tm = null;
+  const draw = () => {
+    el.innerHTML = '<div class="chips">' + list.map(g => '<button type="button" class="chip" data-g="' + esc(g.name) + '" aria-pressed="' + sel.has(g.name) + '" dir="auto">' + (sel.has(g.name) ? '✓ ' : '') + esc(g.name) + '</button>').join('') + '</div>';
+    $$('[data-g]', el).forEach(b => b.onclick = () => {
+      const n = b.dataset.g; if (sel.has(n)) sel.delete(n); else sel.add(n);
+      draw();
+      const v = list.map(g => g.name).filter(n2 => sel.has(n2));
+      school.data[K.set] = Object.assign({}, school.data[K.set] || {}, { myGroups: v.length ? v : null, updatedAt: stamp() });
+      clearTimeout(tm); tm = setTimeout(() => { school.save([K.set]); done && done(); }, 400);
+    });
+  };
+  draw();
 }
 
 /* ================= the planner =================
@@ -1008,10 +1180,13 @@ const emitStudy = () => studySubs.forEach(f => { try { f(); } catch (e) {} });
 function demoSchool() {
   const d = todayKey();
   return {
-    [K.subj]: [{ id: 'phys', name: 'Physics', color: '#1F5AE0' }, { id: 'math', name: 'Maths', color: '#6A43E8' }, { id: 'eng', name: 'English', color: '#FF5A2B' }],
+    [K.subj]: [{ id: 'phys', name: 'Physics', color: '#1F5AE0' }, { id: 'math', name: 'Maths', color: '#6A43E8' }, { id: 'eng', name: 'English', color: '#FF5A2B' }, { id: 'he-chem', name: 'כימיה ומדעים', color: '#13B3C6' }, { id: 'he-lashon', name: 'לשון עברית', color: '#E0457B' }],
     [K.te]: [
       { id: 't1', subjectId: 'math', name: 'Maths retest', testDate: addDays(d, 2), topics: 'Derivatives, tangent lines' },
-      { id: 't2', subjectId: 'phys', name: 'Kinematics test', testDate: addDays(d, 12), topics: 'Free fall, two bodies meeting, graphs', source: 'calendar', calUid: 'x' }
+      { id: 't2', subjectId: 'phys', name: 'Kinematics test', heSubject: 'פיזיקה', testDate: addDays(d, 12), topics: 'Free fall, two bodies meeting, graphs', source: 'calendar', calUid: 'x' },
+      { id: 'cal-c1', subjectId: 'he-chem', name: 'מבחן בכימיה', heSubject: 'כימיה ומדעים', testDate: addDays(d, 5), source: 'calendar', calUid: 'c1' },
+      { id: 'cal-l1', subjectId: 'he-lashon', name: 'מבחן בלשון יא2 ויא4', heSubject: 'לשון עברית', testDate: addDays(d, 6), source: 'calendar', calUid: 'l1' },
+      { id: 'cal-l2', subjectId: 'he-lashon', name: 'מבחן ספרות', heSubject: 'ספרות', testDate: addDays(d, 9), source: 'calendar', calUid: 'l2' }
     ],
     [K.as]: [
       { id: 'mashov-hw-1', subjectId: 'phys', title: 'דף עבודה 4, שאלות 1–3', dueDate: addDays(d, 1), givenDate: addDays(d, -1), status: 'Not started', source: 'mashov', notes: 'דף עבודה 4, שאלות 1–3. להגיש ביום רביעי.' },
@@ -1020,9 +1195,10 @@ function demoSchool() {
       { id: 'a3', subjectId: 'math', title: 'Worksheet 3', dueDate: addDays(d, -1), status: 'Done', completedAt: stamp() }
     ],
     [K.gr]: [{ id: 'mashov-gr-1', subjectId: 'phys', gradeValue: 60, maxGrade: 100, date: addDays(d, -10), notes: 'מבחן קינמטיקה', source: 'mashov' }],
-    [K.set]: { cls: '11-3', week: [{ id: 'w1', name: 'Volleyball', days: [1, 2], start: '17:00', end: '19:00' }, { id: 'w2', name: 'Robotics', days: [0, 3], start: '16:30', end: '19:30' }] }
+    [K.set]: { cls: '11-3', mashovGroups: [{ subject: 'פיזיקה', teachers: ['כהן אבי'] }, { subject: 'מתמטיקה 5 יח"ל מואץ', teachers: ['צפריר דלית'] }, { subject: 'מדעי המחשב', teachers: ['לוי רונית'] }], week: [{ id: 'w1', name: 'Volleyball', days: [1, 2], start: '17:00', end: '19:00' }, { id: 'w2', name: 'Robotics', days: [0, 3], start: '16:30', end: '19:30' }] }
   };
 }
+function demoGroups() { return ['כימיה', 'מדעי המחשב', 'מתמטיקה', 'מתמטיקה מואץ', 'סייבר', 'פיזיקה', 'חשמל ואלקטרוניקה'].map(n => ({ s: n, name: n, teachers: [] })); }
 function demoTimetable() {
   const d = todayKey(), per = [['07:45', '08:30'], ['08:30', '09:15'], ['09:15', '10:00'], ['10:15', '11:00'], ['11:00', '11:45'], ['12:10', '12:55'], ['12:55', '13:40'], ['13:50', '14:35'], ['14:35', '15:20']];
   const subj = ['מתמטיקה', 'מתמטיקה', 'פיזיקה', 'פיזיקה', 'אנגלית', 'ספרות', 'היסטוריה', 'מדעי המחשב', 'מדעי המחשב'];
@@ -1087,7 +1263,9 @@ window.SH = {
   uploadLessonAudio, uploadMaterial,
   syncAll, lastSync, myClass, setMyClass, subjectFromHe, timetable, currentLesson, plan, dayItems, skipKey, doneKey,
   theme, setTheme, setTonight, weekChat, tonightSheet, weekSummary, claudePrompt, openClaude, parsePlan, importSheet,
-  _test: { syncCalendar, syncMashov, subjectFromTeacher, freeWindows, pickTarget }
+  upcomingTests, otherTests, testFit, fitWhy, setTestMine, classGroups, loadGroups, myGroups, groupsGuessed, groupsPicker,
+  subjectFromTeacher, teacherList, senderOf, setTeacher, resortMessages, sameTeacher, schoolPeriods, heNorm,
+  _test: { syncCalendar, syncMashov, subjectFromTeacher, freeWindows, pickTarget, classMention, groupsIn }
 };
 document.documentElement.lang = LANG;
 document.documentElement.dir = LANG === 'he' ? 'rtl' : 'ltr';

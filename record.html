@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,29 +16,41 @@
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.1">
+<link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.4.0">
 <meta name="theme-color" content="#0B0F19">
 <title>Record lesson · Study</title>
 </head>
 <body class="rec">
 <main class="page narrow" id="page" style="padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px)">
   <header class="head">
-    <a class="icon-btn" id="back" style="background:#1F2937;color:#F9FAFB;box-shadow:none" aria-label="Back"></a>
     <div class="t"><span class="sub" id="state" style="color:#FCA5A5;font-weight:700;letter-spacing:.04em"></span></div>
   </header>
   <section id="view" style="display:flex;flex-direction:column;gap:18px"></section>
 </main>
-<script src="/app.js?v=0.3.1"></script>
+<script src="/app.js?v=0.4.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
-  $('#back').href = S.link('/'); $('#back').innerHTML = ic('back', 'flip');
+  S.nav('record');
   if (!(await S.session())) return;
   await S.school.load();
   const he = S.lang() === 'he';
   const tt = await S.timetable();
-  const cur = S.currentLesson(tt);
-  let sid = S.qs('subject') || (cur && cur.subjectId) || S.readJSON('sh:lastSubject') || (S.subjects()[0] || {}).id || '';
+  await S.loadGroups();
+  // today's lessons from the class timetable (your group when the class splits)
+  const myG = (S.myGroups() || []).map(S.heNorm);
+  const today = (S.schoolPeriods(tt, S.todayKey()) || []).map((p, i) => {
+    let name = p.subjects[0];
+    if (p.subjects.length > 1) { const hit = p.subjects.find(x => myG.indexOf(S.heNorm(x)) >= 0); if (hit) name = hit; else name = p.subjects.join(' / '); }
+    return { n: i + 1, he: name, start: p.start, end: p.end, split: p.subjects.length > 1 && !p.subjects.some(x => myG.indexOf(S.heNorm(x)) >= 0) };
+  });
+  const nowM = S.nowMin();
+  const curP = today.find(p => S.toMin(p.start) - 10 <= nowM && nowM < S.toMin(p.end)) || null;
+  const nextP = curP ? null : today.find(p => S.toMin(p.start) > nowM) || null;
+  let pick = S.qs('subject') ? null : (curP && !curP.split ? curP : null);
+  let sid = S.qs('subject') || (pick ? S.subjectFromHe(pick.he) : '') || S.readJSON('sh:lastSubject') || (S.subjects()[0] || {}).id || '';
+  const cur = pick ? { end: pick.end, subjectId: sid } : null;
   let rec = null, stream = null, chunks = [], lesson = null, t0 = 0, tick = null, photos = 0, marks = [], lock = null, actx = null, analyser = null, stopAt = null, marksT = null;
   const DB = 'sh-rec', STORE = 'chunks';
 
@@ -51,17 +64,27 @@
   function subjSelect() {
     return '<label class="field"><span>' + esc(t('Subject')) + '</span><select id="subj">' + S.subjects().map(s => '<option value="' + esc(s.id) + '"' + (s.id === sid ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</select></label>';
   }
+  function choose(p) {
+    pick = p; sid = S.subjectFromHe(p.he);
+    if (cur) { cur.end = p.end; cur.subjectId = sid; }
+    idle();
+  }
   async function idle() {
     $('#state').textContent = '';
     const left = await idbAll();
-    $('#view').innerHTML = '<h1 style="font-size:32px;font-weight:800">' + esc(t('Record lesson')) + '</h1>' +
-      (cur ? '<p style="color:#D1D5DB">' + esc((he ? 'עכשיו לפי המערכת: ' : 'Now on your timetable: ') + cur.he + ' · ' + cur.start + '–' + cur.end) + '</p>' : '') +
-      subjSelect() +
+    const nowLine = pick
+      ? '<span class="eyebrow">' + esc(pick === curP ? t('Now · lesson {n}', { n: pick.n }) : t('Lesson {n}', { n: pick.n })) + ' · <span dir="ltr">' + esc(pick.start + '–' + pick.end) + '</span></span><h1 class="rec-subj" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' +
+        (S.toMin(pick.end) > nowM ? '<span class="hint">' + esc(t('Stops by itself at {x}', { x: pick.end })) + '</span>' : '')
+      : '<span class="eyebrow">' + esc(curP && curP.split ? t('Now: your class splits. Which one is yours?') : nextP ? t('Next lesson {x}', { x: nextP.start }) : t('No lesson right now')) + '</span><h1 class="rec-subj" dir="auto">' + esc(sid ? S.subjectName(sid) : t('Record lesson')) + '</h1>';
+    $('#view').innerHTML = '<section class="rec-now">' + nowLine + '</section>' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin:8px 0 4px"><button class="stop start" id="start" aria-label="' + esc(t('Start recording')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Start recording')) + '</span></div>' +
       (left.length ? '<div class="note">' + (he ? 'יש הקלטה שלא הסתיימה מהפעם הקודמת.' : 'There’s an unfinished recording from last time.') + ' <button class="btn" id="recover" style="margin-top:8px">' + (he ? 'להעלות אותה' : 'Upload it') + '</button></div>' : '') +
-      '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:20px"><button class="stop start" id="start" aria-label="' + esc(t('Start recording')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Start recording')) + '</span></div>' +
+      (today.length ? '<div class="rec-day"><span class="label">' + esc(t('Today’s lessons')) + '</span><div class="rec-list">' + today.map((p, i) => '<button class="rec-p' + (p === pick ? ' on' : '') + (p === curP ? ' now' : '') + (S.toMin(p.end) <= nowM ? ' past' : '') + '" data-p="' + i + '"><span class="tm" dir="ltr">' + esc(p.start) + '</span><span dir="auto">' + esc(p.he) + '</span></button>').join('') + '</div></div>' : '') +
+      '<details class="rec-more"><summary>' + esc(t('Another subject')) + '</summary>' + subjSelect() + '</details>' +
       '<div class="note">' + esc(t('Keep this screen open: it stays on by itself.')) + ' ' + esc(t('Transcribed in Hebrew or English by itself.')) + '</div>' +
       '<button class="btn" id="upload" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Upload a recording instead')) + '</button>';
-    $('#subj').onchange = e => { sid = e.target.value; S.writeJSON('sh:lastSubject', sid); };
+    $('#subj').onchange = e => { sid = e.target.value; pick = null; S.writeJSON('sh:lastSubject', sid); idle(); };
+    S.$$('[data-p]').forEach(b => b.onclick = () => choose(today[+b.dataset.p]));
     $('#start').onclick = start;
     $('#upload').onclick = () => S.openAdd(sid, () => location.href = S.link('/subject.html', { id: sid }), ['lesson']);
     const rv = $('#recover'); if (rv) rv.onclick = async () => {
@@ -73,6 +96,7 @@
   async function start() {
     if (!sid) return S.toast(he ? 'בחר מקצוע' : 'Pick a subject');
     S.writeJSON('sh:lastSubject', sid);
+    if (!S.DEMO) S.school.save([S.K.subj]).catch(() => {}); // a subject first seen in the timetable gets saved
     if (!S.DEMO) {
       try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } }); }
       catch (e) { return S.toast(he ? 'אין גישה למיקרופון. אשר גישה בהגדרות.' : 'No microphone access. Allow it in Settings.'); }
@@ -88,14 +112,15 @@
     try { lesson = await S.insert(S.T.lessons, { subject_id: sid, lesson_date: S.todayKey(), status: 'recording', started_at: new Date(t0).toISOString(), marks: [] }); } catch (e) { S.toast(e.message); }
     idbAdd({ meta: true, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: rec ? rec.mimeType : '' });
     wake();
-    if (cur && cur.subjectId === sid) { const end = S.toMin(cur.end); stopAt = end != null ? Date.now() + (end - S.nowMin()) * 60000 : null; }
+    if (pick && S.subjectFromHe(pick.he) === sid) { const end = S.toMin(pick.end), left = end != null ? end - S.nowMin() : null; stopAt = left != null && left > 0 ? Date.now() + left * 60000 : null; }
+    document.body.classList.add('recording');
     recording();
   }
   async function wake() { try { if ('wakeLock' in navigator) lock = await navigator.wakeLock.request('screen'); } catch (e) {} }
   document.addEventListener('visibilitychange', () => { if (!document.hidden && rec && rec.state === 'recording') wake(); });
   function recording() {
     $('#state').textContent = '● ' + t('Recording').toUpperCase();
-    $('#view').innerHTML = '<div><h1 style="font-size:30px;font-weight:800" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' + (stopAt ? '<p style="color:#D1D5DB">' + (he ? 'נעצר לבד ב־' : 'Stops by itself at ') + esc(cur.end) + '</p>' : '') + '</div>' +
+    $('#view').innerHTML = '<div><h1 style="font-size:30px;font-weight:800" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' + (stopAt ? '<p style="color:#D1D5DB">' + esc(t('Stops by itself at {x}', { x: pick.end })) + '</p>' : '') + '</div>' +
       '<div class="big-time" id="time">0:00</div><div class="wave" aria-hidden="true" id="wave">' + '<span></span>'.repeat(24) + '</div>' +
       '<div class="grid2"><label class="tile">' + ic('camera') + esc(t('Snap the board')) + '<small id="pc">0</small><input type="file" accept="image/*" capture="environment" id="snap"></label>' +
       '<button class="tile flag" id="flag">' + ic('flag') + esc(t('"On the test!"')) + '<small id="mc">' + esc(t('marks this moment')) + '</small></button></div>' +
@@ -125,6 +150,7 @@
   }
   async function stop() {
     clearInterval(tick); stopAt = null;
+    document.body.classList.remove('recording');
     try { lock && lock.release(); } catch (e) {}
     if (lesson && marks.length) await S.update(S.T.lessons, lesson.id, { marks }).catch(() => {});
     $('#view').innerHTML = '<p class="big-time" style="font-size:28px">' + (he ? 'מעלה…' : 'Uploading…') + '</p>';
@@ -145,7 +171,8 @@
   function done(s) {
     $('#state').textContent = '';
     $('#view').innerHTML = '<h1 style="font-size:30px;font-weight:800">' + (he ? 'השיעור נשמר' : 'Lesson saved') + '</h1><p style="color:#D1D5DB">' + (he ? 'מתמלל עכשיו (בערך דקה). המורה הפרטי ילמד ממנו.' : 'Transcribing now (about a minute). The tutor will teach from it.') + '</p>' +
-      '<a class="btn accent big" href="' + S.link('/subject.html', { id: s }) + '">' + esc(S.subjectName(s)) + ' →</a><a class="btn" href="' + S.link('/') + '" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Today')) + '</a>';
+      '<a class="btn accent big" href="' + S.link('/notebook.html', { tab: 'lessons' }) + '">' + esc(t('Lessons')) + ' →</a><button class="btn" id="again2" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Record another')) + '</button>';
+    $('#again2').onclick = () => { lesson = null; idle(); };
   }
   window.addEventListener('beforeunload', e => { if (rec && rec.state === 'recording') { e.preventDefault(); e.returnValue = ''; } });
   idle();

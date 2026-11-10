@@ -2,12 +2,115 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Study</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <script>
-// old tutor links → the new step-by-step session
-(function () { var p = new URLSearchParams(location.search); if (p.get('mode') !== 'test') p.set('mode', 'learn'); location.replace('/session.html?' + p.toString()); })();
+// old links (/tutor.html?subject=…) open the study session directly
+(function () { var p = new URLSearchParams(location.search); if (p.get('subject')) { if (p.get('mode') !== 'test') p.set('mode', 'learn'); location.replace('/session.html?' + p.toString()); } })();
 </script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.4.0">
+<title>Tutor · Study</title>
 </head>
-<body></body>
+<body>
+<main class="page" id="page">
+  <header class="head">
+    <div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div>
+    <span class="only-phone" id="lang-phone"></span>
+  </header>
+  <div class="cols">
+    <div class="col-main">
+      <section id="now"></section>
+      <section id="tests" style="display:flex;flex-direction:column;gap:12px"></section>
+    </div>
+    <div class="col-side">
+      <section class="list" id="hw" hidden></section>
+      <section class="card" id="any" style="display:flex;flex-direction:column;gap:10px"></section>
+      <section class="card" id="from" style="display:flex;flex-direction:column;gap:6px"></section>
+    </div>
+  </div>
+</main>
+<script src="/app.js?v=0.4.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, $$, esc, ic, t } = S;
+  S.nav('tutor');
+  $('#h1').textContent = t('Tutor');
+  $('#sub').textContent = t('Knows your tests. Teaches at your teacher’s level.');
+  $('#lang-phone').innerHTML = S.langToggle();
+  if (!(await S.session())) return;
+  let topicsBy = {}, lessons = [], mats = [], tt = null;
+  const dk = S.todayKey();
+  const go = (p) => S.link('/session.html', p);
+
+  function now() {
+    const p = S.plan(dk, tt, { topicsBySubj: topicsBy, lessons }), tg = p.target;
+    if (!tg) {
+      $('#now').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('No test in the next two weeks')) + '</span><h2>' + esc(t('Pick anything below, or record a lesson so the tutor has more to teach from.')) + '</h2></div></div>';
+      return;
+    }
+    const mins = p.block ? p.block.mins : 30, mode = tg.kind === 'practice' ? 'test' : 'learn';
+    const base = { subject: tg.subjectId, topic: tg.topic || '', test: tg.test ? tg.test.id : '', hw: tg.hw ? tg.hw.id : '' };
+    $('#now').innerHTML = '<div class="hero"><div class="main"><span class="eyebrow"><span class="pill-accent">' + esc(t('Study now').toUpperCase()) + '</span>' + esc(S.subjectName(tg.subjectId)) + (tg.test ? ' · ' + esc(tg.test.name || '') + ' · ' + esc(S.rel(tg.test.testDate)) : '') + '</span>' +
+      '<h2 dir="auto">' + esc(tg.title) + '</h2>' +
+      '<p class="line">' + esc(tg.kind === 'topic' && tg.state === 'with_help' ? t('You solved this with help. Now alone.') : tg.kind === 'practice' ? t('All topics solved alone: a full practice test.') : t('From zero, step by step, then a test question alone.')) + '</p>' +
+      '<div class="btn-row" style="margin-top:6px"><a class="btn big accent" href="' + go(Object.assign({ mode, mins }, base)) + '">' + ic('play', 'sm') + esc(t('Start · {n} min', { n: mins })) + '</a>' +
+      (mode === 'learn' ? '<a class="btn on-hero" href="' + go(Object.assign({ mode: 'test', mins: 20 }, base)) + '">' + esc(t('Test me')) + '</a>' : '') + '</div></div></div>';
+  }
+  function tests() {
+    const list = S.openTests().filter(x => S.daysUntil(x.testDate) <= 30);
+    $('#tests').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Your tests')) + '</h2></div>' + (list.length ? list.map(x => {
+      const tps = topicsBy[x.subjectId] || [], n = S.daysUntil(x.testDate);
+      const nx = tps.filter(p => p.state === 'with_help').concat(tps.filter(p => p.state === 'new'))[0];
+      const topic = nx ? nx.name : (tps.length ? '' : String(x.topics || '').split(/[,،;\n]/)[0].trim());
+      return '<article class="card tcard"><a class="tcard-top" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="body"><b dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + '</b><span class="hint" dir="auto">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate)) + '</span></span><span class="when" style="color:' + (n <= 3 ? 'var(--accent-ink)' : 'var(--ink-3)') + '">' + esc(S.rel(x.testDate)) + '</span></a>' +
+        (tps.length ? '<div class="bars">' + tps.map(p => '<span class="' + p.state + '"></span>').join('') + '</div><span class="hint">' + esc(t('{a} of {b} topics solved alone', { a: tps.filter(p => p.state === 'alone').length, b: tps.length })) + (nx ? ' · ' + esc(t('Next: {x}', { x: nx.name })) : '') + '</span>' : '<span class="hint">' + esc(t('No topics yet: they come from your lessons')) + '</span>') +
+        '<div class="btn-row"><a class="btn dark" href="' + go({ subject: x.subjectId, topic, test: x.id, mode: 'learn', mins: 40 }) + '">' + esc(t('Teach me')) + '</a><a class="btn" href="' + go({ subject: x.subjectId, topic: nx ? nx.name : '', test: x.id, mode: 'test', mins: 20 }) + '">' + esc(t('Test me')) + '</a></div></article>';
+    }).join('') : '<p class="card empty">' + esc(t('No tests in the next month.')) + '</p>');
+  }
+  function hw() {
+    const list = S.openHomework().filter(a => a.dueDate && S.daysUntil(a.dueDate) >= 0 && S.daysUntil(a.dueDate) <= 3).slice(0, 4);
+    $('#hw').hidden = !list.length;
+    $('#hw').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Homework with the tutor')) + '</h2></div>' + list.map(a => '<a class="item" href="' + go({ subject: a.subjectId, hw: a.id, topic: a.title, mode: 'learn', mins: 30 }) + '"><span class="body"><span class="ttl" dir="auto">' + esc(a.title) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(a.subjectId)) + '</span></span><span class="when">' + esc(S.rel(a.dueDate)) + '</span></a>').join('');
+  }
+  function any() {
+    const subs = S.subjects().filter(s => (topicsBy[s.id] || []).length || lessons.some(l => l.subject_id === s.id) || mats.some(m => m.subject_id === s.id) || S.openTests().some(x => x.subjectId === s.id));
+    $('#any').innerHTML = '<h2>' + esc(t('Learn something else')) + '</h2><div class="chips">' + (subs.length ? subs : S.subjects()).map(s => '<a class="chip" dir="auto" href="' + go({ subject: s.id, mode: 'learn', mins: 30 }) + '">' + esc(s.name) + '</a>').join('') + '</div>';
+  }
+  function from() {
+    const old = mats.filter(m => m.kind === 'old_test').length, ready = lessons.filter(l => l.status === 'ready').length;
+    $('#from').innerHTML = '<h2>' + esc(t('The tutor teaches from')) + '</h2>' +
+      '<span class="hint">' + esc(t('{a} recorded lessons · {b} old tests · {c} board photos and notes', { a: ready, b: old, c: mats.filter(m => m.kind === 'board' || m.kind === 'notes').length })) + '</span>' +
+      (old ? '' : '<p style="font-size:15px">' + esc(t('Add your teacher’s old tests: they set the level of every question.')) + '</p><button class="btn" id="add-old">' + esc(t('Add an old test')) + '</button>');
+    const b = $('#add-old'); if (b) b.onclick = () => S.openAdd(null, load, ['old_test']);
+  }
+  function render() { now(); tests(); hw(); any(); from(); }
+  async function load() {
+    try {
+      const [tps, ls, ms] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 60), S.rows(S.T.materials, null, 'created_at', 200)]);
+      topicsBy = {}; tps.forEach(x => (topicsBy[x.subject_id] = topicsBy[x.subject_id] || []).push(x));
+      lessons = ls; mats = ms;
+    } catch (e) { S.toast(e.message); }
+    render();
+  }
+  S.school.on(render);
+  await S.school.load();
+  S.loadGroups().then(render);
+  tt = await S.timetable();
+  await load();
+})();
+</script>
+</body>
 </html>

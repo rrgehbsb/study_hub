@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +16,8 @@
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.1">
+<link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.4.0">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -42,13 +44,13 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.3.1"></script>
+<script src="/app.js?v=0.4.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
   const id = S.qs('id');
-  S.nav('subjects');
-  $('#back').href = S.link('/subjects.html'); $('#back').innerHTML = ic('back', 'flip');
+  S.nav('notebook');
+  $('#back').href = S.link('/notebook.html', { tab: 'subjects' }); $('#back').innerHTML = ic('back', 'flip');
   $('#add').innerHTML = ic('plus'); $('#add').setAttribute('aria-label', t('Add material'));
   if (!(await S.session())) return;
   let lessons = [], mats = [], topics = [], attempts = [], poll = null;

@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -15,7 +16,8 @@
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.1">
+<link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.4.0">
 <title>Settings · Study</title>
 </head>
 <body>
@@ -25,6 +27,9 @@
   <section class="card" id="look" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"></section>
   <span class="label" id="l-src"></span>
   <section class="list" id="sources"></section>
+  <span class="label" id="l-who"></span>
+  <section class="card" id="groups" style="display:flex;flex-direction:column;gap:10px"></section>
+  <section class="list" id="teachers"></section>
   <span class="label" id="week"></span>
   <section class="list" id="acts"></section>
   <section class="card" id="plan" style="display:flex;flex-direction:column;gap:12px"></section>
@@ -32,7 +37,7 @@
   <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
   <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
 </main>
-<script src="/app.js?v=0.3.1"></script>
+<script src="/app.js?v=0.4.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -43,6 +48,7 @@
   $('#l-look').textContent = t('Appearance');
   $('#week').textContent = t('Your week (for the planner)');
   $('#l-lang').textContent = t('App language');
+  $('#l-who').textContent = t('Your groups and teachers');
   if (!(await S.session())) return;
   await S.school.load();
   const he = S.lang() === 'he';
@@ -57,7 +63,7 @@
       row(dotFor(st.mashov), 'Mashov', (he ? 'שיעורי בית, הודעות, ציונים · ' : 'Homework, messages, grades · ') + stTxt(st.mashov)) +
       row(dotFor(st.calendar), (he ? 'אתר בית הספר' : 'School site') + (S.myClass() ? ' · ' + S.myClass() : ''), (he ? 'מבחנים ומערכת · ' : 'Tests and timetable · ') + stTxt(st.calendar)) +
       row('with_help', 'Ofek', t('Not connected yet') + (he ? ' · בינתיים להוסיף ידנית' : ' · add by hand for now')) +
-      row('alone', 'WhatsApp', he ? 'הדבקה בעמוד ״מהמורים״' : 'Paste on the From teachers page') +
+      row('alone', 'WhatsApp', he ? 'הדבקה במחברת ← הודעות' : 'Paste in Notebook → Messages') +
       row('alone', he ? 'הדשבורד שלך' : 'Your Dashboard', he ? 'שיעורי בית ומבחנים משותפים' : 'Homework and tests shared both ways') +
       '<form class="item" id="cls-f" style="gap:10px"><label class="field" style="flex:1"><span>' + esc(t('Your class')) + '</span><input name="cls" value="' + esc(S.myClass()) + '" placeholder="11-3" autocomplete="off"></label><button class="btn dark" type="submit" style="align-self:flex-end">' + esc(t('Sync now')) + '</button></form>';
     $('#cls-f').onsubmit = async e => {
@@ -67,7 +73,20 @@
       S.toast(he ? 'מסנכרן…' : 'Syncing…'); await S.syncAll(true); sources();
     };
   }
-  let tt = null; const topicsBySubj = {};
+  let tt = null; const topicsBySubj = {}; let inbox = [];
+  function groups() {
+    const guessed = S.groupsGuessed(), fromMashov = (S.settings().mashovGroups || []).length;
+    $('#groups').innerHTML = '<h2>' + esc(t('Groups you’re in')) + '</h2><p class="hint">' + esc(guessed ? (fromMashov ? t('Taken from Mashov. Fix it if something’s wrong.') : t('Guessed from your Dashboard timetable. Fix it if something’s wrong.')) : t('Your class splits for these. Tests of groups you’re not in fold away (never deleted).')) + '</p><div id="gp"></div>';
+    S.groupsPicker($('#gp'));
+  }
+  function teachers() {
+    const list = S.teacherList();
+    inbox.forEach(m => { if (m.subject_id !== 'inbox') return; const n = S.senderOf(m); if (n && !list.some(x => S.sameTeacher(x.name, n))) list.push({ name: n, sid: '', from: 'unknown' }); });
+    const opts = sid => '<option value="">' + esc(t('Pick a subject')) + '</option>' + S.subjects().map(x => '<option value="' + esc(x.id) + '"' + (x.id === sid ? ' selected' : '') + '>' + esc(x.name) + '</option>').join('') + '<option value="school"' + (sid === 'school' ? ' selected' : '') + '>' + esc(t('School stuff')) + '</option>';
+    $('#teachers').innerHTML = list.length ? list.map(x => '<label class="item" style="gap:10px"><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta">' + esc(x.from === 'mashov' ? 'Mashov' : x.from === 'you' ? t('You set this') : t('Not known yet')) + '</span></span><select class="mini-select" data-who="' + esc(x.name) + '">' + opts(x.sid) + '</select></label>').join('')
+      : '<p class="empty">' + esc(t('Teachers show up here from Mashov and their messages.')) + '</p>';
+    S.$$('[data-who]').forEach(sel => sel.onchange = async () => { if (!sel.value) return; const n = await S.setTeacher(sel.dataset.who, sel.value, inbox); S.toast(n ? t('{n} messages sorted', { n }) : (he ? 'נשמר' : 'Saved')); teachers(); });
+  }
   function look() {
     const cur = S.theme();
     $('#look').innerHTML = '<span style="flex:1">' + esc(t('Appearance')) + '</span><div class="seg" role="group" aria-label="' + esc(t('Appearance')) + '">' +
@@ -119,7 +138,9 @@
       '<span class="hint">' + esc(t('Signed in as {x}', { x: (S.user() || {}).email || '' })) + ' · v' + S.VERSION + '</span><button class="btn" id="so">' + esc(t('Sign out')) + '</button>';
     $('#so').onclick = S.signOut;
   }
-  look(); sources(); acts(); plan(); langs(); account();
+  look(); sources(); groups(); teachers(); acts(); plan(); langs(); account();
+  S.loadGroups().then(groups);
+  S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 60).then(r => { inbox = r; teachers(); }).catch(() => {});
   S.timetable().then(x => { tt = x; });
   S.rows(S.T.topics).then(r => r.forEach(x => (topicsBySubj[x.subject_id] = topicsBySubj[x.subject_id] || []).push(x))).catch(() => {});
   if (location.hash === '#week') setTimeout(() => $('#week').scrollIntoView({ behavior: 'smooth' }), 100);

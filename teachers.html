@@ -2,69 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Study">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
-<script src="/vendor/supabase-2.116.0.js"></script>
-<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.1">
-<title>From teachers · Study</title>
-</head>
-<body>
-<main class="page narrow" id="page">
-  <header class="head"><div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div></header>
-  <div id="list" style="display:flex;flex-direction:column;gap:12px"></div>
-  <section class="hero" id="wa" style="flex-direction:column;gap:8px"></section>
-</main>
-<script src="/app.js?v=0.3.1"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study</title>
 <script>
-(async function () {
-  const S = window.SH, { $, esc, ic, t } = S;
-  S.nav('teachers');
-  $('#h1').textContent = t('From teachers');
-  $('#sub').textContent = S.lang() === 'he' ? 'משו״ב, אופק ומה ששלחת מוואטסאפ' : 'Mashov, Ofek and what you send from WhatsApp';
-  if (!(await S.session())) return;
-  let items = [];
-  const LAB = { teacher_message: ['mashov', 'Mashov'], teacher_summary: ['whatsapp', 'WhatsApp'] };
-  function render() {
-    $('#list').innerHTML = items.length ? items.map(m => {
-      const lab = LAB[m.kind] || ['', ''];
-      const inbox = m.subject_id === 'inbox';
-      return '<article class="card" style="display:flex;flex-direction:column;gap:8px">' +
-        '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="tag ' + lab[0] + '">' + lab[1] + '</span><span class="hint" style="flex:1">' + esc(inbox ? '' : S.subjectName(m.subject_id)) + ' · ' + esc(S.rel(String(m.taken_at || m.created_at).slice(0, 10))) + '</span></div>' +
-        '<b dir="auto" style="font-size:16px">' + esc(m.title || '') + '</b>' +
-        '<div dir="auto" style="white-space:pre-wrap;font-size:15px;color:var(--ink-2);max-height:9.5em;overflow:hidden" data-body="' + esc(m.id) + '">' + esc(m.content || '') + '</div>' +
-        (inbox ? '<label class="field"><span>' + esc(t('Pick a subject')) + '</span><select data-move="' + esc(m.id) + '"><option value="">—</option>' + S.subjects().map(s => '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>').join('') + '</select></label>'
-          : '<span class="hint">' + esc(t('The tutor uses this')) + '</span>') + '</article>';
-    }).join('') : '<p class="card empty">' + (S.lang() === 'he' ? 'עוד אין הודעות. הודעות ממשו״ב מגיעות לבד.' : 'No messages yet. Mashov messages arrive by themselves.') + '</p>';
-    S.$$('[data-body]').forEach(el => el.onclick = () => { el.style.maxHeight = 'none'; });
-    S.$$('[data-move]').forEach(sel => sel.onchange = async () => {
-      if (!sel.value) return;
-      try { await S.update(S.T.materials, sel.dataset.move, { subject_id: sel.value }); const m = items.find(x => x.id === sel.dataset.move); if (m) m.subject_id = sel.value; render(); S.toast(S.lang() === 'he' ? 'שויך למקצוע' : 'Moved to ' + S.subjectName(sel.value)); } catch (e) { S.toast(e.message); }
-    });
-    $('#wa').innerHTML = '<b style="font-size:17px">' + (S.lang() === 'he' ? 'וואטסאפ' : 'WhatsApp') + '</b><span style="color:var(--hero-2);font-size:15px">' + (S.lang() === 'he' ? 'לחיצה ארוכה על ההודעה של המורה ← העתקה, ואז כאן ← הדבקה.' : 'Long-press the teacher’s message → Copy, then paste it here.') + '</span>' +
-      '<button class="btn accent" id="paste" style="align-self:flex-start">' + ic('paste', 'sm') + esc(t('Paste from WhatsApp')) + '</button>';
-    $('#paste').onclick = () => S.openAdd(null, load, ['teacher_summary']);
-  }
-  async function load() {
-    try {
-      const [a, b] = await Promise.all([S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 40), S.rows(S.T.materials, { kind: 'teacher_summary' }, 'created_at', 40)]);
-      items = a.concat(b).sort((x, y) => String(y.taken_at || y.created_at).localeCompare(String(x.taken_at || x.created_at)));
-    } catch (e) { S.toast(e.message); }
-    render();
-  }
-  await S.school.load();
-  await load();
-  S.syncAll().then(n => { if (n) load(); });
-})();
+// moved into the Notebook
+(function () { var p = new URLSearchParams(location.search); p.set('tab', 'messages'); location.replace('/notebook.html?' + p.toString()); })();
 </script>
-</body>
+</head>
+<body></body>
 </html>

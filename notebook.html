@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.4.0">
+<title>Notebook · Study</title>
+</head>
+<body>
+<main class="page narrow" id="page">
+  <header class="head">
+    <div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div>
+    <button class="icon-btn" id="add"></button>
+  </header>
+  <div class="seg nb-tabs" role="tablist" id="tabs"></div>
+  <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
+</main>
+<script src="/app.js?v=0.4.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, $$, esc, ic, t } = S;
+  S.nav('notebook');
+  const he = S.lang() === 'he';
+  $('#h1').textContent = t('Notebook');
+  $('#sub').textContent = t('Everything from school, in one place');
+  $('#add').innerHTML = ic('plus'); $('#add').setAttribute('aria-label', t('Add'));
+  if (!(await S.session())) return;
+
+  const TABS = [['coming', 'Coming up'], ['lessons', 'Lessons'], ['messages', 'Messages'], ['subjects', 'Subjects']];
+  let tab = S.qs('tab') || S.readJSON('sh:nb:tab') || 'coming';
+  if (!TABS.some(x => x[0] === tab)) tab = 'coming';
+  let gpOpen = false, showDone = false, lessons = [], msgs = [], topicsBy = {}, lessonFilter = '';
+  const SRC = { mashov: 'Mashov', ofek: 'Ofek', calendar: 'School site', whatsapp: 'WhatsApp' };
+  const tag = x => x.source && SRC[x.source] ? ' <span class="tag ' + x.source + '">' + SRC[x.source] + '</span>' : '';
+  const when = (k, done) => { const n = S.daysUntil(k); return '<span class="when' + (!done && n != null && n < 0 ? ' late' : !done && n != null && n <= 1 ? ' soon' : '') + '">' + esc(k ? S.rel(k) : '') + '</span>'; };
+
+  function tabs() {
+    $('#tabs').innerHTML = TABS.map(x => '<button type="button" role="tab" data-tab="' + x[0] + '" aria-pressed="' + (x[0] === tab) + '" aria-selected="' + (x[0] === tab) + '">' + esc(t(x[1])) + '</button>').join('');
+    $$('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; S.writeJSON('sh:nb:tab', tab); history.replaceState(null, '', S.link('/notebook.html', { tab })); render(); });
+  }
+
+  /* ---------- coming up: tests + homework by date ---------- */
+  function testRow(x) {
+    return '<button class="item" data-test="' + esc(x.id) + '" style="text-align:start;width:100%"><span class="tag test">' + esc(x.type === 'Quiz' ? t('Quiz') : t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + tag(x) + '</span></span>' + when(x.testDate) + '</button>';
+  }
+  function hwRow(a) {
+    const done = a.status === 'Done';
+    return '<div class="item"><button class="check-hit" data-tog="' + esc(a.id) + '" aria-label="' + esc(t('Mark done')) + '" aria-pressed="' + done + '"><span class="check' + (done ? ' on' : '') + '">' + ic('check', 'sm') + '</span></button>' +
+      '<button class="body" data-hw="' + esc(a.id) + '" style="text-align:start"><span class="ttl" dir="auto"' + (done ? ' style="text-decoration:line-through;color:var(--ink-3)"' : '') + '>' + esc(a.title) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(a.subjectId)) + tag(a) + '</span></button>' + when(a.dueDate, done) + '</div>';
+  }
+  function coming() {
+    const all = S.school.get(S.K.as).filter(a => a && !a.hidden && !a.deleted);
+    const todo = all.filter(a => a.status !== 'Done'), done = all.filter(a => a.status === 'Done').sort((a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || ''))).slice(0, 20);
+    const tests = S.openTests(), others = S.otherTests();
+    let html = '';
+    // one time: which groups you're in (until Mashov or you tell Study)
+    if ((gpOpen || !S.myGroups()) && S.classGroups().length && !S.DEMO) { gpOpen = true; html += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><h2>' + esc(t('One time: which groups are you in?')) + '</h2><p class="hint">' + esc(t('Your class splits for these. Tests of groups you’re not in fold away (never deleted).')) + '</p><div id="gp"></div><button class="btn dark" id="gp-done" style="align-self:flex-start">' + esc(t('Done')) + '</button></section>'; }
+    html += '<div class="chips" role="group"><button class="chip" data-f="todo" aria-pressed="' + !showDone + '">' + esc(t('To do')) + ' · ' + (todo.length + tests.length) + '</button><button class="chip" data-f="done" aria-pressed="' + showDone + '">' + esc(t('Done')) + '</button></div>';
+    let groups;
+    if (showDone) groups = [[t('Done'), done.map(a => ({ k: 'hw', x: a }))]];
+    else {
+      const g = { late: [], today: [], tom: [], week: [], later: [], none: [] };
+      const put = (it, d) => { const n = S.daysUntil(d); if (n == null) g.none.push(it); else if (n < 0) g.late.push(it); else if (n === 0) g.today.push(it); else if (n === 1) g.tom.push(it); else if (n <= 7) g.week.push(it); else g.later.push(it); };
+      todo.forEach(a => { if (!a.dueDate || S.daysUntil(a.dueDate) >= -14) put({ k: 'hw', x: a, d: a.dueDate || '' }, a.dueDate); });
+      tests.forEach(x => put({ k: 'test', x, d: x.testDate }, x.testDate));
+      Object.values(g).forEach(l => l.sort((a, b) => String(a.d).localeCompare(String(b.d)) || (a.k === 'test' ? -1 : 1)));
+      groups = [[t('Overdue'), g.late], [t('today'), g.today], [t('tomorrow'), g.tom], [t('This week'), g.week], [t('Later'), g.later], [t('No date'), g.none]];
+    }
+    groups = groups.filter(x => x[1].length);
+    html += groups.length ? groups.map(([name, list]) => '<section class="list"><div class="title-row"><span class="label">' + esc(name) + '</span></div>' + list.map(it => it.k === 'test' ? testRow(it.x) : hwRow(it.x)).join('') + '</section>').join('') : '<p class="card empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>';
+    if (others.length && !showDone) html += '<details class="card fold"><summary><span>' + esc(t('Probably not yours')) + ' · ' + others.length + '</span><span class="hint">' + esc(t('Other groups and classes')) + '</span></summary>' +
+      others.map(x => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta" dir="auto">' + esc(S.fmtDay(x.testDate)) + ' · ' + esc(S.fitWhy(x)) + '</span></span><button class="btn" data-mine="' + esc(x.id) + '">' + esc(t('Mine')) + '</button></div>').join('') + '</details>';
+    html += '<p class="hint" style="text-align:center">' + esc(t('Ticked here = ticked in your Dashboard too.')) + '</p>';
+    $('#view').innerHTML = html;
+    const gp = $('#gp'); if (gp) { S.groupsPicker(gp); $('#gp-done').onclick = () => { if (!(S.myGroups() || []).length) return S.toast(t('Tap the groups you’re in')); gpOpen = false; render(); }; }
+    $$('[data-f]').forEach(b => b.onclick = () => { showDone = b.dataset.f === 'done'; render(); });
+    $$('[data-tog]').forEach(b => b.onclick = () => { const a = all.find(x => x.id === b.dataset.tog); if (!a) return; const to = a.status !== 'Done'; S.setHomeworkDone(a.id, to); if (to) S.toast(t('Done'), () => S.setHomeworkDone(a.id, false)); });
+    $$('[data-hw]').forEach(b => b.onclick = () => {
+      const a = all.find(x => x.id === b.dataset.hw); if (!a) return;
+      S.sheet('<h2 dir="auto">' + esc(a.title) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(S.subjectName(a.subjectId)) + (a.dueDate ? ' · ' + esc(S.fmtDay(a.dueDate, true)) : '') + tag(a) + '</p>' +
+        (a.notes && a.notes !== a.title ? '<div class="card" dir="auto" style="white-space:pre-wrap;margin-bottom:12px">' + esc(a.notes) + '</div>' : '') +
+        '<a class="btn big accent block" href="' + S.link('/session.html', { subject: a.subjectId, hw: a.id, topic: a.title, mode: 'learn', mins: 30 }) + '">' + esc(t('Do it with the tutor')) + '</a>');
+    });
+    $$('[data-test]').forEach(b => b.onclick = () => {
+      const x = tests.find(y => y.id === b.dataset.test); if (!x) return;
+      S.sheet('<h2 dir="auto">' + esc(x.name) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate, true)) + ' · ' + esc(S.rel(x.testDate)) + tag(x) + '</p>' +
+        (x.topics ? '<div class="card" dir="auto" style="white-space:pre-wrap;margin-bottom:12px">' + esc(x.topics) + '</div>' : '') +
+        '<div style="display:flex;flex-direction:column;gap:10px"><a class="btn big accent block" href="' + S.link('/subject.html', { id: x.subjectId }) + '">' + esc(t('Study for it')) + '</a>' +
+        '<button class="btn block" id="not-mine">' + esc(t('Not my test')) + '</button></div>', s => {
+        $('#not-mine', s).onclick = async () => { S.closeSheet(); await S.setTestMine(x.id, false); render(); S.toast(t('Moved to “Probably not yours”'), async () => { await S.setTestMine(x.id, null); render(); }); };
+      });
+    });
+    $$('[data-mine]').forEach(b => b.onclick = async () => { await S.setTestMine(b.dataset.mine, true); render(); S.toast(t('Back in your list')); });
+  }
+
+  /* ---------- lessons: summaries + full transcripts ---------- */
+  const plain = md => String(md || '').replace(/\$\$?[^$]*\$\$?/g, '…').replace(/[#*_>`-]+/g, ' ').replace(/\s+/g, ' ').trim();
+  function lessonsView() {
+    const subs = Array.from(new Set(lessons.map(l => l.subject_id)));
+    const list = lessons.filter(l => !lessonFilter || l.subject_id === lessonFilter);
+    const st = l => l.status === 'ready' ? '' : '<span class="tag">' + esc(l.status === 'error' ? t('Failed · retry') : l.status === 'recording' ? t('Recording') : t('Transcribing…')) + '</span>';
+    $('#view').innerHTML = '<a class="btn big dark block" href="' + S.link('/record.html') + '"><span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson')) + '</a>' +
+      (subs.length > 1 ? '<div class="chips"><button class="chip" data-lf="" aria-pressed="' + !lessonFilter + '">' + esc(t('All')) + '</button>' + subs.map(id => '<button class="chip" data-lf="' + esc(id) + '" aria-pressed="' + (lessonFilter === id) + '" dir="auto">' + esc(S.subjectName(id)) + '</button>').join('') + '</div>' : '') +
+      (list.length ? list.map(l => '<a class="card lesson-row" href="' + S.link('/lesson.html', { id: l.id }) + '"><span class="hint" dir="auto">' + esc(S.subjectName(l.subject_id)) + ' · ' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + '</span>' +
+        '<b dir="auto">' + esc(l.title || t('Lesson')) + '</b>' + st(l) + (l.summary ? '<p class="clamp" dir="auto">' + esc(plain(l.summary)) + '</p>' : '') +
+        ((l.topics || []).length ? '<div class="chips">' + l.topics.slice(0, 4).map(x => '<span class="chip small" dir="auto">' + esc(x) + '</span>').join('') + '</div>' : '') + '</a>').join('')
+        : '<p class="card empty">' + esc(t('No lessons yet. Record one and it shows up here with a summary and the full transcript.')) + '</p>');
+    $$('[data-lf]').forEach(b => b.onclick = () => { lessonFilter = b.dataset.lf; render(); });
+  }
+
+  /* ---------- messages: sorted by teacher, set once ---------- */
+  function messagesView() {
+    const unknown = [];
+    msgs.forEach(m => { if (m.kind === 'teacher_message' && m.subject_id === 'inbox') { const n = S.senderOf(m) || '?'; if (!unknown.some(u => S.sameTeacher(u, n))) unknown.push(n); } });
+    const opts = '<option value="">—</option>' + S.subjects().map(s => '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>').join('') + '<option value="school">' + esc(t('School stuff')) + '</option>';
+    const LAB = { teacher_message: ['mashov', 'Mashov'], teacher_summary: ['whatsapp', 'WhatsApp'] };
+    $('#view').innerHTML = (unknown.length ? '<section class="card" style="display:flex;flex-direction:column;gap:10px"><h2>' + esc(t('Who teaches what? (once)')) + '</h2><p class="hint">' + esc(t('After this, their messages sort themselves.')) + '</p>' +
+        unknown.map(n => '<label class="field row-field"><span dir="auto">' + esc(n) + '</span><select data-who="' + esc(n) + '">' + opts + '</select></label>').join('') + '</section>' : '') +
+      (msgs.length ? msgs.map(m => {
+        const lab = LAB[m.kind] || ['', ''];
+        return '<article class="card msg"><div class="msg-top"><span class="tag ' + lab[0] + '">' + lab[1] + '</span><span class="hint" dir="auto">' + esc(m.subject_id === 'inbox' ? '' : S.subjectName(m.subject_id)) + ' · ' + esc(S.rel(String(m.taken_at || m.created_at).slice(0, 10))) + '</span></div>' +
+          '<b dir="auto">' + esc(m.title || '') + '</b><div class="msg-body" dir="auto" data-body="' + esc(m.id) + '">' + esc(m.content || '') + '</div></article>';
+      }).join('') : '<p class="card empty">' + esc(t('No messages yet. Mashov messages arrive by themselves.')) + '</p>') +
+      '<section class="hero" style="flex-direction:column;gap:8px;padding:20px"><b style="font-size:17px">WhatsApp</b><span style="color:var(--hero-2);font-size:15px">' + esc(t('Long-press the teacher’s message → Copy, then paste it here.')) + '</span>' +
+      '<button class="btn accent" id="paste" style="align-self:flex-start">' + ic('paste', 'sm') + esc(t('Paste from WhatsApp')) + '</button></section>';
+    $$('[data-body]').forEach(el => el.onclick = () => el.classList.add('open'));
+    $$('[data-who]').forEach(sel => sel.onchange = async () => {
+      if (!sel.value) return;
+      const n = await S.setTeacher(sel.dataset.who, sel.value, msgs);
+      render(); S.toast(t('{n} messages sorted', { n }));
+    });
+    $('#paste').onclick = () => S.openAdd(null, load, ['teacher_summary']);
+  }
+
+  /* ---------- subjects ---------- */
+  function subjectsView() {
+    const lessonsBy = {}; lessons.forEach(l => (lessonsBy[l.subject_id] = lessonsBy[l.subject_id] || []).push(l));
+    const busy = new Set(Object.keys(topicsBy).concat(Object.keys(lessonsBy)));
+    S.openTests().forEach(x => busy.add(x.subjectId)); S.openHomework().forEach(a => busy.add(a.subjectId));
+    const list = S.subjects().filter(s => busy.has(s.id));
+    $('#view').innerHTML = '<section class="subj-grid">' + (list.map(s => {
+      const test = S.openTests().find(x => x.subjectId === s.id), tps = topicsBy[s.id] || [], ls = lessonsBy[s.id] || [];
+      return '<a class="subj-card" href="' + S.link('/subject.html', { id: s.id }) + '"><span class="bar" style="background:' + esc(s.color || 'var(--accent)') + '"></span><b style="font-size:20px" dir="auto">' + esc(s.name) + '</b>' +
+        (test ? '<span class="tag test" style="align-self:flex-start">' + esc(t('Next test')) + ' · ' + esc(S.rel(test.testDate)) + '</span>' : '') +
+        (tps.length ? '<div class="bars">' + tps.map(p => '<span class="' + p.state + '"></span>').join('') + '</div>' : '') +
+        '<span class="hint">' + ls.length + ' ' + (he ? 'שיעורים' : (ls.length === 1 ? 'lesson' : 'lessons')) + '</span></a>';
+    }).join('') || '<p class="empty card" style="grid-column:1/-1">' + esc(t('Subjects show up here once they have a lesson, a test or homework.')) + '</p>') + '</section>';
+  }
+
+  function render() {
+    tabs();
+    $('#add').hidden = tab === 'subjects';
+    if (tab === 'coming') coming(); else if (tab === 'lessons') lessonsView(); else if (tab === 'messages') messagesView(); else subjectsView();
+  }
+  $('#add').onclick = () => tab === 'lessons' ? S.openAdd(null, load, ['lesson']) : tab === 'messages' ? S.openAdd(null, load, ['teacher_summary']) : S.openAdd(null, render, ['homework', 'test']);
+
+  async function load() {
+    try {
+      const [ls, a, b, tps] = await Promise.all([S.rows(S.T.lessons, null, 'lesson_date', 100), S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 60), S.rows(S.T.materials, { kind: 'teacher_summary' }, 'created_at', 40), S.rows(S.T.topics)]);
+      lessons = ls; topicsBy = {}; tps.forEach(x => (topicsBy[x.subject_id] = topicsBy[x.subject_id] || []).push(x));
+      msgs = a.concat(b).sort((x, y) => String(y.taken_at || y.created_at).localeCompare(String(x.taken_at || x.created_at)));
+      if (!S.DEMO) S.resortMessages(msgs).then(n => { if (n) render(); });
+    } catch (e) { S.toast(e.message); }
+    render();
+  }
+  S.school.on(render);
+  await S.school.load();
+  render();
+  S.loadGroups().then(render);
+  await load();
+  S.syncAll().then(n => { if (n) load(); });
+})();
+</script>
+</body>
+</html>

@@ -11,10 +11,13 @@ const PAGES = [
   ['today', '/?demo'],
   ['session-learn', '/session.html?subject=math&topic=%D7%9E%D7%A9%D7%99%D7%A7&test=t1&mode=learn&demo'],
   ['session-test', '/session.html?subject=math&topic=%D7%9E%D7%A9%D7%99%D7%A7&test=t1&mode=test&demo'],
-  ['homework', '/homework.html?demo'],
-  ['subjects', '/subjects.html?demo'],
+  ['tutor', '/tutor.html?demo'],
+  ['notebook', '/notebook.html?tab=coming&demo'],
+  ['notebook-lessons', '/notebook.html?tab=lessons&demo'],
+  ['notebook-messages', '/notebook.html?tab=messages&demo'],
+  ['notebook-subjects', '/notebook.html?tab=subjects&demo'],
+  ['old-homework-link', '/homework.html?demo'],
   ['subject', '/subject.html?id=math&demo'],
-  ['teachers', '/teachers.html?demo'],
   ['progress', '/progress.html?demo'],
   ['record', '/record.html?demo'],
   ['settings', '/settings.html?demo'],
@@ -24,9 +27,9 @@ const PAGES = [
 (async () => {
   const browser = await chromium.launch();
   const problems = [];
-  for (const [w, h, tag] of [[390, 844, 'phone'], [1280, 900, 'desktop']]) {
+  for (const [w, h, tag] of [[390, 844, 'phone'], [360, 780, 'android'], [1280, 900, 'desktop']]) {
     for (const scheme of ['light', 'dark']) {
-      if (scheme === 'dark' && tag === 'desktop') continue;
+      if (scheme === 'dark' && tag !== 'phone') continue;
       const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, colorScheme: scheme });
       for (const [name, path] of PAGES) {
         const page = await ctx.newPage();
@@ -46,6 +49,16 @@ const PAGES = [
           await page.screenshot({ path: `${DIR}/${tag}-session-check.png`, fullPage: true });
           await page.click('[data-rate="alone"]'); await page.waitForTimeout(400);
           await page.screenshot({ path: `${DIR}/${tag}-session-after.png`, fullPage: true });
+        }
+        if (tag === 'phone' && scheme === 'light' && name === 'notebook') {
+          await page.click('details.fold summary'); await page.waitForTimeout(300);
+          await page.screenshot({ path: `${DIR}/${tag}-notebook-fold.png`, fullPage: true });
+          await page.click('[data-test]'); await page.waitForTimeout(400);
+          await page.screenshot({ path: `${DIR}/${tag}-test-sheet.png` });
+        }
+        if (tag === 'phone' && scheme === 'light' && name === 'notebook-messages') {
+          await page.selectOption('[data-who]', 'school'); await page.waitForTimeout(600);
+          await page.screenshot({ path: `${DIR}/${tag}-messages-sorted.png`, fullPage: true });
         }
         if (tag === 'phone' && scheme === 'light' && name === 'record') {
           await page.click('#start'); await page.waitForTimeout(1000);

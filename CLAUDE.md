@@ -66,8 +66,14 @@ dashboard:school:v1:tests       [{id, subjectId, name, testDate, topics, studySt
 dashboard:school:v1:grades      [{id, subjectId, type, gradeValue, maxGrade, date, weight, notes, testId?}]
 dashboard:school:v1:timetable   {cls:"11-3", mine:["מתמטיקה|teacher name", …]}  ← main Dashboard's; Study Hub only READS it
 study:v1:settings               {cls, lang, teachLang, theme:'light'|'dark'|'auto', week:[{id,name,days:[0-6],start,end}], studyMins, commuteMins, latest,
-                                 overrides:{'YYYY-MM-DD':{skip,start,mins}}, sessions:[{date,start,end,subject,topic,goal}], updatedAt}  ← Study Hub's own
+                                 overrides:{'YYYY-MM-DD':{skip,start,mins}}, sessions:[{date,start,end,subject,topic,goal}],
+                                 myGroups:[class group names]|null, mashovGroups:[{subject,teachers}], teachers:{name:subjectId|'school'},
+                                 testMine:{testId:true|false}, updatedAt}  ← Study Hub's own
 ```
+**Which tests are yours (v0.4):** the class calendar lists every group's tests and sometimes other classes' (`מבחן בלשון יא2 ויא4`). `SH.testFit` says `mine` / `maybe` / `other`: your own override (`testMine`) → a class named in the title (yours or not) → the class's split groups (`/api/school?groups=1`) the test is about vs. your groups (`myGroups` picked once, else guessed from Mashov's groups, else the Dashboard's `timetable.mine`) → otherwise a whole-class subject = mine. `openTests()` = mine + maybe (everything uses it: planner, Home, Tutor); `otherTests()` fold into "Probably not yours" with a one-tap "Mine". **Nothing is ever deleted or left un-imported**: a wrong guess must never hide a real test date.
+
+**Teachers:** a Mashov message's sender is matched (`sameTeacher`, name order ignored) to your one-time list (`settings.teachers`), then Mashov's groups, then the Dashboard's timetable. Unknown senders get one "Who teaches what? (once)" picker in Notebook → Messages and Settings; picking moves all their old messages too.
+
 Imported items keep a `source` (`'calendar'` / `'mashov'`) and stable ids (`cal-<uid>`, `mashov-hw-<id>`), so re-imports and other devices never duplicate them. Calendar tests also carry `calUid`, which is how the main Dashboard hides its own read-only calendar copy.
 
 **Sync rules (copied from the main Dashboard; they were learned the hard way, do NOT regress):**
@@ -99,25 +105,28 @@ Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`
 
 ## 4. Design and files
 
-**Design (chosen by the owner on 2026-11-10):** "Coach" (direction A) for the look and the Today page: warm off-white, one dark hero card, one orange accent, Rubik. Each subject/test uses the "Course" layout from direction C: topics in order as a path, the next one highlighted, a practice test at the end, and "what the tutor teaches from". The canvas with all directions: https://claude.ai/artifact/9rPanErtktfF7ef4MHpdtQ (rows A, B, C and "Building blocks"). Phone = bottom tabs; computer (≥900px) = top bar and two columns.
+**Design (chosen by the owner on 2026-11-10):** "Coach" (direction A) for the look and the Today page: warm off-white, one dark hero card, one orange accent, Rubik. Each subject/test uses the "Course" layout from direction C: topics in order as a path, the next one highlighted, a practice test at the end, and "what the tutor teaches from". The canvas with all directions: https://claude.ai/artifact/9rPanErtktfF7ef4MHpdtQ (rows A, B, C and "Building blocks"). Phone = bottom tabs **Home · Tutor · Record · Notebook · Progress** (owner's blueprint, v0.4; Record is the red middle tab); computer (≥900px) = top bar and two columns with a red Record button. Settings = the gear.
 
 **Language:** the app is English or Hebrew (`SH.t('English text')` looks up `HE` in `app.js`; `html[dir]` switches to RTL). Teaching language is separate: "same as the test" (Hebrew, English for the English subject) or a per-session EN/עב switch. Times and formulas stay left-to-right inside Hebrew (`<span dir="ltr">`, `.katex` isolate).
 
 ```
-index.html      Today: tonight's study block (planner), your day, next test readiness, coming up, came in by itself
+index.html      Home: tonight's block (planner), your day, next test readiness, coming up, last lesson, came in by itself
+tutor.html      Tutor: "study now" (the planner's pick), your tests with topic progress + Teach me / Test me, homework with
+                the tutor, learn something else, what the tutor teaches from. Old ?subject= links go straight to a session.
 session.html/.js  Study session in 4 steps: Learn → Example → Your turn → Check ("Test me" starts at Your turn)
-homework.html   Homework grouped by due date, source tags, tick = ticked in the Dashboard too, "Do it with the tutor"
-subjects.html   Subjects with something in them (others fold away)
+record.html     Record tab (red, middle): picks the lesson from today's class timetable (your group when the class splits),
+                today's lessons to tap, wake lock, board photos and "On the test!" marks tied to the moment, chunks in
+                IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording
+notebook.html   Notebook: Coming up (tests + homework by date, "Probably not yours" fold) · Lessons (summaries →
+                lesson.html) · Messages (Mashov + WhatsApp, sorted by teacher) · Subjects (→ subject.html)
+homework.html, subjects.html, teachers.html  redirects into the Notebook (old links)
 subject.html    One subject as a course: next test, topic path, practice test, lessons, what the tutor teaches from
-teachers.html   Mashov messages + pasted WhatsApp summaries; unmatched ones get a subject picker
 progress.html   Solved alone vs with help, readiness per test, mistakes that keep coming back, grades
-record.html     Record a lesson in the app: wake lock, board photos and "On the test!" marks tied to the moment,
-                chunks kept in IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end
-settings.html   Appearance (Light / Dark / Auto), sources status + class, your week (chat, "Plan my week with Claude",
-                import, edit by hand), study minutes, way home, latest time, app and teaching language, AI turns, sign out
+settings.html   Appearance (Light / Dark / Auto), sources status + class, your groups and teachers (set once), your week
+                (chat, "Plan my week with Claude", import, edit by hand), study minutes, way home, latest time,
+                app and teaching language, AI turns, sign out
 lesson.html     One lesson: summary, full transcript (marks and photo moments shown)
 login.html      Email + password (same accounts as the main Dashboard)
-tutor.html      Redirect from old links to session.html
 app.css         Coach design system (light + dark), course path, session, record styles
 app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,
                 planner, study tables, uploads, api(), graphs (```plot → SVG, safe formula parser), i18n, nav, demo data
@@ -130,7 +139,7 @@ api/week.js        the week assistant: mode 'week' (owner describes the week in 
                    minutes, latest, way home; asks one question at a time) and 'tonight' (skip / shorter / later)
 api/calendar.js    tests + events from the Handasaim class calendar (.ics)
 api/school.js      the class timetable (copied from the main Dashboard): today + 3 days and the regular week
-api/mashov.js      the owner's Mashov homework, grades and teacher messages (unofficial endpoints, read only)
+api/mashov.js      the owner's Mashov homework, grades, groups (subject + teacher) and teacher messages (unofficial endpoints, read only)
 supabase/schema.sql  tables, policies, storage bucket (re-run after each version that changes it; safe)
 tools/serve.js, tools/shot.js  local server; Playwright screenshots of every page in ?demo (phone, dark, computer)
 ```

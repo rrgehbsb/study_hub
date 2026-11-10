@@ -73,6 +73,18 @@ module.exports = handler(async (req, res) => {
     if (Array.isArray(hw) && hw[0]) out.homeworkFields = Object.keys(hw[0]); // to fix the mapping if Mashov renames fields
   } catch (e) { out.problems.push('homework: ' + e.message); }
 
+  // your groups: subject + teacher (sorts teacher messages and tells which calendar tests are yours)
+  out.groups = [];
+  try {
+    const gs = await get(s, '/students/' + s.userId + '/groups');
+    (Array.isArray(gs) ? gs : []).forEach(g => {
+      const subject = pick(g, ['subjectName', 'groupName']) || '';
+      const teachers = (g.groupTeachers || g.teachers || []).map(x => typeof x === 'string' ? x : pick(x, ['teacherName', 'name'])).filter(Boolean);
+      if (subject) out.groups.push({ subject: String(subject).trim(), teachers });
+    });
+    if (Array.isArray(gs) && gs[0]) out.groupFields = Object.keys(gs[0]);
+  } catch (e) { out.problems.push('groups: ' + e.message); }
+
   // grades (this school year)
   try {
     const gr = await get(s, '/students/' + s.userId + '/grades');

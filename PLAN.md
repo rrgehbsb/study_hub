@@ -66,6 +66,18 @@ Known limits to handle in this phase if they bite:
 - [x] "Change tonight": not tonight / shorter / later, or in your own words
 - [ ] **Owner:** plan the week once with Claude and import it
 
+## v0.4 — the owner's blueprint (done 2026-11-10)
+
+- [x] Tabs: Home · Tutor · Record (main, middle) · Notebook · Progress
+- [x] Tutor page: knows the tests, what to teach next, Teach me / Test me per test
+- [x] Record picks the lesson from the class timetable (your group), today's lessons to tap
+- [x] Notebook replaces Homework / Subjects / From teachers: coming up, lessons with summaries + transcripts, messages, subjects
+- [x] Your groups + teachers set once (Mashov groups when available); messages sort themselves
+- [x] Tests of other groups / classes fold into "Probably not yours" (never deleted, one tap back)
+- [x] Android: color-scheme, text-size-adjust, Hebrew font preloaded, checked at 360px
+- [ ] **Owner:** check that "Groups you're in" in Settings is right; send a screenshot if Android text still looks off
+- [ ] First real Mashov run: check `groupFields` and that the groups list fills
+
 ## Phase 2 — the best possible transcript and teaching
 
 - [ ] Compare Groq Whisper with ivrit.ai's Hebrew Whisper (`ivrit-ai/whisper-large-v3`) on the same real lesson; keep the winner. ivrit.ai has no hosted API, so if it wins it runs in a GitHub Action (free minutes) or on the owner's PC.
@@ -98,6 +110,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-10 (evening): v0.4.0 — owner's blueprint: new tabs, Tutor page, Record as a main tab with the timetable, Notebook, groups/teachers set once, other groups' tests folded away. The sandbox can now reach Mashov, the school site and the live app (allowed domains): calendar + timetable checked live; Mashov login format accepted.
 - 2026-11-10 (later): v0.3.1 — light/dark/auto switch; week planning in regular Claude with import back; in-app week and "Change tonight" assistant; imported sessions and per-day overrides in the planner.
 - 2026-11-10: v0.3.0 — owner picked design A (Coach) with C's course layout and the building blocks; rebuilt every page, added the planner, step sessions with graphs, in-app recording, progress, settings, Hebrew.
 - 2026-11-09 (later): v0.2.0 — school calendar + Mashov import, class setup, "From teachers" on home, sync status in Account. Owner wants everything pulled in automatically, not typed.

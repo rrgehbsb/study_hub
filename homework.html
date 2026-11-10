@@ -2,80 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Study">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
-<script src="/vendor/supabase-2.116.0.js"></script>
-<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.1">
-<title>Homework · Study</title>
-</head>
-<body>
-<main class="page narrow" id="page">
-  <header class="head">
-    <div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div>
-    <button class="icon-btn" id="add"></button>
-  </header>
-  <div class="chips" role="group" id="filter"></div>
-  <div id="groups" style="display:flex;flex-direction:column;gap:16px"></div>
-  <p class="hint" style="text-align:center" id="note"></p>
-</main>
-<script src="/app.js?v=0.3.1"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study</title>
 <script>
-(async function () {
-  const S = window.SH, { $, esc, ic, t } = S;
-  S.nav('homework');
-  $('#h1').textContent = t('Homework');
-  $('#note').textContent = t('Ticked here = ticked in your Dashboard too.');
-  $('#add').innerHTML = ic('plus'); $('#add').setAttribute('aria-label', t('Add homework'));
-  if (!(await S.session())) return;
-  let showDone = false;
-  const SRC = { mashov: 'Mashov', ofek: 'Ofek', calendar: 'School site' };
-  const tag = x => x.source && SRC[x.source] ? ' <span class="tag ' + x.source + '">' + SRC[x.source] + '</span>' : '';
-  function row(a) {
-    const n = S.daysUntil(a.dueDate), done = a.status === 'Done';
-    return '<div class="item"><button class="check-hit" data-tog="' + esc(a.id) + '" aria-label="' + esc(t('Mark done')) + '" aria-pressed="' + done + '"><span class="check' + (done ? ' on' : '') + '">' + ic('check', 'sm') + '</span></button>' +
-      '<button class="body" data-open="' + esc(a.id) + '" style="text-align:start"><span class="ttl" dir="auto"' + (done ? ' style="text-decoration:line-through;color:var(--ink-3)"' : '') + '>' + esc(a.title) + '</span><span class="meta">' + esc(S.subjectName(a.subjectId)) + tag(a) + '</span></button>' +
-      '<span class="when' + (!done && n != null && n < 0 ? ' late' : !done && n != null && n <= 1 ? ' soon' : '') + '">' + esc(a.dueDate ? S.rel(a.dueDate) : '') + '</span></div>';
-  }
-  function render() {
-    const all = S.school.get(S.K.as).filter(a => a && !a.hidden && !a.deleted);
-    const todo = all.filter(a => a.status !== 'Done'), done = all.filter(a => a.status === 'Done').sort((a, b) => String(b.completedAt || '').localeCompare(String(a.completedAt || ''))).slice(0, 20);
-    $('#sub').textContent = S.lang() === 'he' ? 'נמשך ממשו״ב ואופק' : 'Pulled from Mashov and Ofek';
-    $('#filter').innerHTML = '<button class="chip" data-f="todo" aria-pressed="' + !showDone + '">' + esc(t('To do')) + ' · ' + todo.length + '</button><button class="chip" data-f="done" aria-pressed="' + showDone + '">' + esc(t('Done')) + '</button>';
-    S.$$('[data-f]').forEach(b => b.onclick = () => { showDone = b.dataset.f === 'done'; render(); });
-    let groups;
-    if (showDone) groups = [[t('Done'), done]];
-    else {
-      const g = { late: [], today: [], tom: [], week: [], later: [], none: [] };
-      todo.forEach(a => { const n = S.daysUntil(a.dueDate); if (n == null) g.none.push(a); else if (n < 0) g.late.push(a); else if (n === 0) g.today.push(a); else if (n === 1) g.tom.push(a); else if (n <= 7) g.week.push(a); else g.later.push(a); });
-      Object.values(g).forEach(l => l.sort((a, b) => String(a.dueDate || '').localeCompare(String(b.dueDate || ''))));
-      groups = [[t('Overdue'), g.late.filter(a => S.daysUntil(a.dueDate) >= -14)], [t('today'), g.today], [t('tomorrow'), g.tom], [t('This week'), g.week], [t('Later'), g.later], [t('No date'), g.none]];
-    }
-    groups = groups.filter(x => x[1].length);
-    $('#groups').innerHTML = groups.length ? groups.map(([name, list]) => '<section class="list"><div class="title-row"><span class="label">' + esc(name) + '</span></div>' + list.map(row).join('') + '</section>').join('') : '<p class="card empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>';
-    S.$$('[data-tog]').forEach(b => b.onclick = () => { const a = all.find(x => x.id === b.dataset.tog); if (!a) return; const to = a.status !== 'Done'; S.setHomeworkDone(a.id, to); if (to) S.toast(t('Done'), () => S.setHomeworkDone(a.id, false)); });
-    S.$$('[data-open]').forEach(b => b.onclick = () => {
-      const a = all.find(x => x.id === b.dataset.open); if (!a) return;
-      S.sheet('<h2 dir="auto">' + esc(a.title) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(S.subjectName(a.subjectId)) + (a.dueDate ? ' · ' + esc(S.fmtDay(a.dueDate, true)) : '') + tag(a) + '</p>' +
-        (a.notes && a.notes !== a.title ? '<div class="card" dir="auto" style="white-space:pre-wrap;margin-bottom:12px">' + esc(a.notes) + '</div>' : '') +
-        '<a class="btn big accent block" href="' + S.link('/session.html', { subject: a.subjectId, hw: a.id, topic: a.title, mode: 'learn', mins: 30 }) + '">' + esc(t('Do it with the tutor')) + '</a>');
-    });
-  }
-  $('#add').onclick = () => S.openAdd(null, render, ['homework']);
-  S.school.on(render);
-  await S.school.load();
-  render();
-  S.syncAll();
-})();
+// moved into the Notebook
+(function () { var p = new URLSearchParams(location.search); p.set('tab', 'coming'); location.replace('/notebook.html?' + p.toString()); })();
 </script>
-</body>
+</head>
+<body></body>
 </html>

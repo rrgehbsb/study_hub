@@ -314,3 +314,60 @@ details.card[open] summary { margin-bottom:10px; }
 /* mixed Hebrew/English text keeps its own direction but lines up with the page */
 html[dir="ltr"] :is(h1,h2,h3,b,span,a)[dir="auto"] { text-align:left; }
 html[dir="rtl"] :is(h1,h2,h3,b,span,a)[dir="auto"] { text-align:right; }
+
+/* ---------- v0.4: Record tab, Notebook, Tutor ---------- */
+.tab-rec { color:var(--ink); }
+.tab-rec .tab-ic { background:#D92D20; color:#fff; width:56px; height:34px; box-shadow:0 4px 12px rgba(217,45,32,.35); }
+.tab-rec[aria-current="page"] .tab-ic { background:#B42318; }
+.recording .tabs, .recording .topbar { display:none; }
+.rec .tabs { background:rgba(11,15,25,.94); box-shadow:0 -1px 0 #1F2937; }
+.rec .tab { color:#9CA3AF; }
+.rec .tab[aria-current="page"] { color:#F9FAFB; }
+.rec .topbar { background:#0B0F19; color:#F9FAFB; box-shadow:0 1px 0 #1F2937; }
+.rec .topbar nav a { color:#D1D5DB; }
+.rec .topbar .seg { background:#1F2937; }
+.rec .topbar .icon-btn, .rec .topbar .btn { background:#1F2937; color:#F9FAFB; box-shadow:none; }
+.rec-now { display:flex; flex-direction:column; gap:6px; }
+.rec-now .eyebrow { font-size:15px; color:#FCA5A5; font-weight:600; }
+.rec-subj { font-size:38px; font-weight:800; line-height:1.1; }
+.rec-day { display:flex; flex-direction:column; gap:8px; }
+.rec .label { color:#9CA3AF; }
+.rec-list { display:flex; flex-direction:column; gap:6px; }
+.rec-p { display:flex; align-items:center; gap:12px; min-height:48px; padding:0 14px; border-radius:14px; background:#111827; color:#F9FAFB; font-size:16px; text-align:start; }
+.rec-p .tm { color:#9CA3AF; font-variant-numeric:tabular-nums; min-width:46px; }
+.rec-p.past { opacity:.55; }
+.rec-p.now { box-shadow:inset 0 0 0 1.5px #FCA5A5; }
+.rec-p.on { background:#F9FAFB; color:#0B0F19; }
+.rec-p.on .tm { color:#4B5563; }
+.rec-more summary { min-height:44px; display:flex; align-items:center; color:#D1D5DB; cursor:pointer; }
+.nb-tabs { display:flex; width:100%; }
+.nb-tabs button { flex:1 1 0; min-width:0; padding:0 4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; height:42px; }
+.fold summary { display:flex; justify-content:space-between; align-items:center; gap:8px; min-height:44px; cursor:pointer; font-weight:700; list-style:none; flex-wrap:wrap; }
+.fold summary::-webkit-details-marker { display:none; }
+.fold[open] summary { margin-bottom:4px; }
+.lesson-row { display:flex; flex-direction:column; gap:6px; text-decoration:none; color:inherit; }
+.lesson-row b { font-size:17px; }
+.clamp { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; color:var(--ink-2); font-size:15px; }
+.chip.small { min-height:28px; font-size:13px; padding:0 10px; box-shadow:none; background:var(--surface-2); }
+.msg { display:flex; flex-direction:column; gap:8px; }
+.msg-top { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.msg b { font-size:16px; }
+.msg-body { white-space:pre-wrap; font-size:15px; color:var(--ink-2); max-height:9.5em; overflow:hidden; cursor:pointer; }
+.msg-body.open { max-height:none; }
+.row-field { flex-direction:row; align-items:center; gap:10px; }
+.row-field > span { flex:1; min-width:0; font-size:16px; }
+.row-field select { flex:1; min-width:0; }
+.mini-select { max-width:45%; min-height:44px; padding:8px 10px; border-radius:12px; border:1.5px solid var(--line); background:var(--surface); font-size:15px; }
+.tcard { display:flex; flex-direction:column; gap:10px; }
+.tcard-top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; text-decoration:none; color:inherit; }
+.tcard-top .body { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.tcard-top b { font-size:18px; }
+.tcard-top .when { font-weight:700; white-space:nowrap; font-size:14px; }
+/* Android: no font boosting, and narrow phones (360px) */
+html { text-size-adjust:100%; }
+@media (max-width: 380px) {
+  .hero h2 { font-size:26px; }
+  .tab-ic { width:46px; }
+  .tab-rec .tab-ic { width:50px; }
+}
+.lesson-row .tag { align-self:flex-start; }
