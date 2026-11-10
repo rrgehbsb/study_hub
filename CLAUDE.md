@@ -65,7 +65,7 @@ dashboard:school:v1:assignments [{id, subjectId, title, type, dueDate, priority,
 dashboard:school:v1:tests       [{id, subjectId, name, testDate, topics, studyStatus, importance, notes, createdAt, updatedAt}]
 dashboard:school:v1:grades      [{id, subjectId, type, gradeValue, maxGrade, date, weight, notes, testId?}]
 dashboard:school:v1:timetable   {cls:"11-3", mine:["מתמטיקה|teacher name", …]}  ← main Dashboard's; Study Hub only READS it
-study:v1:settings               {cls}  ← Study Hub's own (class when the Dashboard has none)
+study:v1:settings               {cls, lang, teachLang, week:[{id,name,days:[0-6],start,end}], studyMins, commuteMins, latest, updatedAt}  ← Study Hub's own
 ```
 Imported items keep a `source` (`'calendar'` / `'mashov'`) and stable ids (`cal-<uid>`, `mashov-hw-<id>`), so re-imports and other devices never duplicate them. Calendar tests also carry `calUid`, which is how the main Dashboard hides its own read-only calendar copy.
 
@@ -83,11 +83,11 @@ All have `user_id uuid default auth.uid()` and row-level security "own rows only
 
 | Table | What | Notes |
 |---|---|---|
-| `study_lessons` | One recorded lesson | `subject_id` (matches school subjects), `lesson_date`, `title`, `status` (`uploaded` → `transcribing` → `ready` / `error`), `audio_path`, `transcript`, `summary`, `topics text[]`, `error` |
+| `study_lessons` | One recorded lesson | `subject_id` (matches school subjects), `lesson_date`, `title`, `status` (`recording` → `uploaded` → `transcribing` → `ready` / `error`), `started_at`, `marks` (seconds the owner tapped "On the test!"), `audio_path`, `transcript`, `summary`, `topics text[]`, `error` |
 | `study_materials` | Everything else the tutor learns from | `kind`: `board` (photo of the board), `notes` (owner's or a classmate's notes), `teacher_summary` (pasted WhatsApp text), `teacher_message` (imported from Mashov; `subject_id` may be `inbox` when the teacher couldn't be matched), `old_test`, `worksheet`. `source_ref` (unique per user) stops duplicates. `file_path` (Storage), `content` (text; for files, filled by `api/read-file.js`), optional `lesson_id`, `status` |
 | `study_topics` | Topics per subject and how ready the owner is | `state`: `new` / `with_help` / `alone`. Only `alone` counts as ready. |
-| `study_attempts` | Each question the owner tried | `question`, `answer`, `verdict` (`correct` / `partial` / `wrong`), `feedback`, `alone bool` |
-| `study_chats` | Tutor conversations | `mode` (`teach` / `test`), `topic`, `messages jsonb` |
+| `study_attempts` | Each question the owner tried | `question`, `answer`, `verdict` (`correct` / `partial` / `wrong`), `feedback`, `alone bool`, `mistake` (short English label from the tutor) |
+| `study_chats` | Tutor conversations | `mode` (`teach` / `test` / `session`), `topic`, `messages jsonb` (with `step`) |
 | `study_usage` | AI spend guard | one row per user per day: `calls`, `input_tokens`, `output_tokens` |
 
 Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`; the policies only allow a user inside their own `<uid>/` folder.
@@ -96,34 +96,43 @@ Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`
 
 ---
 
-## 4. Files
+## 4. Design and files
+
+**Design (chosen by the owner on 2026-11-10):** "Coach" (direction A) for the look and the Today page: warm off-white, one dark hero card, one orange accent, Rubik. Each subject/test uses the "Course" layout from direction C: topics in order as a path, the next one highlighted, a practice test at the end, and "what the tutor teaches from". The canvas with all directions: https://claude.ai/artifact/9rPanErtktfF7ef4MHpdtQ (rows A, B, C and "Building blocks"). Phone = bottom tabs; computer (≥900px) = top bar and two columns.
+
+**Language:** the app is English or Hebrew (`SH.t('English text')` looks up `HE` in `app.js`; `html[dir]` switches to RTL). Teaching language is separate: "same as the test" (Hebrew, English for the English subject) or a per-session EN/עב switch. Times and formulas stay left-to-right inside Hebrew (`<span dir="ltr">`, `.katex` isolate).
 
 ```
-index.html      Home: next test hero, "Up next" (tests + homework), subjects, + Add sheet
-subject.html    One subject: Teach me / Test me, topics with their state, lessons, materials
-lesson.html     One lesson: transcript, summary, linked board photos
-tutor.html      The tutor chat (teach / test modes), photo of your solution, "solved alone" buttons
-login.html      Email + password sign-in (same accounts as the main Dashboard)
-app.css         Design system (tokens copied from the main Dashboard's "Daylight Blocks")
-app.js          window.SH: Supabase client, session, School row (merge-safe), study tables,
-                uploads, api() helper, demo data, UI kit (toast, sheet, esc, dates)
-tutor.js        Tutor page logic + math/markdown rendering
+index.html      Today: tonight's study block (planner), your day, next test readiness, coming up, came in by itself
+session.html/.js  Study session in 4 steps: Learn → Example → Your turn → Check ("Test me" starts at Your turn)
+homework.html   Homework grouped by due date, source tags, tick = ticked in the Dashboard too, "Do it with the tutor"
+subjects.html   Subjects with something in them (others fold away)
+subject.html    One subject as a course: next test, topic path, practice test, lessons, what the tutor teaches from
+teachers.html   Mashov messages + pasted WhatsApp summaries; unmatched ones get a subject picker
+progress.html   Solved alone vs with help, readiness per test, mistakes that keep coming back, grades
+record.html     Record a lesson in the app: wake lock, board photos and "On the test!" marks tied to the moment,
+                chunks kept in IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end
+settings.html   Sources status + class, your week (activities for the planner), study minutes, way home, latest time,
+                app and teaching language, AI turns this month, sign out
+lesson.html     One lesson: summary, full transcript (marks and photo moments shown)
+login.html      Email + password (same accounts as the main Dashboard)
+tutor.html      Redirect from old links to session.html
+app.css         Coach design system (light + dark), course path, session, record styles
+app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,
+                planner, study tables, uploads, api(), graphs (```plot → SVG, safe formula parser), i18n, nav, demo data
 sw.js           Service worker (network-first), cache name = version
-manifest.json   PWA manifest
-api/_lib.js     Shared server helpers: auth check, Supabase REST with the user's token, usage guard
-api/transcribe.js  lesson audio → Groq → transcript → Gemini summary + topics → delete audio
+api/_lib.js     Server helpers: auth check, Supabase REST with the user's token, usage guard, Claude, Gemini
+api/transcribe.js  audio → Groq (verbose_json) → transcript with [m:ss] stamps, marks and board-photo moments → summary
 api/read-file.js   board photo / notes / old test (image or PDF) → Claude → text
-api/tutor.js       one tutor turn: builds the context from the subject's material and calls Claude
-api/calendar.js    GET: tests + events from the Handasaim class calendar (.ics), public
-api/mashov.js      the owner's Mashov homework + teacher messages (unofficial endpoints, read only)
-supabase/schema.sql  tables, policies, storage bucket
-tools/serve.js  local static server (port 5178)
-vendor/         Supabase, KaTeX, marked (self-hosted)
-icons/          app icons
-tools/shot.js   Playwright screenshots of ?demo at phone + desktop width
+api/tutor.js       one tutor turn; modes teach/test/session (+ step), lang he/en, plot blocks, VERDICT + MISTAKE tags
+api/calendar.js    tests + events from the Handasaim class calendar (.ics)
+api/school.js      the class timetable (copied from the main Dashboard): today + 3 days and the regular week
+api/mashov.js      the owner's Mashov homework, grades and teacher messages (unofficial endpoints, read only)
+supabase/schema.sql  tables, policies, storage bucket (re-run after each version that changes it; safe)
+tools/serve.js, tools/shot.js  local server; Playwright screenshots of every page in ?demo (phone, dark, computer)
 ```
 
----
+**The planner (`SH.plan`)**: day items = school (from the timetable; 07:45–15:20 if no class), the way home (`commuteMins`), and the owner's weekly activities (`settings.week`, +30 min after each). Free windows from 14:00 to `latest`. Block length = `studyMins` (+20 when the test is ≤2 days away). Target = nearest test within 14 days → first topic "with help", then "new"; all solved alone → practice test; no topics → the test's first listed topic from zero; no test → homework due within 2 days → review of the last lesson. "Move to tomorrow" and "done" are per-device per-day flags.
 
 ## 5. The tutor (the most important part)
 

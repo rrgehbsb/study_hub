@@ -3,161 +3,166 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.2.0">
-<title>Study Hub</title>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<title>Today · Study</title>
 </head>
 <body>
 <main class="page" id="page">
-  <header class="top">
-    <div class="top-text"><span class="sub" id="date"></span><h1>Study</h1></div>
-    <button class="icon-btn" id="account" aria-label="Account"></button>
+  <header class="head">
+    <div class="t"><span class="sub" id="date"></span><h1 id="h1">Tonight</h1></div>
+    <span class="only-phone" id="lang-phone"></span>
+    <a class="icon-btn only-phone" id="gear" aria-label="Settings"></a>
   </header>
   <section id="setup" hidden></section>
-  <section id="hero"></section>
-  <div class="sec-h"><h2>Up next</h2><span class="meta" id="next-meta"></span></div>
-  <div class="list" id="next"></div>
-  <div class="sec-h" id="msgs-h" hidden><h2>From teachers</h2><span class="meta">Mashov</span></div>
-  <div class="list" id="msgs" hidden></div>
-  <div class="sec-h"><h2>Subjects</h2></div>
-  <div class="subjects" id="subjects"></div>
+  <div class="cols">
+    <div class="col-main">
+      <section id="hero"></section>
+      <section class="card" id="day"></section>
+      <section id="week-hint" hidden></section>
+    </div>
+    <div class="col-side">
+      <section id="ready"></section>
+      <section class="list" id="next"></section>
+      <section class="list" id="came" hidden></section>
+      <a class="btn block only-phone" id="rec"></a>
+    </div>
+  </div>
 </main>
-<button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
-<script src="/app.js?v=0.2.0"></script>
+<script src="/app.js?v=0.3.0"></script>
 <script>
 (async function () {
-  const S = window.SH, { $, esc, ic } = S;
-  $('#date').textContent = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
-  $('#account').innerHTML = S.ic('out');
-  const STATE_TXT = v => v === 'ok' ? 'Connected' : v === 'no class' ? 'Set your class above' : v ? v : 'Not checked yet';
-  $('#account').onclick = () => {
-    const st = S.lastSync() || {};
-    S.sheet('<h2>Account</h2><p class="hint" style="margin-bottom:14px">Signed in as ' + esc((S.user() || {}).email || '') + '. Same account as your Dashboard.</p>' +
-      '<div class="list" style="margin-bottom:14px"><div class="item"><span class="body"><span class="title">School calendar</span><span class="meta" dir="auto">' + esc(S.myClass() ? 'Class ' + S.myClass() + ' · ' + STATE_TXT(st.calendar) : 'No class set') + '</span></span></div>' +
-      '<div class="item"><span class="body"><span class="title">Mashov</span><span class="meta" dir="auto">' + esc(STATE_TXT(st.mashov)) + '</span></span></div></div>' +
-      '<form class="form" id="cls-f"><label class="field"><span>Your class</span><input name="cls" placeholder="e.g. 11-3" value="' + esc(S.myClass()) + '" autocomplete="off"></label></form>' +
-      '<div class="row2" style="margin-top:12px"><button class="btn primary" id="sync">Sync now</button><button class="btn" id="so">Sign out</button></div>', sh => {
-      sh.querySelector('#so').onclick = S.signOut;
-      sh.querySelector('#sync').onclick = async () => {
-        const v = sh.querySelector('[name=cls]').value.trim();
-        if (v && v !== S.myClass()) { if (!/^\d{1,2}-\d{1,2}$/.test(v)) return S.toast('Class looks like 11-3'); await S.setMyClass(v); }
-        S.closeSheet(); S.toast('Syncing…'); await S.syncAll(true); loadStudy(); loadMsgs();
-      };
-    });
-  };
+  const S = window.SH, { $, esc, ic, t } = S;
+  S.nav('today');
+  $('#date').textContent = S.fmtDay(S.todayKey(), true);
+  $('#h1').textContent = t('Tonight');
+  $('#lang-phone').innerHTML = S.langToggle();
+  $('#gear').href = S.link('/settings.html'); $('#gear').innerHTML = ic('gear', 'sm');
+  $('#rec').href = S.link('/record.html'); $('#rec').innerHTML = '<span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson'));
   if (!(await S.session())) return;
 
-  let topicsBySubj = {}, lessonsBySubj = {};
-  async function loadStudy() {
-    try {
-      const [topics, lessons] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons)]);
-      topicsBySubj = {}; lessonsBySubj = {};
-      topics.forEach(t => (topicsBySubj[t.subject_id] = topicsBySubj[t.subject_id] || []).push(t));
-      lessons.forEach(l => (lessonsBySubj[l.subject_id] = lessonsBySubj[l.subject_id] || []).push(l));
-    } catch (e) { S.toast(e.message); }
-    render();
-  }
+  let topicsBySubj = {}, lessons = [], tt = null, came = [];
+  const dk = S.todayKey();
 
+  function sessionLink(p, more) {
+    const tg = p.target, mode = tg.kind === 'practice' ? 'test' : 'learn';
+    return S.link('/session.html', Object.assign({ subject: tg.subjectId, topic: tg.topic || '', test: tg.test ? tg.test.id : '', hw: tg.hw ? tg.hw.id : '', mode, mins: p.block ? p.block.mins : 40 }, more || {}));
+  }
   function hero() {
-    const t = S.openTests().find(x => S.daysUntil(x.testDate) <= 21);
-    if (!t) {
-      const first = S.subjects().find(s => (lessonsBySubj[s.id] || []).length || (topicsBySubj[s.id] || []).length);
-      $('#hero').innerHTML = '<div class="hero calm"><span class="eyebrow">No tests in the next 3 weeks</span><h2>Good time to get ahead</h2>' +
-        (first ? '<div class="row"><a class="btn primary" href="' + S.link('/subject.html', { id: first.id }) + '">Practice ' + esc(first.name) + '</a></div>' : '<p class="line">Add your next test with + Add → Test date, then record the next lesson.</p>') + '</div>';
-      return;
+    const p = S.plan(dk, tt, { topicsBySubj, lessons });
+    const skipped = S.readJSON(S.skipKey(dk)), done = S.readJSON(S.doneKey(dk));
+    const tg = p.target;
+    if (!tg) {
+      $('#hero').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('Nothing planned tonight')) + '</span><h2>' + esc(t('No tests in the next two weeks. Good time to get ahead.')) + '</h2>' +
+        '<div class="btn-row"><a class="btn dark" href="' + S.link('/record.html') + '">' + esc(t('Record lesson')) + '</a><a class="btn" href="' + S.link('/subjects.html') + '">' + esc(t('Subjects')) + '</a></div></div></div>';
+      return p;
     }
-    const n = S.daysUntil(t.testDate), name = S.subjectName(t.subjectId);
-    const tps = topicsBySubj[t.subjectId] || [];
-    const ready = tps.filter(x => x.state === 'alone').length;
-    const readiness = tps.length ? ready + ' of ' + tps.length + ' topics solved alone' : 'No topics yet: the tutor builds them from your lessons';
-    $('#hero').innerHTML = '<div class="hero"><span class="eyebrow">Next test · ' + esc(name) + '</span>' +
-      '<h2 dir="auto">' + esc(t.name || name + ' test') + '</h2>' +
-      '<p class="line">' + (n === 0 ? 'Today' : n === 1 ? 'Tomorrow' : 'In ' + n + ' days') + ' · ' + esc(S.fmtDay(t.testDate)) + (t.topics ? ' · <span dir="auto">' + esc(t.topics) + '</span>' : '') + '</p>' +
-      '<p class="line">' + esc(readiness) + '</p>' +
-      '<div class="row"><a class="btn light" href="' + S.link('/tutor.html', { subject: t.subjectId, mode: 'test', test: t.id }) + '">Test me</a>' +
-      '<a class="btn ghost-light" href="' + S.link('/tutor.html', { subject: t.subjectId, mode: 'teach', test: t.id }) + '">Teach me</a></div></div>';
+    const sub = S.subjectName(tg.subjectId);
+    const forLine = tg.test ? t('For your {x}.', { x: (tg.test.name || sub) + ' · ' + S.fmtDay(tg.test.testDate) }) + ' ' + t('Built from your teacher’s lessons and old tests.') : sub;
+    if (done) {
+      $('#hero').innerHTML = '<div class="hero"><div class="main"><span class="eyebrow"><span class="pill-accent">✓</span>' + esc(sub) + '</span><h2>' + esc(t('Done for tonight')) + '</h2><p class="line" dir="auto">' + esc(tg.title) + '</p>' +
+        '<div class="btn-row"><a class="btn on-hero" href="' + sessionLink(p, { mode: 'test', mins: 20 }) + '">' + esc(t('One more question')) + '</a></div></div></div>';
+      return p;
+    }
+    if (skipped) {
+      const tp = S.plan(S.addDays(dk, 1), tt, { topicsBySubj, lessons });
+      $('#hero').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('Moved to tomorrow')) + '</span><h2>' + esc(t('Tonight is off')) + '</h2>' +
+        (tp.block ? '<p class="line" dir="auto">' + esc(t('tomorrow')) + ' ' + S.hm(tp.block.start) + ' · ' + esc(tp.target.title) + '</p>' : '') +
+        '<div class="btn-row"><button class="btn" id="unskip">' + esc(t('Undo')) + '</button></div></div></div>';
+      $('#unskip').onclick = () => { try { localStorage.removeItem(S.skipKey(dk)); } catch (e) {} render(); };
+      return p;
+    }
+    const b = p.block, mins = b ? b.mins : 20;
+    const parts = [[t('Learn the idea'), Math.round(mins * 0.2)], [t('Example from class'), Math.round(mins * 0.17)], [t('{n} questions alone', { n: 2 }), Math.round(mins * 0.5)], [t('Check + fix'), mins - Math.round(mins * 0.2) - Math.round(mins * 0.17) - Math.round(mins * 0.5)]];
+    $('#hero').innerHTML = '<div class="hero"><div class="main">' +
+      '<span class="eyebrow"><span class="pill-accent">' + esc(t('Next').toUpperCase()) + '</span>' + (b ? '<span dir="ltr">' + S.hm(b.start) + ' – ' + S.hm(b.end) + '</span>' : esc(t('No free time today'))) + ' · ' + esc(sub) + '</span>' +
+      '<h2 dir="auto">' + esc(tg.title) + '</h2>' +
+      '<p class="line">' + esc(forLine) + '</p>' +
+      '<div class="btn-row" style="margin-top:6px"><a class="btn big accent" href="' + sessionLink(p) + '">' + ic('play', 'sm') + esc(t('Start · {n} min', { n: mins })) + '</a>' +
+      (b ? '<button class="btn on-hero" id="skip">' + esc(t('Move to tomorrow')) + '</button>' : '') + '</div></div>' +
+      '<div class="side only-desk" style="flex-direction:column"><span class="label" style="color:var(--hero-2)">' + esc(t('In this session')) + '</span>' +
+      parts.map((x, i) => '<div class="row"><span>' + (i + 1) + ' · ' + esc(x[0]) + '</span><span>' + x[1] + ' min</span></div>').join('') + '</div></div>';
+    const sk = $('#skip'); if (sk) sk.onclick = () => { S.writeJSON(S.skipKey(dk), 1); render(); S.toast(t('Moved to tomorrow'), () => { try { localStorage.removeItem(S.skipKey(dk)); } catch (e) {} render(); }); };
+    return p;
   }
-
-  function upNext() {
+  function day(p) {
+    const items = p.items;
+    const lineTotal = Math.max(1, (items.length ? items[items.length - 1].end : 1320) - (items.length ? items[0].start : 480));
+    $('#day').innerHTML = '<div class="title-row" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><h2>' + esc(t('Your day')) + '</h2><span class="hint">' + esc(S.fmtDay(dk)) + '</span></div>' +
+      '<div class="dayline only-desk">' + items.map((it, i) => { const prev = i ? items[i - 1].end : it.start, gap = Math.max(0, it.start - prev); return (gap > 10 ? '<div class="gap" style="flex:' + gap + ' 1 0"></div>' : '') + '<div class="' + (it.kind === 'study' ? 'study' : it.kind === 'free' ? 'free' : it.kind === 'act' ? 'act' : '') + '" style="flex:' + Math.max(20, it.end - it.start) + ' 1 0" title="' + esc(it.label) + '" dir="auto">' + esc(it.label) + '</div>'; }).join('') + '</div>' +
+      '<div class="day only-phone">' + items.map(it => '<div class="slot ' + it.kind + '"><span class="tm">' + S.hm(it.start) + '</span><span dir="auto">' + (it.kind === 'school' ? esc(t('School')) + ' · <span dir="ltr">' + S.hm(it.start) + '–' + S.hm(it.end) + '</span>' : esc(it.label)) + '</span></div>').join('') + '</div>';
+  }
+  function ready() {
+    const x = S.openTests()[0];
+    if (!x) { $('#ready').innerHTML = ''; return; }
+    const tps = topicsBySubj[x.subjectId] || [];
+    const n = S.daysUntil(x.testDate);
+    $('#ready').innerHTML = '<a class="card" style="display:flex;flex-direction:column;gap:10px;text-decoration:none" href="' + S.link('/subject.html', { id: x.subjectId }) + '">' +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="h2" dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate)) + '</span><span class="when ' + (n <= 3 ? 'soon' : '') + '" style="font-weight:700;color:' + (n <= 3 ? 'var(--accent-ink)' : 'var(--ink-3)') + '">' + esc(S.rel(x.testDate)) + '</span></div>' +
+      (tps.length ? '<div class="bars">' + tps.map(p => '<span class="' + p.state + '"></span>').join('') + '</div><span class="hint">' + esc(t('{a} of {b} topics solved alone', { a: tps.filter(p => p.state === 'alone').length, b: tps.length })) + '</span>' : '<span class="hint">' + esc(t('No topics yet: they come from your lessons')) + '</span>') + '</a>';
+  }
+  function next() {
     const items = [];
-    S.openTests().filter(t => S.daysUntil(t.testDate) <= 21).forEach(t => items.push({ kind: 'test', date: t.testDate, x: t }));
-    S.openHomework().filter(a => a.dueDate ? (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 14) : S.daysUntil(String(a.givenDate || a.createdAt || '').slice(0, 10) || S.todayKey()) >= -14).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999-12-31', x: a }));
+    S.openTests().filter(x => S.daysUntil(x.testDate) <= 14).forEach(x => items.push({ kind: 'test', date: x.testDate, x }));
+    S.openHomework().filter(a => a.dueDate ? (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 7) : S.daysUntil(String(a.givenDate || a.createdAt || '').slice(0, 10) || dk) >= -14).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999', x: a }));
     items.sort((a, b) => a.date.localeCompare(b.date));
-    $('#next-meta').textContent = items.length ? items.length + ' item' + (items.length === 1 ? '' : 's') : '';
-    if (!items.length) { $('#next').innerHTML = '<p class="empty">Nothing due in the next two weeks.</p>'; return; }
-    $('#next').innerHTML = items.slice(0, 12).map(it => {
-      const x = it.x, subj = S.subject(x.subjectId), n = S.daysUntil(it.x.testDate || it.x.dueDate);
-      const when = '<span class="when' + (n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || (x.givenDate ? 'given ' + S.rel(x.givenDate) : 'no date')) + '</span>';
-      if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="dot" style="background:' + esc((subj && subj.color) || '') + '"></span><span class="body"><span class="title" dir="auto">' + esc(x.name) + '</span><span class="meta"><span class="badge test">' + (x.type === 'Quiz' ? 'Quiz' : 'Test') + '</span> ' + esc(S.subjectName(x.subjectId)) + (x.source === 'calendar' ? ' · school site' : '') + '</span></span>' + when + '</a>';
-      return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="Mark done"><span class="check">' + ic('check', 'sm') + '</span></button><span class="body"><span class="title" dir="auto">' + esc(x.title) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + (x.source === 'mashov' ? ' · Mashov' : '') + '</span></span>' + when + '</div>';
-    }).join('');
-    S.$$('[data-done]').forEach(b => b.onclick = () => {
-      const id = b.dataset.done;
-      b.querySelector('.check').classList.add('on');
-      setTimeout(() => { S.setHomeworkDone(id, true); S.toast('Done', () => S.setHomeworkDone(id, false)); }, 180);
-    });
+    const tagFor = x => x.source === 'mashov' ? '<span class="tag mashov">Mashov</span>' : x.source === 'calendar' ? '<span class="tag calendar">School site</span>' : x.source === 'ofek' ? '<span class="tag ofek">Ofek</span>' : '';
+    $('#next').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Coming up')) + '</h2><a class="hint" href="' + S.link('/homework.html') + '">' + esc(t('Homework')) + ' →</a></div>' +
+      (items.length ? items.slice(0, 7).map(it => {
+        const x = it.x, n = S.daysUntil(x.testDate || x.dueDate), when = '<span class="when' + (n != null && n < 0 ? ' late' : n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || '') + '</span>';
+        if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(x.type === 'Quiz' ? 'Quiz' : 'Test') + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</a>';
+        return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button><span class="body"><span class="ttl" dir="auto">' + esc(x.title) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + ' ' + tagFor(x) + '</span></span>' + when + '</div>';
+      }).join('') : '<p class="empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>');
+    S.$$('[data-done]', $('#next')).forEach(b => b.onclick = () => { const id = b.dataset.done; b.querySelector('.check').classList.add('on'); setTimeout(() => { S.setHomeworkDone(id, true); S.toast(t('Done'), () => S.setHomeworkDone(id, false)); }, 180); });
   }
-
-  let showAll = false;
-  function subjectsGrid() {
-    const all = S.subjects();
-    // only subjects with something in them; the rest fold away (the Dashboard ships a long default list)
-    const busy = new Set();
-    Object.keys(lessonsBySubj).concat(Object.keys(topicsBySubj)).forEach(k => busy.add(k));
-    S.openTests().forEach(t => busy.add(t.subjectId));
-    S.openHomework().forEach(a => busy.add(a.subjectId));
-    const active = all.filter(s => busy.has(s.id));
-    const list = showAll ? all : active;
-    if (!all.length) { $('#subjects').innerHTML = '<p class="empty card" style="grid-column:1/-1">No subjects yet. Tap + Add.</p>'; return; }
-    $('#subjects').innerHTML = (list.length ? list.map(s => {
-      const tps = topicsBySubj[s.id] || [], ls = lessonsBySubj[s.id] || [];
-      const line = (ls.length ? ls.length + ' lesson' + (ls.length === 1 ? '' : 's') : 'No lessons yet') + (tps.length ? ' · ' + tps.filter(t => t.state === 'alone').length + '/' + tps.length + ' ready' : '');
-      return '<a class="subj" style="--c:' + esc(s.color || '') + '" href="' + S.link('/subject.html', { id: s.id }) + '"><b dir="auto">' + esc(s.name) + '</b><span>' + esc(line) + '</span></a>';
-    }).join('') : '<p class="empty card" style="grid-column:1/-1">Subjects show up here once they have a lesson, a test or homework. Start with + Add.</p>') +
-      (active.length < all.length ? '<button class="btn" id="all-subj" style="grid-column:1/-1">' + (showAll ? 'Show only active subjects' : 'All subjects (' + all.length + ')') + '</button>' : '');
-    const b = $('#all-subj'); if (b) b.onclick = () => { showAll = !showAll; subjectsGrid(); };
+  function cameIn() {
+    const since = S.addDays(dk, -3);
+    const list = [];
+    S.school.get(S.K.as).concat(S.school.get(S.K.te)).forEach(x => { if (x && x.source && String(x.createdAt || x.givenDate || '').slice(0, 10) >= since) list.push({ src: x.source, text: (x.title || x.name), sub: S.subjectName(x.subjectId), href: x.testDate ? S.link('/subject.html', { id: x.subjectId }) : S.link('/homework.html') }); });
+    came.forEach(m => list.push({ src: 'mashov', text: m.title || '', sub: S.subjectName(m.subject_id), href: S.link('/teachers.html') }));
+    const box = $('#came');
+    box.hidden = !list.length;
+    const lab = { mashov: 'Mashov', calendar: 'School site', ofek: 'Ofek', whatsapp: 'WhatsApp' };
+    box.innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Came in by itself')) + '</h2></div>' + list.slice(0, 5).map(x => '<a class="item" href="' + x.href + '"><span class="tag ' + esc(x.src) + '">' + esc(lab[x.src] || x.src) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.text) + '</span><span class="meta">' + esc(x.sub) + '</span></span></a>').join('');
   }
-
   function setup() {
     const need = S.school.ready && !S.myClass() && !S.DEMO;
     $('#setup').hidden = !need;
-    if (!need) return;
-    $('#setup').innerHTML = '<div class="card"><h2 style="font-size:19px">Which class are you in?</h2><p class="hint" style="margin:4px 0 12px">Tests from the school website come in by themselves once Study Hub knows your class.</p><form class="row2" id="cls-q"><label class="field"><input name="cls" placeholder="e.g. 11-3" autocomplete="off" aria-label="Class"></label><button class="btn primary" type="submit">Save</button></form></div>';
-    $('#cls-q').onsubmit = async e => {
-      e.preventDefault();
-      const v = e.target.cls.value.trim();
-      if (!/^\d{1,2}-\d{1,2}$/.test(v)) return S.toast('Class looks like 11-3');
-      await S.setMyClass(v); S.toast('Saved. Checking the school calendar…'); await S.syncAll(true); render();
-    };
+    if (need) {
+      $('#setup').innerHTML = '<div class="card"><h2>' + esc(t('Which class are you in?')) + '</h2><p class="hint" style="margin:4px 0 12px">Your timetable and tests come from the school site once Study knows your class.</p><form class="grid2" id="cls-q"><label class="field"><input name="cls" placeholder="11-3" autocomplete="off" aria-label="Class"></label><button class="btn accent" type="submit">' + esc(t('Save')) + '</button></form></div>';
+      $('#cls-q').onsubmit = async e => { e.preventDefault(); const v = e.target.cls.value.trim(); if (!/^\d{1,2}-\d{1,2}$/.test(v)) return S.toast('Class looks like 11-3'); await S.setMyClass(v); await S.syncAll(true); tt = await S.timetable(); render(); };
+    }
+    const wk = $('#week-hint');
+    wk.hidden = !(S.school.ready && !(S.settings().week || []).length);
+    if (!wk.hidden) wk.innerHTML = '<a class="card" style="display:flex;align-items:center;gap:12px;text-decoration:none" href="' + S.link('/settings.html') + '#week"><span style="flex:1">' + esc(t('Your week isn’t set yet: tell Study when you have volleyball, robotics, gym.')) + '</span><span class="btn dark">' + esc(t('Set your week')) + '</span></a>';
   }
-  async function loadMsgs() {
-    let ms = [];
-    try { ms = (await S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 5)); } catch (e) {}
-    $('#msgs-h').hidden = $('#msgs').hidden = !ms.length;
-    $('#msgs').innerHTML = ms.map(m => '<button class="item" data-msg="' + esc(m.id) + '"><span class="body"><span class="title" dir="auto">' + esc(m.title || 'Message') + '</span><span class="meta">' + esc(m.subject_id === 'inbox' ? 'Inbox' : S.subjectName(m.subject_id)) + ' · ' + esc(S.rel(String(m.taken_at || m.created_at).slice(0, 10))) + '</span></span>' + S.ic('chev', 'sm') + '</button>').join('');
-    S.$$('[data-msg]').forEach(b => b.onclick = () => {
-      const m = ms.find(x => x.id === b.dataset.msg); if (!m) return;
-      S.sheet('<h2 dir="auto">' + esc(m.title || 'Message') + '</h2><div class="prose card" dir="auto" style="white-space:pre-wrap">' + esc(m.content || '') + '</div><p class="hint" style="margin-top:10px">The tutor reads this' + (m.subject_id === 'inbox' ? ' once it’s matched to a subject.' : ' when you study ' + esc(S.subjectName(m.subject_id)) + '.') + '</p>');
-    });
+  function render() { setup(); const p = hero(); day(p); ready(); next(); cameIn(); }
+
+  async function loadStudy() {
+    try {
+      const [topics, ls, msgs] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 40), S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 6)]);
+      topicsBySubj = {}; topics.forEach(x => (topicsBySubj[x.subject_id] = topicsBySubj[x.subject_id] || []).push(x));
+      lessons = ls; came = msgs.filter(m => String(m.taken_at || m.created_at).slice(0, 10) >= S.addDays(dk, -3));
+    } catch (e) { S.toast(e.message); }
+    render();
   }
-  function render() { setup(); hero(); upNext(); subjectsGrid(); }
   S.school.on(render);
   S.onStudy(loadStudy);
-  $('#add').onclick = () => S.openAdd(null, () => loadStudy());
   await S.school.load();
+  tt = await S.timetable();
   await loadStudy();
-  loadMsgs();
-  S.syncAll().then(n => { if (n) { loadStudy(); loadMsgs(); } });
+  S.syncAll().then(n => { if (n) loadStudy(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { S.school.load(); loadStudy(); } });
 })();
 </script>

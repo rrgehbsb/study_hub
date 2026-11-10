@@ -3,119 +3,117 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.2.0">
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
 <script src="/vendor/marked.min.js"></script>
-<title>Subject · Study Hub</title>
+<title>Subject · Study</title>
 </head>
 <body>
 <main class="page" id="page">
-  <header class="top">
+  <header class="head">
     <a class="icon-btn" id="back" aria-label="Back"></a>
-    <div class="top-text"><span class="sub" id="sub"></span><h1 id="name" dir="auto">Subject</h1></div>
+    <div class="t"><span class="sub" id="sub"></span><h1 id="name" dir="auto"></h1></div>
+    <button class="icon-btn" id="add" aria-label="Add material"></button>
   </header>
-  <section class="big-actions">
-    <a class="big-btn teach" id="teach"><b>Teach me</b><span>From zero, the way your teacher taught it</span></a>
-    <a class="big-btn test" id="testme"><b>Test me</b><span>Test-level questions, no hints until you try</span></a>
-  </section>
-  <div class="sec-h"><h2>Topics</h2><span class="meta">tap one to focus on it</span></div>
-  <div class="chips" id="topics"></div>
-  <div class="sec-h"><h2>Lessons</h2></div>
-  <div class="list" id="lessons"></div>
-  <div class="sec-h"><h2>Material</h2></div>
-  <div class="list" id="materials"></div>
+  <div class="cols">
+    <div class="col-main">
+      <section id="testcard"></section>
+      <section class="path" id="path"></section>
+      <section class="grid2" id="modes"></section>
+      <section class="list" id="lessons"></section>
+    </div>
+    <div class="col-side">
+      <section class="list" id="mats"></section>
+      <section id="last"></section>
+    </div>
+  </div>
 </main>
-<button class="fab" id="add"><span aria-hidden="true">+</span> Add</button>
-<script src="/app.js?v=0.2.0"></script>
+<script src="/app.js?v=0.3.0"></script>
 <script>
 (async function () {
-  const S = window.SH, { $, esc } = S;
+  const S = window.SH, { $, esc, ic, t } = S;
   const id = S.qs('id');
-  $('#back').href = S.link('/');
-  $('#back').innerHTML = S.ic('back');
+  S.nav('subjects');
+  $('#back').href = S.link('/subjects.html'); $('#back').innerHTML = ic('back', 'flip');
+  $('#add').innerHTML = ic('plus'); $('#add').setAttribute('aria-label', t('Add material'));
   if (!(await S.session())) return;
-  let topic = null, lessons = [], materials = [], topics = [], poll = null;
-  const KIND = { board: 'Board photo', notes: 'Notes', teacher_summary: 'Teacher summary', teacher_message: 'Message from Mashov', old_test: 'Old test', worksheet: 'Worksheet' };
-  const STATE = { new: 'Not yet', with_help: 'With help', alone: 'Solved alone' };
-  const STATUS = { uploaded: ['busy', 'Waiting'], transcribing: ['busy', 'Transcribing…'], reading: ['busy', 'Reading…'], error: ['err', 'Failed · retry'] };
+  let lessons = [], mats = [], topics = [], attempts = [], poll = null;
+  const KIND = { board: 'Board photo', notes: 'Notes', teacher_summary: 'Teacher summary', teacher_message: 'Mashov message', old_test: 'Old test', worksheet: 'Worksheet' };
+  const TAGC = { teacher_message: 'mashov', teacher_summary: 'whatsapp', old_test: 'test' };
+  const STATUS = { recording: ['Recording', 'test'], uploaded: ['Transcribing…', ''], transcribing: ['Transcribing…', ''], reading: ['Reading…', ''], error: ['Failed · retry', 'test'] };
+  const sess = p => S.link('/session.html', Object.assign({ subject: id }, p));
 
-  function header() {
-    const s = S.subject(id);
-    $('#name').textContent = s ? s.name : 'Subject';
-    document.title = (s ? s.name : 'Subject') + ' · Study Hub';
-    const t = S.openTests().find(x => x.subjectId === id);
-    const n = t ? S.daysUntil(t.testDate) : null;
-    $('#sub').textContent = t ? (n < 7 ? 'Test ' + S.rel(t.testDate) + ' · ' + S.fmtDay(t.testDate) : 'Test on ' + S.fmtDay(t.testDate)) : 'No test scheduled';
-    const p = { subject: id }; if (topic) p.topic = topic; if (t) p.test = t.id;
-    $('#teach').href = S.link('/tutor.html', Object.assign({ mode: 'teach' }, p));
-    $('#testme').href = S.link('/tutor.html', Object.assign({ mode: 'test' }, p));
-  }
-  function renderTopics() {
-    $('#topics').innerHTML = topics.length
-      ? topics.map(t => '<button class="chip" data-topic="' + esc(t.name) + '" aria-pressed="' + (topic === t.name) + '" title="' + esc(STATE[t.state]) + '"><span class="st ' + esc(t.state) + '"></span><span dir="auto">' + esc(t.name) + '</span></button>').join('')
-      : '<p class="empty card" style="width:100%">Topics appear here once a lesson is transcribed. Green = solved alone, orange = with help.</p>';
-    S.$$('[data-topic]').forEach(b => b.onclick = () => { topic = topic === b.dataset.topic ? null : b.dataset.topic; renderTopics(); header(); });
-  }
-  const statusBadge = st => STATUS[st] ? '<span class="badge ' + STATUS[st][0] + '">' + STATUS[st][1] + '</span>' : '';
-  function renderLessons() {
-    $('#lessons').innerHTML = lessons.length ? lessons.map(l =>
-      (l.status === 'ready'
-        ? '<a class="item" href="' + S.link('/lesson.html', { id: l.id }) + '">'
-        : '<button class="item" data-retry-lesson="' + esc(l.id) + '"' + (l.status === 'error' ? '' : ' disabled') + '>') +
-      '<span class="body"><span class="title" dir="auto">' + esc(l.title || 'Lesson') + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + (l.status === 'error' && l.error ? '<br><span dir="auto">' + esc(l.error) + '</span>' : '') + '</span></span>' +
-      (statusBadge(l.status) || S.ic('chev', 'sm')) + (l.status === 'ready' ? '</a>' : '</button>')
-    ).join('') : '<p class="empty">No lessons yet. Record the next lesson and add it with + Add.</p>';
-    S.$$('[data-retry-lesson]').forEach(b => b.onclick = () => {
-      S.toast('Transcribing again…');
-      S.api('transcribe', { lessonId: b.dataset.retryLesson, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); });
-      setTimeout(load, 800);
-    });
-  }
-  function renderMaterials() {
-    $('#materials').innerHTML = materials.length ? materials.map(m =>
-      '<button class="item" data-mat="' + esc(m.id) + '"><span class="body"><span class="title" dir="auto">' + esc(m.title || KIND[m.kind] || 'Material') + '</span><span class="meta">' + esc(KIND[m.kind] || m.kind) + ' · ' + esc(S.fmtDay(m.created_at)) + '</span></span>' + (statusBadge(m.status) || S.ic('chev', 'sm')) + '</button>'
-    ).join('') : '<p class="empty">Board photos, teacher summaries and old tests go here. Old tests matter most: they show the tutor your teacher’s level.</p>';
+  function render() {
+    const s = S.subject(id), test = S.openTests().find(x => x.subjectId === id);
+    $('#name').textContent = s ? s.name : '';
+    document.title = (s ? s.name : '') + ' · Study';
+    $('#sub').textContent = test ? (test.name || '') + ' · ' + S.fmtDay(test.testDate) + ' · ' + S.rel(test.testDate) : '';
+    const oldTests = mats.filter(m => m.kind === 'old_test').length, ready = lessons.filter(l => l.status === 'ready').length;
+    $('#testcard').innerHTML = test ? '<div class="card" style="display:flex;flex-direction:column;gap:4px"><span class="label">' + esc(t('Next test')) + '</span><h2 style="font-size:24px;font-weight:800" dir="auto">' + esc(test.name) + '</h2>' +
+      '<span class="hint" dir="auto">' + esc([S.fmtDay(test.testDate, true), test.topics].filter(Boolean).join(' · ')) + '</span>' +
+      '<span class="hint">' + (S.lang() === 'he' ? 'בנוי מ־' + ready + ' שיעורים ו־' + oldTests + ' מבחנים ישנים' : 'Built from ' + ready + (ready === 1 ? ' lesson' : ' lessons') + ' and ' + oldTests + (oldTests === 1 ? ' old test' : ' old tests')) + '</span></div>' : '';
+    // the course: topics in order, the next one to do highlighted, a practice test at the end
+    const order = { alone: 0, with_help: 1, new: 2 };
+    const tps = topics.slice().sort((a, b) => String(a.created_at || '').localeCompare(String(b.created_at || '')) || (order[a.state] - order[b.state]));
+    const nextT = tps.find(x => x.state === 'with_help') || tps.find(x => x.state === 'new');
+    const fromLesson = name => { const l = lessons.find(x => (x.topics || []).indexOf(name) >= 0); return l ? (S.lang() === 'he' ? 'שיעור ' : 'Lesson ') + S.fmtDay(l.lesson_date) : ''; };
+    const stateText = { alone: t('Solved alone'), with_help: t('With help'), new: t('Not started') };
+    $('#path').innerHTML = (tps.length ? tps.map((x, i) => {
+      const isNext = nextT && x.id === nextT.id;
+      return '<a class="node ' + (isNext ? 'next' : x.state) + '" href="' + sess({ topic: x.name, test: test ? test.id : '', mode: 'learn' }) + '"><span class="n">' + (x.state === 'alone' ? ic('check', 'sm') : i + 1) + '</span>' +
+        (isNext ? '<span class="meta" style="font-weight:700">' + esc((S.lang() === 'he' ? 'הבא' : 'NEXT')) + '</span>' : '') +
+        '<b dir="auto">' + esc(x.name) + '</b><span class="meta">' + esc([fromLesson(x.name), stateText[x.state]].filter(Boolean).join(' · ')) + '</span></a>';
+    }).join('') : '<div class="node"><b>' + esc(t('Topics')) + '</b><span class="meta">' + esc(t('No topics yet: they come from your lessons')) + '</span></div>') +
+      '<a class="node final" href="' + sess({ test: test ? test.id : '', mode: 'test', mins: 45 }) + '"><span class="n">' + ic('clock', 'sm') + '</span><b>' + esc(t('Practice test')) + '</b><span class="meta">' + (S.lang() === 'he' ? 'כמו המבחן האמיתי' : 'Like the real one') + '</span></a>';
+    $('#modes').innerHTML = '<a class="btn big accent" href="' + sess({ topic: nextT ? nextT.name : '', test: test ? test.id : '', mode: 'learn' }) + '">' + esc(t('Teach me')) + '</a><a class="btn big dark" href="' + sess({ topic: nextT ? nextT.name : '', test: test ? test.id : '', mode: 'test' }) + '">' + esc(t('Test me')) + '</a>';
+    $('#lessons').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Lessons')) + '</h2><a class="hint" href="' + S.link('/record.html', { subject: id }) + '">' + esc(t('Record lesson')) + ' →</a></div>' +
+      (lessons.length ? lessons.map(l => {
+        const stt = STATUS[l.status];
+        const inner = '<span class="body"><span class="ttl" dir="auto">' + esc(l.title || t('Lesson')) + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + '</span>' + (l.status === 'error' && l.error ? '<span class="meta" dir="auto">' + esc(l.error) + '</span>' : '') + '</span>' + (stt ? '<span class="tag ' + stt[1] + '">' + esc(t(stt[0])) + '</span>' : ic('chev', 'sm flip'));
+        return l.status === 'ready' ? '<a class="item" href="' + S.link('/lesson.html', { id: l.id }) + '">' + inner + '</a>' : '<button class="item" ' + (l.status === 'error' ? 'data-retry="' + esc(l.id) + '"' : 'disabled') + '>' + inner + '</button>';
+      }).join('') : '<p class="empty">' + (S.lang() === 'he' ? 'עוד אין שיעורים. הקלט את השיעור הבא.' : 'No lessons yet. Record the next one.') + '</p>');
+    S.$$('[data-retry]').forEach(b => b.onclick = () => { S.toast(t('Transcribing…')); S.api('transcribe', { lessonId: b.dataset.retry, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); }); });
+    $('#mats').innerHTML = '<div class="title-row"><h2 class="h2">' + (S.lang() === 'he' ? 'ממה המורה הפרטי מלמד' : 'What the tutor teaches from') + '</h2></div>' +
+      (mats.length ? mats.map(m => { const stt = STATUS[m.status]; return '<button class="item" data-mat="' + esc(m.id) + '"><span class="tag ' + (TAGC[m.kind] || '') + '">' + esc(t(KIND[m.kind] || 'Notes')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(m.title || t(KIND[m.kind] || '')) + '</span><span class="meta">' + esc(S.fmtDay(m.taken_at || m.created_at)) + '</span></span>' + (stt ? '<span class="tag">' + esc(t(stt[0])) + '</span>' : '') + '</button>'; }).join('') : '<p class="empty">' + (S.lang() === 'he' ? 'מבחנים ישנים הכי חשובים: הם מראים למורה הפרטי את הרמה של המורה שלך.' : 'Old tests matter most: they show the tutor your teacher’s level.') + '</p>') +
+      '<div style="padding:4px 0 12px"><button class="btn block" id="add2">' + ic('plus', 'sm') + esc(t('Add material')) + '</button></div>';
+    $('#add2').onclick = openAdd;
     S.$$('[data-mat]').forEach(b => b.onclick = () => {
-      const m = materials.find(x => x.id === b.dataset.mat);
-      if (!m) return;
-      if (m.status === 'error') {
-        S.toast('Reading it again…');
-        S.api('read-file', { materialId: m.id, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); });
-        setTimeout(load, 800); return;
-      }
+      const m = mats.find(x => x.id === b.dataset.mat); if (!m) return;
+      if (m.status === 'error') { S.api('read-file', { materialId: m.id, subjectName: S.subjectName(id) }).then(load).catch(e => S.toast(e.message)); return; }
       if (m.status !== 'ready') return;
-      S.sheet('<h2 dir="auto">' + esc(m.title || KIND[m.kind]) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(KIND[m.kind]) + ' · ' + esc(S.fmtDay(m.created_at)) + ' · what the tutor reads</p><div class="prose card" dir="auto" id="mat-body"></div>', s => S.renderRich(s.querySelector('#mat-body'), m.content || ''));
+      S.sheet('<h2 dir="auto">' + esc(m.title || t(KIND[m.kind])) + '</h2><div class="prose card" dir="auto" id="mb"></div>', sh => S.renderRich(sh.querySelector('#mb'), m.content || ''));
     });
+    const last = attempts[0];
+    $('#last').innerHTML = last ? '<div class="card" style="display:flex;flex-direction:column;gap:8px"><h2>' + (S.lang() === 'he' ? 'הניסיון האחרון' : 'Your last try') + '</h2><span style="font-size:22px;font-weight:800">' + esc(t({ correct: 'Correct', partial: 'Almost', wrong: 'Not yet ' }[last.verdict] || '')) + '</span>' + (last.mistake ? '<span class="quote">' + (S.lang() === 'he' ? 'איפה זה נשבר: ' : 'Where it broke: ') + esc(last.mistake) + '</span>' : '') + '</div>' : '';
   }
+  function openAdd() { S.openAdd(id, () => load(), ['old_test', 'board', 'teacher_summary', 'notes', 'worksheet', 'lesson', 'test', 'homework']); }
+  $('#add').onclick = openAdd;
   async function load() {
     try {
-      [lessons, materials, topics] = await Promise.all([
-        S.rows(S.T.lessons, { subject_id: id }, 'lesson_date', 60),
-        S.rows(S.T.materials, { subject_id: id }, 'created_at', 100),
-        S.rows(S.T.topics, { subject_id: id })
+      [lessons, mats, topics, attempts] = await Promise.all([
+        S.rows(S.T.lessons, { subject_id: id }, 'lesson_date', 60), S.rows(S.T.materials, { subject_id: id }, 'created_at', 100),
+        S.rows(S.T.topics, { subject_id: id }), S.rows(S.T.attempts, { subject_id: id }, 'created_at', 1)
       ]);
     } catch (e) { S.toast(e.message); }
-    topics.sort((a, b) => String(a.name).localeCompare(String(b.name)));
-    renderTopics(); renderLessons(); renderMaterials(); header();
-    const busy = lessons.concat(materials).some(x => ['uploaded', 'transcribing', 'reading'].includes(x.status));
+    render();
+    const busy = lessons.concat(mats).some(x => ['uploaded', 'transcribing', 'reading'].indexOf(x.status) >= 0);
     clearTimeout(poll); if (busy && !S.DEMO) poll = setTimeout(load, 6000);
   }
-  S.school.on(header);
-  S.onStudy(load);
-  $('#add').onclick = () => S.openAdd(id, () => load());
+  S.school.on(render); S.onStudy(load);
   await S.school.load();
   await load();
 })();

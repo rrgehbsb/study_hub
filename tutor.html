@@ -2,46 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Study">
-<link rel="manifest" href="/manifest.json">
-<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script src="/vendor/supabase-2.116.0.js"></script>
-<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.2.0">
-<link rel="stylesheet" href="/vendor/katex/katex.min.css">
-<script src="/vendor/katex/katex.min.js"></script>
-<script src="/vendor/katex/auto-render.min.js"></script>
-<script src="/vendor/marked.min.js"></script>
-<title>Tutor · Study Hub</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Study</title>
+<script>
+// old tutor links → the new step-by-step session
+(function () { var p = new URLSearchParams(location.search); if (p.get('mode') !== 'test') p.set('mode', 'learn'); location.replace('/session.html?' + p.toString()); })();
+</script>
 </head>
-<body>
-<main class="page tutor-page" id="page">
-  <header class="top">
-    <a class="icon-btn" id="back" aria-label="Back"></a>
-    <div class="top-text"><span class="sub" id="sub"></span><h1 id="name" dir="auto">Tutor</h1></div>
-  </header>
-  <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <div class="seg" role="group" aria-label="Mode"><button data-mode="teach">Teach me</button><button data-mode="test">Test me</button></div>
-    <button class="chip" id="topic-btn"></button>
-  </div>
-  <div class="msgs" id="msgs" aria-live="polite"></div>
-</main>
-<div class="composer">
-  <div class="attach-preview" id="preview" hidden></div>
-  <form class="composer-in" id="form">
-    <label class="icon-btn" id="photo-btn" aria-label="Add a photo of your solution"><input type="file" accept="image/*" id="photo" hidden></label>
-    <textarea id="input" rows="1" dir="auto" placeholder="Type, or send a photo…" aria-label="Message"></textarea>
-    <button class="icon-btn send" type="submit" id="send" aria-label="Send"></button>
-  </form>
-</div>
-<script src="/app.js?v=0.2.0"></script>
-<script src="/tutor.js?v=0.2.0"></script>
-</body>
+<body></body>
 </html>

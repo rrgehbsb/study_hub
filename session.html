@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<link rel="stylesheet" href="/vendor/katex/katex.min.css">
+<script src="/vendor/katex/katex.min.js"></script>
+<script src="/vendor/katex/auto-render.min.js"></script>
+<script src="/vendor/marked.min.js"></script>
+<title>Study session · Study</title>
+</head>
+<body>
+<main class="page narrow" id="page">
+  <header class="head">
+    <a class="icon-btn" id="back" aria-label="Back"></a>
+    <div class="t"><span class="sub" id="sub"></span><h1 class="sm" id="name" dir="auto"></h1></div>
+    <div class="seg" role="group" id="tlang"><button type="button" data-tl="en">EN</button><button type="button" data-tl="he">עב</button></div>
+  </header>
+  <div class="steps" id="steps"></div>
+  <details class="card" id="earlier" hidden><summary></summary><div id="earlier-body" style="display:flex;flex-direction:column;gap:12px"></div></details>
+  <div id="cards" style="display:flex;flex-direction:column;gap:12px" aria-live="polite"></div>
+  <div class="dock" id="dock"></div>
+</main>
+<script src="/app.js?v=0.3.0"></script>
+<script src="/session.js?v=0.3.0"></script>
+</body>
+</html>

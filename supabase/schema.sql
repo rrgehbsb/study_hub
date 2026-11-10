@@ -90,6 +90,16 @@ create unique index if not exists study_materials_source on public.study_materia
 alter table public.study_materials drop constraint if exists study_materials_kind_check;
 alter table public.study_materials add constraint study_materials_kind_check check (kind in ('board','notes','teacher_summary','teacher_message','old_test','worksheet'));
 
+-- v0.3: in-app recording ("recording" status, "On the test!" marks), step-by-step sessions,
+-- and the mistake each checked attempt shows (for "mistakes that keep coming back").
+alter table public.study_lessons add column if not exists marks jsonb not null default '[]';
+alter table public.study_lessons add column if not exists started_at timestamptz;
+alter table public.study_lessons drop constraint if exists study_lessons_status_check;
+alter table public.study_lessons add constraint study_lessons_status_check check (status in ('recording','uploaded','transcribing','ready','error'));
+alter table public.study_chats drop constraint if exists study_chats_mode_check;
+alter table public.study_chats add constraint study_chats_mode_check check (mode in ('teach','test','session'));
+alter table public.study_attempts add column if not exists mistake text;
+
 create index if not exists study_lessons_subject on public.study_lessons (user_id, subject_id, lesson_date desc);
 create index if not exists study_materials_subject on public.study_materials (user_id, subject_id, created_at desc);
 create index if not exists study_topics_subject on public.study_topics (user_id, subject_id);

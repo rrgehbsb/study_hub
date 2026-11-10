@@ -18,7 +18,8 @@ The owner's full wish list is in `docs/vision.md`. This plan is the order to bui
   - optional: `GEMINI_API_KEY` from aistudio.google.com (free)
   - `MASHOV_USER` and `MASHOV_PASS`: the Mashov login (after changing the password that was shared in a screenshot)
   - then Deployments → Redeploy
-- [ ] Re-run `supabase/schema.sql` once after v0.2.0 (adds `source_ref` for Mashov messages). Safe to run again.
+- [x] Re-run `supabase/schema.sql` after v0.2.0.
+- [ ] Re-run `supabase/schema.sql` after v0.3.0 (recording status, marks, session chats, mistakes). Safe to run again.
 - [ ] Open the site on the iPhone → Share → Add to Home Screen. Sign in with the main Dashboard account.
 - [ ] Ask each teacher whether recording lessons is OK.
 
@@ -47,6 +48,17 @@ Known limits to handle in this phase if they bite:
 - **Recordings over 25 MB** (Groq's free cap). Voice Memos "Compressed" quality is about 0.5 MB/min, so 45 minutes is close. If uploads fail: split the audio server-side (ffmpeg in the function, or a GitHub Action), or record two shorter files.
 - **Vercel function time limit.** `vercel.json` asks for 60 s; Groq usually transcribes 45 min in well under that. If it times out, move transcription to a background job (GitHub Action triggered by a webhook).
 
+## v0.3 — the chosen design (done 2026-11-10)
+
+- [x] Coach look (A) + course layout per subject (C), phone and computer, light and dark
+- [x] English / Hebrew app, teaching language per session
+- [x] Today with the planner (tonight's block, your day, "move to tomorrow")
+- [x] Study session in 4 steps with graphs drawn from the tutor's ```plot blocks
+- [x] Homework, Subjects, From teachers, Progress (mistakes that repeat, Mashov grades), Settings (your week)
+- [x] Record a lesson in the app with board photos and "On the test!" marks placed in the transcript
+- [ ] **Owner:** re-run the schema, set your week in Settings, record one real lesson, do one real session
+- [ ] Check on a real iPhone: recording with the screen on for a whole lesson (iOS may stop recording if the app is left)
+
 ## Phase 2 — the best possible transcript and teaching
 
 - [ ] Compare Groq Whisper with ivrit.ai's Hebrew Whisper (`ivrit-ai/whisper-large-v3`) on the same real lesson; keep the winner. ivrit.ai has no hosted API, so if it wins it runs in a GitHub Action (free minutes) or on the owner's PC.
@@ -68,10 +80,10 @@ Known limits to handle in this phase if they bite:
 
 ## Phase 4 — the planner
 
-- [ ] Weekly fixed activities (volleyball, robotics, gym, travel) entered once. When the main Dashboard's weekly planner exists, read it from the shared database instead.
-- [ ] Free slots = timetable + fixed activities + travel, per day.
+- [x] Weekly fixed activities (volleyball, robotics, gym, travel) entered once (v0.3, Settings). When the main Dashboard's weekly planner exists, read it from the shared database instead.
+- [x] Free slots = timetable + fixed activities + travel, per day (v0.3, `SH.plan`).
 - [ ] Study need per test: topics × readiness (topics not `alone` need time), minimum lead time (start 5 to 7 days before).
-- [ ] The plan: 25–40 minute blocks in free slots, at most one block on a training day unless a test is within 3 days. Re-plans when a test date, topic list or readiness changes.
+- [~] The plan (tonight only so far): 25–40 minute blocks in free slots, at most one block on a training day unless a test is within 3 days. Re-plans when a test date, topic list or readiness changes.
 - [ ] Afternoon push notification with tonight's block; tapping it opens the tutor on that topic. (Copy web-push from the main Dashboard: `api/notify.js`, VAPID keys.)
 - [ ] Tonight's block + homework due soon on the main Dashboard's Today (a small change in the main repo, through the shared database).
 
@@ -79,5 +91,6 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-10: v0.3.0 — owner picked design A (Coach) with C's course layout and the building blocks; rebuilt every page, added the planner, step sessions with graphs, in-app recording, progress, settings, Hebrew.
 - 2026-11-09 (later): v0.2.0 — school calendar + Mashov import, class setup, "From teachers" on home, sync status in Account. Owner wants everything pulled in automatically, not typed.
 - 2026-11-09: Repo started. Phase 1 code written in one night (unattended): pages, functions, schema, demo mode. Not yet tested against real Supabase/API keys.

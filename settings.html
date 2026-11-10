@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<title>Settings · Study</title>
+</head>
+<body>
+<main class="page narrow" id="page">
+  <header class="head"><a class="icon-btn" id="back" aria-label="Back"></a><div class="t"><h1 id="h1"></h1></div></header>
+  <span class="label" id="l-src"></span>
+  <section class="list" id="sources"></section>
+  <span class="label" id="week"></span>
+  <section class="list" id="acts"></section>
+  <section class="card" id="plan" style="display:flex;flex-direction:column;gap:12px"></section>
+  <span class="label" id="l-lang"></span>
+  <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
+  <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
+</main>
+<script src="/app.js?v=0.3.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc, ic, t } = S;
+  S.nav('');
+  $('#back').href = S.link('/'); $('#back').innerHTML = ic('back', 'flip');
+  $('#h1').textContent = t('Settings');
+  $('#l-src').textContent = t('Where info comes from');
+  $('#week').textContent = t('Your week (for the planner)');
+  $('#l-lang').textContent = t('App language');
+  if (!(await S.session())) return;
+  await S.school.load();
+  const he = S.lang() === 'he';
+  const DAYS = S.DOWS;
+  const stTxt = v => v === 'ok' ? t('Connected') : v === 'no class' ? (he ? 'צריך כיתה' : 'Needs your class') : v ? v : (he ? 'עוד לא נבדק' : 'Not checked yet');
+  const dotFor = v => v === 'ok' ? 'alone' : v ? 'with_help' : 'new';
+  function sources() {
+    const st = S.lastSync() || {};
+    if (S.DEMO) { st.calendar = 'ok'; st.mashov = 'ok'; }
+    const row = (dot, name, meta, extra) => '<div class="item"><span class="dot ' + dot + '"></span><span class="body"><span class="ttl">' + esc(name) + '</span><span class="meta" dir="auto">' + esc(meta) + '</span></span>' + (extra || '') + '</div>';
+    $('#sources').innerHTML =
+      row(dotFor(st.mashov), 'Mashov', (he ? 'שיעורי בית, הודעות, ציונים · ' : 'Homework, messages, grades · ') + stTxt(st.mashov)) +
+      row(dotFor(st.calendar), (he ? 'אתר בית הספר' : 'School site') + (S.myClass() ? ' · ' + S.myClass() : ''), (he ? 'מבחנים ומערכת · ' : 'Tests and timetable · ') + stTxt(st.calendar)) +
+      row('with_help', 'Ofek', t('Not connected yet') + (he ? ' · בינתיים להוסיף ידנית' : ' · add by hand for now')) +
+      row('alone', 'WhatsApp', he ? 'הדבקה בעמוד ״מהמורים״' : 'Paste on the From teachers page') +
+      row('alone', he ? 'הדשבורד שלך' : 'Your Dashboard', he ? 'שיעורי בית ומבחנים משותפים' : 'Homework and tests shared both ways') +
+      '<form class="item" id="cls-f" style="gap:10px"><label class="field" style="flex:1"><span>' + esc(t('Your class')) + '</span><input name="cls" value="' + esc(S.myClass()) + '" placeholder="11-3" autocomplete="off"></label><button class="btn dark" type="submit" style="align-self:flex-end">' + esc(t('Sync now')) + '</button></form>';
+    $('#cls-f').onsubmit = async e => {
+      e.preventDefault();
+      const v = e.target.cls.value.trim();
+      if (v && v !== S.myClass()) { if (!/^\d{1,2}-\d{1,2}$/.test(v)) return S.toast('Class looks like 11-3'); await S.setMyClass(v); }
+      S.toast(he ? 'מסנכרן…' : 'Syncing…'); await S.syncAll(true); sources();
+    };
+  }
+  function acts() {
+    const wk = S.settings().week || [];
+    $('#acts').innerHTML = (wk.length ? wk.map(a => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(a.name) + '</span><span class="meta">' + esc((a.days || []).map(d => t(DAYS[d])).join(', ')) + ' · <span dir="ltr">' + esc(a.start + '–' + a.end) + '</span>' + '</span></span><button class="icon-btn" data-del="' + esc(a.id) + '" aria-label="Remove" style="box-shadow:none">' + ic('x', 'sm') + '</button></div>').join('')
+      : '<p class="empty">' + (he ? 'הוסף כדורעף, רובוטיקה, חדר כושר, כל דבר קבוע.' : 'Add volleyball, robotics, gym, anything fixed.') + '</p>') +
+      '<form class="form" id="act-f" style="padding:10px 0 14px;border-top:1px solid var(--line)"><label class="field"><span>' + esc(t('Add activity')) + '</span><input name="name" dir="auto" placeholder="' + (he ? 'כדורעף' : 'Volleyball') + '" autocomplete="off"></label>' +
+      '<div class="days">' + DAYS.map((d, i) => '<label><input type="checkbox" name="d" value="' + i + '"><span>' + esc(t(d)) + '</span></label>').join('') + '</div>' +
+      '<div class="grid2"><label class="field"><span>' + (he ? 'מ־' : 'From') + '</span><input type="time" name="start" value="17:00"></label><label class="field"><span>' + (he ? 'עד' : 'To') + '</span><input type="time" name="end" value="19:00"></label></div>' +
+      '<button class="btn dark" type="submit">' + esc(t('Add')) + '</button></form>';
+    S.$$('[data-del]').forEach(b => b.onclick = () => { const prev = S.settings().week || []; S.saveSettings({ week: prev.filter(a => a.id !== b.dataset.del) }); acts(); S.toast(he ? 'הוסר' : 'Removed', () => { S.saveSettings({ week: prev }); acts(); }); });
+    $('#act-f').onsubmit = e => {
+      e.preventDefault();
+      const f = e.target, days = S.$$('input[name=d]:checked', f).map(x => +x.value);
+      if (!f.name.value.trim()) return S.toast(he ? 'תן שם לפעילות' : 'Name the activity');
+      if (!days.length) return S.toast(he ? 'בחר ימים' : 'Pick the days');
+      if (f.end.value <= f.start.value) return S.toast(he ? 'שעת הסיום לפני ההתחלה' : 'The end is before the start');
+      S.saveSettings({ week: (S.settings().week || []).concat([{ id: S.newId(), name: f.name.value.trim(), days, start: f.start.value, end: f.end.value }]) });
+      acts();
+    };
+  }
+  function plan() {
+    const s = S.settings();
+    $('#plan').innerHTML = '<label class="field"><span>' + esc(t('Most study per evening')) + ' (' + esc(t('minutes')) + ')</span><input type="number" min="15" max="180" step="5" name="studyMins" value="' + esc(s.studyMins) + '"></label>' +
+      '<label class="field"><span>' + esc(t('Way home after school')) + ' (' + esc(t('minutes')) + ')</span><input type="number" min="0" max="180" step="5" name="commuteMins" value="' + esc(s.commuteMins) + '"></label>' +
+      '<label class="field"><span>' + esc(t('Latest study time')) + '</span><input type="time" name="latest" value="' + esc(s.latest) + '"></label>';
+    S.$$('input', $('#plan')).forEach(i => i.onchange = () => { const v = i.type === 'number' ? Math.max(+i.min, Math.min(+i.max, +i.value || 0)) : i.value; S.saveSettings({ [i.name]: v }); S.toast(he ? 'נשמר' : 'Saved'); });
+  }
+  function langs() {
+    const s = S.settings();
+    $('#langs').innerHTML = '<div style="display:flex;align-items:center;gap:12px"><span style="flex:1">' + esc(t('App language')) + '</span>' + S.langToggle() + '</div>' +
+      '<label class="field"><span>' + esc(t('Teaching language')) + '</span><select id="tl"><option value="auto">' + esc(t('Same as the test')) + '</option><option value="he">' + esc(t('Hebrew')) + '</option><option value="en">' + esc(t('English')) + '</option></select></label>';
+    $('#tl').value = s.teachLang || 'auto';
+    $('#tl').onchange = e => { S.saveSettings({ teachLang: e.target.value }); S.toast(he ? 'נשמר' : 'Saved'); };
+  }
+  async function account() {
+    let calls = '—';
+    if (S.DEMO) calls = 37;
+    else { try { const from = S.todayKey().slice(0, 8) + '01'; const r = await S.sb().from('study_usage').select('calls').gte('day', from); if (!r.error) calls = (r.data || []).reduce((a, x) => a + (x.calls || 0), 0); } catch (e) {} }
+    $('#account').innerHTML = '<div style="display:flex;justify-content:space-between;gap:12px"><span>' + esc(t('AI this month')) + '</span><span class="hint">' + calls + (he ? ' פעמים · תקרה $10 בחודש' : ' turns · $10/month cap') + '</span></div>' +
+      '<span class="hint">' + esc(t('Signed in as {x}', { x: (S.user() || {}).email || '' })) + ' · v' + S.VERSION + '</span><button class="btn" id="so">' + esc(t('Sign out')) + '</button>';
+    $('#so').onclick = S.signOut;
+  }
+  sources(); acts(); plan(); langs(); account();
+  if (location.hash === '#week') setTimeout(() => $('#week').scrollIntoView({ behavior: 'smooth' }), 100);
+})();
+</script>
+</body>
+</html>

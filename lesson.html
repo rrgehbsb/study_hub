@@ -3,58 +3,60 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.2.0">
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
 <script src="/vendor/marked.min.js"></script>
-<title>Lesson · Study Hub</title>
+<title>Lesson · Study</title>
 </head>
 <body>
-<main class="page" id="page">
-  <header class="top">
+<main class="page narrow" id="page">
+  <header class="head">
     <a class="icon-btn" id="back" aria-label="Back"></a>
-    <div class="top-text"><span class="sub" id="sub"></span><h1 id="name" dir="auto">Lesson</h1></div>
+    <div class="t"><span class="sub" id="sub"></span><h1 id="name" dir="auto"></h1></div>
   </header>
-  <a class="btn teach block" id="study">Study this lesson</a>
+  <a class="btn big accent block" id="study"></a>
   <div class="chips" id="topics"></div>
-  <section class="card"><h2 style="font-size:19px;margin-bottom:8px">Summary</h2><div class="prose" dir="auto" id="summary"></div></section>
-  <details class="card" id="tx"><summary>Full transcript <span class="hint" id="tx-len"></span></summary><div class="transcript" dir="rtl" id="transcript"></div></details>
-  <p class="hint">The tutor teaches from the full transcript, not the summary.</p>
+  <section class="card"><h2 id="h-sum" style="margin-bottom:8px"></h2><div class="prose" dir="auto" id="summary"></div></section>
+  <details class="card"><summary><span id="h-tx"></span><span class="hint" id="tx-len"></span></summary><div class="transcript" dir="auto" id="transcript"></div></details>
 </main>
-<script src="/app.js?v=0.2.0"></script>
+<script src="/app.js?v=0.3.0"></script>
 <script>
 (async function () {
-  const S = window.SH, { $, esc } = S;
-  $('#back').innerHTML = S.ic('back');
+  const S = window.SH, { $, esc, ic, t } = S;
+  S.nav('subjects');
+  $('#back').innerHTML = ic('back', 'flip');
+  $('#h-sum').textContent = t('Summary'); $('#h-tx').textContent = t('Full transcript');
   if (!(await S.session())) return;
   await S.school.load();
   const id = S.qs('id');
   let l = null;
   try { l = (await S.rows(S.T.lessons, { id }))[0]; } catch (e) { S.toast(e.message); }
-  if (!l) { $('#name').textContent = 'Lesson not found'; $('#back').href = S.link('/'); return; }
+  if (!l) { $('#name').textContent = '—'; $('#back').href = S.link('/'); return; }
   $('#back').href = S.link('/subject.html', { id: l.subject_id });
-  $('#name').textContent = l.title || 'Lesson';
-  $('#sub').textContent = S.subjectName(l.subject_id) + ' · ' + S.fmtDay(l.lesson_date);
-  document.title = (l.title || 'Lesson') + ' · Study Hub';
+  $('#name').textContent = l.title || t('Lesson');
+  $('#sub').textContent = S.subjectName(l.subject_id) + ' · ' + S.fmtDay(l.lesson_date) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '');
   const topic = (l.topics || [])[0];
-  $('#study').href = S.link('/tutor.html', Object.assign({ subject: l.subject_id, mode: 'teach' }, topic ? { topic } : {}));
-  $('#topics').innerHTML = (l.topics || []).map(t => '<a class="chip" dir="auto" href="' + S.link('/tutor.html', { subject: l.subject_id, mode: 'teach', topic: t }) + '">' + esc(t) + '</a>').join('');
+  $('#study').href = S.link('/session.html', { subject: l.subject_id, topic: topic || '', mode: 'learn' });
+  $('#study').textContent = t('Study this lesson');
+  $('#topics').innerHTML = (l.topics || []).map(x => '<a class="chip" dir="auto" href="' + S.link('/session.html', { subject: l.subject_id, topic: x, mode: 'learn' }) + '">' + esc(x) + '</a>').join('');
   if (l.summary) S.renderRich($('#summary'), l.summary);
-  else $('#summary').innerHTML = '<p class="hint">No summary (it needs the free Gemini key). The tutor still has the full transcript.</p>';
-  $('#transcript').textContent = l.transcript || '';
-  $('#tx-len').textContent = l.transcript ? '· about ' + Math.max(1, Math.round(l.transcript.split(/\s+/).length / 130)) + ' min of speech' : '';
+  else $('#summary').innerHTML = '<p class="hint">' + (S.lang() === 'he' ? 'אין סיכום (צריך את מפתח Gemini החינמי). למורה הפרטי יש את התמלול המלא.' : 'No summary (it needs the free Gemini key). The tutor still has the full transcript.') + '</p>';
+  $('#transcript').textContent = (l.transcript || '').replace(/\[MARKED BY STUDENT: on the test\]/g, '⚑ ' + (S.lang() === 'he' ? 'סימנת: במבחן' : 'You marked: on the test')).replace(/\[BOARD PHOTO (\d+) taken here\]/g, '📷 $1');
+  $('#tx-len').textContent = l.transcript ? '~' + Math.max(1, Math.round(l.transcript.split(/\s+/).length / 130)) + ' min' : '';
 })();
 </script>
 </body>

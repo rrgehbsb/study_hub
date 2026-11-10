@@ -8,11 +8,17 @@ const BASE = process.env.BASE || 'http://localhost:5178';
 const DIR = process.env.SHOT_DIR || 'shots';
 fs.mkdirSync(DIR, { recursive: true });
 const PAGES = [
-  ['home', '/?demo'],
-  ['subject', '/subject.html?id=phys&demo'],
+  ['today', '/?demo'],
+  ['session-learn', '/session.html?subject=math&topic=%D7%9E%D7%A9%D7%99%D7%A7&test=t1&mode=learn&demo'],
+  ['session-test', '/session.html?subject=math&topic=%D7%9E%D7%A9%D7%99%D7%A7&test=t1&mode=test&demo'],
+  ['homework', '/homework.html?demo'],
+  ['subjects', '/subjects.html?demo'],
+  ['subject', '/subject.html?id=math&demo'],
+  ['teachers', '/teachers.html?demo'],
+  ['progress', '/progress.html?demo'],
+  ['record', '/record.html?demo'],
+  ['settings', '/settings.html?demo'],
   ['lesson', '/lesson.html?id=l1&demo'],
-  ['tutor-teach', '/tutor.html?subject=phys&mode=teach&demo'],
-  ['tutor-test', '/tutor.html?subject=phys&mode=test&demo'],
   ['login', '/login.html']
 ];
 (async () => {
@@ -31,19 +37,25 @@ const PAGES = [
         const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
         if (over > 1) problems.push(`${tag}/${name}: sideways overflow ${over}px`);
         await page.screenshot({ path: `${DIR}/${tag}-${scheme}-${name}.png`, fullPage: true });
-        if (tag === 'phone' && scheme === 'light' && name === 'home') {
-          await page.click('#add'); await page.waitForTimeout(400);
-          await page.screenshot({ path: `${DIR}/${tag}-add-sheet.png` });
-          await page.click('[data-k="lesson"]'); await page.waitForTimeout(400);
-          await page.screenshot({ path: `${DIR}/${tag}-add-lesson.png` });
-          await page.goto(BASE + path, { waitUntil: 'networkidle' });
-          await page.click('[data-done]'); await page.waitForTimeout(600);
-          await page.screenshot({ path: `${DIR}/${tag}-homework-done.png` });
+        if (tag === 'phone' && scheme === 'light' && name === 'session-learn') {
+          await page.click('#next'); await page.waitForTimeout(1200);
+          await page.screenshot({ path: `${DIR}/${tag}-session-example.png`, fullPage: true });
+          await page.click('#next'); await page.waitForTimeout(1200);
+          await page.screenshot({ path: `${DIR}/${tag}-session-turn.png`, fullPage: true });
+          await page.click('#type'); await page.fill('#ask-in', 'y = -3x + 3'); await page.click('#ask button[type=submit]'); await page.waitForTimeout(1200);
+          await page.screenshot({ path: `${DIR}/${tag}-session-check.png`, fullPage: true });
+          await page.click('[data-rate="alone"]'); await page.waitForTimeout(400);
+          await page.screenshot({ path: `${DIR}/${tag}-session-after.png`, fullPage: true });
         }
-        if (tag === 'phone' && scheme === 'light' && name === 'tutor-test') {
-          await page.fill('#input', 'y(t)=45+5t-5t^2');
-          await page.click('#send'); await page.waitForTimeout(1500);
-          await page.screenshot({ path: `${DIR}/${tag}-tutor-verdict.png`, fullPage: true });
+        if (tag === 'phone' && scheme === 'light' && name === 'record') {
+          await page.click('#start'); await page.waitForTimeout(1000);
+          await page.click('#flag'); await page.waitForTimeout(300);
+          await page.screenshot({ path: `${DIR}/${tag}-recording.png`, fullPage: true });
+        }
+        if (tag === 'phone' && scheme === 'light' && name === 'today') {
+          await page.click('.only-phone [data-lang="he"]'); await page.waitForTimeout(1500);
+          await page.screenshot({ path: `${DIR}/${tag}-today-hebrew.png`, fullPage: true });
+          await page.click('.only-phone [data-lang="en"]'); await page.waitForTimeout(800);
         }
         await page.close();
       }

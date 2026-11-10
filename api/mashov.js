@@ -59,7 +59,7 @@ const day = v => v ? String(v).slice(0, 10) : null;
 module.exports = handler(async (req, res) => {
   await auth(req); // signed in AND in ALLOWED_EMAILS: it uses the owner's Mashov login
   const s = await login();
-  const out = { ok: true, fetchedAt: new Date().toISOString(), homework: [], messages: [], problems: [] };
+  const out = { ok: true, fetchedAt: new Date().toISOString(), homework: [], messages: [], grades: [], problems: [] };
 
   // homework
   try {
@@ -72,6 +72,17 @@ module.exports = handler(async (req, res) => {
     });
     if (Array.isArray(hw) && hw[0]) out.homeworkFields = Object.keys(hw[0]); // to fix the mapping if Mashov renames fields
   } catch (e) { out.problems.push('homework: ' + e.message); }
+
+  // grades (this school year)
+  try {
+    const gr = await get(s, '/students/' + s.userId + '/grades');
+    (Array.isArray(gr) ? gr : []).forEach(g => {
+      const value = Number(String(pick(g, ['grade', 'gradeValue']) ?? '').replace(/[^\d.]/g, ''));
+      if (!isFinite(value) || String(pick(g, ['grade']) ?? '') === '') return;
+      const id = pick(g, ['gradeId', 'id']) || [pick(g, ['groupId']), pick(g, ['eventDate']), pick(g, ['gradingEvent'])].join('-');
+      out.grades.push({ ref: 'mashov-gr-' + String(id).replace(/[^\w-]/g, '').slice(0, 60), subject: pick(g, ['subjectName', 'groupName']) || '', event: pick(g, ['gradingEvent', 'gradeType']) || '', date: day(pick(g, ['eventDate', 'date'])), value, teacher: pick(g, ['teacherName']) || '' });
+    });
+  } catch (e) { out.problems.push('grades: ' + e.message); }
 
   // teacher messages (last 30 days, with their text)
   try {

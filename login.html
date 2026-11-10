@@ -3,32 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#EDF1F5" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0D1116" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/BricolageGrotesque-latin.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.2.0">
-<title>Sign in · Study Hub</title>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<title>Sign in · Study</title>
 </head>
 <body>
 <main class="login">
-  <h1>Study Hub</h1>
-  <p class="hint" style="font-size:15px">Sign in with your Dashboard account. Your homework and tests come from there.</p>
+  <h1>Study</h1>
+  <p class="hint" style="font-size:15px" id="intro">Sign in with your Dashboard account. Your homework and tests come from there.</p>
   <form class="form" id="f" novalidate>
     <label class="field"><span>Email</span><input type="email" name="email" autocomplete="email" required></label>
     <label class="field"><span>Password</span><input type="password" name="password" autocomplete="current-password" required></label>
-    <button class="btn primary block" type="submit">Sign in</button>
+    <button class="btn big dark block" type="submit">Sign in</button>
     <p class="hint" id="msg" role="alert"></p>
   </form>
 </main>
-<script src="/app.js?v=0.2.0"></script>
+<script src="/app.js?v=0.3.0"></script>
 <script>
 (async function () {
   const S = window.SH, f = document.getElementById('f'), msg = document.getElementById('msg');

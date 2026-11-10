@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<title>Subjects · Study</title>
+</head>
+<body>
+<main class="page" id="page">
+  <header class="head"><div class="t"><h1 id="h1"></h1></div><span class="only-phone" id="lang-phone"></span></header>
+  <section class="subj-grid" id="grid"></section>
+  <button class="btn" id="all" hidden></button>
+</main>
+<script src="/app.js?v=0.3.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc, t } = S;
+  S.nav('subjects');
+  $('#h1').textContent = t('Subjects');
+  $('#lang-phone').innerHTML = S.langToggle();
+  if (!(await S.session())) return;
+  let topicsBy = {}, lessonsBy = {}, showAll = false;
+  function render() {
+    const all = S.subjects(), busy = new Set(Object.keys(topicsBy).concat(Object.keys(lessonsBy)));
+    S.openTests().forEach(x => busy.add(x.subjectId)); S.openHomework().forEach(a => busy.add(a.subjectId));
+    const active = all.filter(s => busy.has(s.id)), list = showAll ? all : active;
+    $('#grid').innerHTML = list.map(s => {
+      const test = S.openTests().find(x => x.subjectId === s.id), tps = topicsBy[s.id] || [], ls = lessonsBy[s.id] || [];
+      return '<a class="subj-card" href="' + S.link('/subject.html', { id: s.id }) + '"><span class="bar" style="background:' + esc(s.color || 'var(--accent)') + '"></span><b style="font-size:20px" dir="auto">' + esc(s.name) + '</b>' +
+        (test ? '<span class="tag test" style="align-self:flex-start">' + esc(t('Next test')) + ' · ' + esc(S.rel(test.testDate)) + '</span>' : '') +
+        (tps.length ? '<div class="bars">' + tps.map(p => '<span class="' + p.state + '"></span>').join('') + '</div>' : '') +
+        '<span class="hint">' + ls.length + ' ' + (S.lang() === 'he' ? 'שיעורים' : (ls.length === 1 ? 'lesson' : 'lessons')) + (tps.length ? ' · ' + t('{a} of {b} topics solved alone', { a: tps.filter(p => p.state === 'alone').length, b: tps.length }) : '') + '</span></a>';
+    }).join('') || '<p class="empty card" style="grid-column:1/-1">' + (S.lang() === 'he' ? 'מקצועות מופיעים כאן כשיש להם שיעור, מבחן או שיעורי בית.' : 'Subjects show up here once they have a lesson, a test or homework.') + '</p>';
+    const b = $('#all'); b.hidden = active.length >= all.length; b.textContent = showAll ? (S.lang() === 'he' ? 'רק פעילים' : 'Only active') : t('All subjects') + ' (' + all.length + ')';
+    b.onclick = () => { showAll = !showAll; render(); };
+  }
+  S.school.on(render);
+  await S.school.load();
+  try {
+    const [tps, ls] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 200)]);
+    tps.forEach(x => (topicsBy[x.subject_id] = topicsBy[x.subject_id] || []).push(x));
+    ls.forEach(x => (lessonsBy[x.subject_id] = lessonsBy[x.subject_id] || []).push(x));
+  } catch (e) { S.toast(e.message); }
+  render();
+})();
+</script>
+</body>
+</html>

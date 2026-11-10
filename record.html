@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<meta name="theme-color" content="#0B0F19">
+<title>Record lesson · Study</title>
+</head>
+<body class="rec">
+<main class="page narrow" id="page" style="padding-bottom:calc(env(safe-area-inset-bottom,0px) + 28px)">
+  <header class="head">
+    <a class="icon-btn" id="back" style="background:#1F2937;color:#F9FAFB;box-shadow:none" aria-label="Back"></a>
+    <div class="t"><span class="sub" id="state" style="color:#FCA5A5;font-weight:700;letter-spacing:.04em"></span></div>
+  </header>
+  <section id="view" style="display:flex;flex-direction:column;gap:18px"></section>
+</main>
+<script src="/app.js?v=0.3.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc, ic, t } = S;
+  $('#back').href = S.link('/'); $('#back').innerHTML = ic('back', 'flip');
+  if (!(await S.session())) return;
+  await S.school.load();
+  const he = S.lang() === 'he';
+  const tt = await S.timetable();
+  const cur = S.currentLesson(tt);
+  let sid = S.qs('subject') || (cur && cur.subjectId) || S.readJSON('sh:lastSubject') || (S.subjects()[0] || {}).id || '';
+  let rec = null, stream = null, chunks = [], lesson = null, t0 = 0, tick = null, photos = 0, marks = [], lock = null, actx = null, analyser = null, stopAt = null, marksT = null;
+  const DB = 'sh-rec', STORE = 'chunks';
+
+  /* unfinished recordings survive a crash: chunks go to IndexedDB as they come */
+  const idb = () => new Promise((res, rej) => { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(STORE, { autoIncrement: true }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+  async function idbAdd(v) { try { const d = await idb(); d.transaction(STORE, 'readwrite').objectStore(STORE).add(v); } catch (e) {} }
+  async function idbAll() { try { const d = await idb(); return await new Promise(r => { const q = d.transaction(STORE).objectStore(STORE).getAll(); q.onsuccess = () => r(q.result || []); q.onerror = () => r([]); }); } catch (e) { return []; } }
+  async function idbClear() { try { const d = await idb(); d.transaction(STORE, 'readwrite').objectStore(STORE).clear(); } catch (e) {} }
+
+  const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
+  function subjSelect() {
+    return '<label class="field"><span>' + esc(t('Subject')) + '</span><select id="subj">' + S.subjects().map(s => '<option value="' + esc(s.id) + '"' + (s.id === sid ? ' selected' : '') + '>' + esc(s.name) + '</option>').join('') + '</select></label>';
+  }
+  async function idle() {
+    $('#state').textContent = '';
+    const left = await idbAll();
+    $('#view').innerHTML = '<h1 style="font-size:32px;font-weight:800">' + esc(t('Record lesson')) + '</h1>' +
+      (cur ? '<p style="color:#D1D5DB">' + esc((he ? 'עכשיו לפי המערכת: ' : 'Now on your timetable: ') + cur.he + ' · ' + cur.start + '–' + cur.end) + '</p>' : '') +
+      subjSelect() +
+      (left.length ? '<div class="note">' + (he ? 'יש הקלטה שלא הסתיימה מהפעם הקודמת.' : 'There’s an unfinished recording from last time.') + ' <button class="btn" id="recover" style="margin-top:8px">' + (he ? 'להעלות אותה' : 'Upload it') + '</button></div>' : '') +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:20px"><button class="stop start" id="start" aria-label="' + esc(t('Start recording')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Start recording')) + '</span></div>' +
+      '<div class="note">' + esc(t('Keep this screen open: it stays on by itself.')) + ' ' + esc(t('Transcribed in Hebrew or English by itself.')) + '</div>' +
+      '<button class="btn" id="upload" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Upload a recording instead')) + '</button>';
+    $('#subj').onchange = e => { sid = e.target.value; S.writeJSON('sh:lastSubject', sid); };
+    $('#start').onclick = start;
+    $('#upload').onclick = () => S.openAdd(sid, () => location.href = S.link('/subject.html', { id: sid }), ['lesson']);
+    const rv = $('#recover'); if (rv) rv.onclick = async () => {
+      const parts = await idbAll(); const meta = parts.find(p => p && p.meta) || {};
+      const blob = new Blob(parts.filter(p => p instanceof Blob), { type: meta.type || 'audio/mp4' });
+      try { await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), meta.sid || sid, meta.date || S.todayKey(), meta.lessonId ? { lessonId: meta.lessonId } : null); await idbClear(); done(meta.sid || sid); } catch (e) { S.toast(e.message); }
+    };
+  }
+  async function start() {
+    if (!sid) return S.toast(he ? 'בחר מקצוע' : 'Pick a subject');
+    S.writeJSON('sh:lastSubject', sid);
+    if (!S.DEMO) {
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } }); }
+      catch (e) { return S.toast(he ? 'אין גישה למיקרופון. אשר גישה בהגדרות.' : 'No microphone access. Allow it in Settings.'); }
+      const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x)) || '';
+      rec = new MediaRecorder(stream, Object.assign({ audioBitsPerSecond: 32000 }, type ? { mimeType: type } : {}));
+      chunks = [];
+      await idbClear();
+      rec.ondataavailable = e => { if (e.data && e.data.size) { chunks.push(e.data); idbAdd(e.data); } };
+      rec.start(10000);
+      try { actx = new (window.AudioContext || window.webkitAudioContext)(); analyser = actx.createAnalyser(); analyser.fftSize = 256; actx.createMediaStreamSource(stream).connect(analyser); } catch (e) {}
+    }
+    t0 = Date.now(); photos = 0; marks = [];
+    try { lesson = await S.insert(S.T.lessons, { subject_id: sid, lesson_date: S.todayKey(), status: 'recording', started_at: new Date(t0).toISOString(), marks: [] }); } catch (e) { S.toast(e.message); }
+    idbAdd({ meta: true, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: rec ? rec.mimeType : '' });
+    wake();
+    if (cur && cur.subjectId === sid) { const end = S.toMin(cur.end); stopAt = end != null ? Date.now() + (end - S.nowMin()) * 60000 : null; }
+    recording();
+  }
+  async function wake() { try { if ('wakeLock' in navigator) lock = await navigator.wakeLock.request('screen'); } catch (e) {} }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && rec && rec.state === 'recording') wake(); });
+  function recording() {
+    $('#state').textContent = '● ' + t('Recording').toUpperCase();
+    $('#view').innerHTML = '<div><h1 style="font-size:30px;font-weight:800" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' + (stopAt ? '<p style="color:#D1D5DB">' + (he ? 'נעצר לבד ב־' : 'Stops by itself at ') + esc(cur.end) + '</p>' : '') + '</div>' +
+      '<div class="big-time" id="time">0:00</div><div class="wave" aria-hidden="true" id="wave">' + '<span></span>'.repeat(24) + '</div>' +
+      '<div class="grid2"><label class="tile">' + ic('camera') + esc(t('Snap the board')) + '<small id="pc">0</small><input type="file" accept="image/*" capture="environment" id="snap"></label>' +
+      '<button class="tile flag" id="flag">' + ic('flag') + esc(t('"On the test!"')) + '<small id="mc">' + esc(t('marks this moment')) + '</small></button></div>' +
+      '<div class="note">' + (he ? 'טיפ: צלם את הלוח רגע לפני שהמורה מוחק. התמונה משויכת לרגע הזה בשיעור.' : 'Tip: snap the board right before the teacher erases it. The photo is matched to this moment in the lesson.') + '</div>' +
+      '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px"><button class="stop" id="stop" aria-label="' + esc(t('Stop')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Stop')) + '</span></div>';
+    $('#snap').onchange = async e => {
+      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
+      photos++; $('#pc').textContent = photos;
+      try { await S.uploadMaterial('board', sid, f, null, { lesson_id: lesson && lesson.id, taken_at: new Date().toISOString(), quiet: true }); } catch (err) { S.toast(err.message); }
+    };
+    $('#flag').onclick = () => {
+      const s = Math.round((Date.now() - t0) / 1000); marks.push(s);
+      $('#mc').textContent = '⚑ ' + marks.length + ' · ' + fmt(s);
+      try { navigator.vibrate && navigator.vibrate(15); } catch (e) {}
+      clearTimeout(marksT); marksT = setTimeout(() => { if (lesson) S.update(S.T.lessons, lesson.id, { marks }).catch(() => {}); }, 800);
+    };
+    $('#stop').onclick = stop;
+    const bars = S.$$('#wave span'), buf = new Uint8Array(128);
+    clearInterval(tick);
+    tick = setInterval(() => {
+      const sec = (Date.now() - t0) / 1000; $('#time').textContent = fmt(sec);
+      let lvl = 0.3 + Math.random() * 0.4;
+      if (analyser) { analyser.getByteTimeDomainData(buf); let m = 0; buf.forEach(v => { m = Math.max(m, Math.abs(v - 128)); }); lvl = Math.min(1, m / 50); }
+      bars.forEach((b, i) => { b.style.height = Math.max(8, Math.round(70 * lvl * (0.5 + 0.5 * Math.sin(i * 1.7 + sec * 3)))) + 'px'; b.style.opacity = 0.35 + i / 40; });
+      if (stopAt && Date.now() >= stopAt) stop();
+    }, 150);
+  }
+  async function stop() {
+    clearInterval(tick); stopAt = null;
+    try { lock && lock.release(); } catch (e) {}
+    if (lesson && marks.length) await S.update(S.T.lessons, lesson.id, { marks }).catch(() => {});
+    $('#view').innerHTML = '<p class="big-time" style="font-size:28px">' + (he ? 'מעלה…' : 'Uploading…') + '</p>';
+    if (S.DEMO) return done(sid);
+    await new Promise(r => { rec.onstop = r; rec.stop(); });
+    stream.getTracks().forEach(x => x.stop());
+    try { actx && actx.close(); } catch (e) {}
+    const blob = new Blob(chunks, { type: rec.mimeType || 'audio/mp4' });
+    try {
+      await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null);
+      await idbClear();
+      done(sid);
+    } catch (e) {
+      $('#view').innerHTML = '<div class="note">' + esc(e.message) + '</div><button class="btn" id="again">' + esc(t('Try again')) + '</button>';
+      $('#again').onclick = async () => { try { await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null); await idbClear(); done(sid); } catch (err) { S.toast(err.message); } };
+    }
+  }
+  function done(s) {
+    $('#state').textContent = '';
+    $('#view').innerHTML = '<h1 style="font-size:30px;font-weight:800">' + (he ? 'השיעור נשמר' : 'Lesson saved') + '</h1><p style="color:#D1D5DB">' + (he ? 'מתמלל עכשיו (בערך דקה). המורה הפרטי ילמד ממנו.' : 'Transcribing now (about a minute). The tutor will teach from it.') + '</p>' +
+      '<a class="btn accent big" href="' + S.link('/subject.html', { id: s }) + '">' + esc(S.subjectName(s)) + ' →</a><a class="btn" href="' + S.link('/') + '" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Today')) + '</a>';
+  }
+  window.addEventListener('beforeunload', e => { if (rec && rec.state === 'recording') { e.preventDefault(); e.returnValue = ''; } });
+  idle();
+})();
+</script>
+</body>
+</html>

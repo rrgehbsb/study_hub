@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Study">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script src="/vendor/supabase-2.116.0.js"></script>
+<script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
+<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/app.css?v=0.3.0">
+<title>Progress · Study</title>
+</head>
+<body>
+<main class="page narrow" id="page">
+  <header class="head"><div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div></header>
+  <div class="grid2" id="stats"></div>
+  <section class="card" id="ready" style="display:flex;flex-direction:column;gap:14px"></section>
+  <section class="list" id="mistakes"></section>
+  <section class="list" id="grades"></section>
+</main>
+<script src="/app.js?v=0.3.0"></script>
+<script>
+(async function () {
+  const S = window.SH, { $, esc, t } = S;
+  S.nav('progress');
+  $('#h1').textContent = t('Progress');
+  $('#sub').textContent = t('Counts only what you solved alone');
+  if (!(await S.session())) return;
+  await S.school.load();
+  let attempts = [], topics = [];
+  try {
+    [attempts, topics] = await Promise.all([S.rows(S.T.attempts, null, 'created_at', 300, { since: ['created_at', S.addDays(S.todayKey(), -30)] }), S.rows(S.T.topics)]);
+  } catch (e) { S.toast(e.message); }
+  const week = attempts.filter(a => String(a.created_at).slice(0, 10) >= S.addDays(S.todayKey(), -6));
+  const alone = week.filter(a => a.alone && a.verdict === 'correct').length, help = week.length - alone;
+  $('#stats').innerHTML = '<div class="stat"><b>' + alone + '</b><span>' + esc(t('Solved alone this week')) + '</span></div><div class="stat"><b style="color:var(--warn-ink)">' + help + '</b><span>' + esc(t('Needed help')) + '</span></div>';
+  const tests = S.openTests().filter(x => S.daysUntil(x.testDate) <= 30);
+  const seen = new Set();
+  const rowsH = tests.filter(x => !seen.has(x.subjectId) && seen.add(x.subjectId)).map(x => {
+    const tps = topics.filter(p => p.subject_id === x.subjectId), n = tps.length || 1;
+    const a = tps.filter(p => p.state === 'alone').length, h = tps.filter(p => p.state === 'with_help').length;
+    return '<a href="' + S.link('/subject.html', { id: x.subjectId }) + '" style="display:flex;flex-direction:column;gap:6px;text-decoration:none"><div style="display:flex;justify-content:space-between;gap:8px;font-size:15px"><b dir="auto">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate)) + '</b><span class="hint">' + esc(t('{a} of {b} topics solved alone', { a, b: tps.length })) + '</span></div>' +
+      '<div class="meter"><i class="alone" style="width:' + (a / n * 100) + '%"></i><i class="with_help" style="width:' + (h / n * 100) + '%"></i></div></a>';
+  });
+  $('#ready').innerHTML = '<h2>' + esc(t('Ready for the test, per subject')) + '</h2>' + (rowsH.join('') || '<p class="empty">' + (S.lang() === 'he' ? 'אין מבחנים בחודש הקרוב.' : 'No tests in the next month.') + '</p>') +
+    '<div style="display:flex;gap:14px;font-size:13px;color:var(--ink-3);flex-wrap:wrap"><span><span class="dot alone" style="display:inline-block"></span> ' + esc(t('Solved alone')) + '</span><span><span class="dot with_help" style="display:inline-block"></span> ' + esc(t('With help')) + '</span></div>';
+  const count = {};
+  attempts.forEach(a => { if (a.mistake && a.verdict !== 'correct') { const k = a.mistake.toLowerCase(); (count[k] = count[k] || { n: 0, subject: a.subject_id }).n++; } });
+  const rep = Object.keys(count).filter(k => count[k].n >= 2).sort((a, b) => count[b].n - count[a].n).slice(0, 5);
+  $('#mistakes').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Mistakes that keep coming back')) + '</h2></div>' +
+    (rep.length ? rep.map(k => '<a class="item" href="' + S.link('/session.html', { subject: count[k].subject, topic: k, mode: 'test', mins: 10 }) + '"><span class="tag test">' + count[k].n + '×</span><span class="body"><span class="ttl">' + esc(k) + '</span><span class="meta">' + esc(S.subjectName(count[k].subject)) + ' · ' + esc(t('Practice just these')) + '</span></span></a>').join('') : '<p class="empty">' + (S.lang() === 'he' ? 'אין טעויות שחוזרות. יפה.' : 'Nothing repeats yet.') + '</p>');
+  const grades = S.school.get(S.K.gr).filter(g => g && !g.deleted && g.gradeValue != null).sort((a, b) => String(b.date || '').localeCompare(String(a.date || ''))).slice(0, 10);
+  $('#grades').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Grades')) + '</h2>' + (grades.some(g => g.source === 'mashov') ? '<span class="tag mashov">Mashov</span>' : '') + '</div>' +
+    (grades.length ? grades.map(g => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(S.subjectName(g.subjectId)) + (g.notes ? ' · ' + esc(g.notes) : '') + '</span><span class="meta">' + esc(S.fmtDay(g.date)) + '</span></span><b style="font-size:18px">' + esc(g.gradeValue) + '</b></div>').join('') : '<p class="empty">' + (S.lang() === 'he' ? 'ציונים ממשו״ב יופיעו כאן.' : 'Grades from Mashov show up here.') + '</p>');
+})();
+</script>
+</body>
+</html>
