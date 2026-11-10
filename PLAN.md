@@ -19,7 +19,7 @@ The owner's full wish list is in `docs/vision.md`. This plan is the order to bui
   - `MASHOV_USER` and `MASHOV_PASS`: the Mashov login (after changing the password that was shared in a screenshot)
   - then Deployments → Redeploy
 - [x] Re-run `supabase/schema.sql` after v0.2.0.
-- [ ] Re-run `supabase/schema.sql` after v0.3.0 (recording status, marks, session chats, mistakes). Safe to run again.
+- [x] Re-run `supabase/schema.sql` after v0.3.0 (recording status, marks, session chats, mistakes). Safe to run again.
 - [ ] Open the site on the iPhone → Share → Add to Home Screen. Sign in with the main Dashboard account.
 - [ ] Ask each teacher whether recording lessons is OK.
 
