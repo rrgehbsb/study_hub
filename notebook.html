@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.4.0">
+<link rel="stylesheet" href="/app.css?v=0.4.1">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -29,7 +29,7 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.4.0"></script>
+<script src="/app.js?v=0.4.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -44,7 +44,7 @@
   let tab = S.qs('tab') || S.readJSON('sh:nb:tab') || 'coming';
   if (!TABS.some(x => x[0] === tab)) tab = 'coming';
   let gpOpen = false, showDone = false, lessons = [], msgs = [], topicsBy = {}, lessonFilter = '';
-  const SRC = { mashov: 'Mashov', ofek: 'Ofek', calendar: 'School site', whatsapp: 'WhatsApp' };
+  const SRC = { mashov: 'Mashov', ofek: 'Ofek', calendar: t('School site'), whatsapp: 'WhatsApp' };
   const tag = x => x.source && SRC[x.source] ? ' <span class="tag ' + x.source + '">' + SRC[x.source] + '</span>' : '';
   const when = (k, done) => { const n = S.daysUntil(k); return '<span class="when' + (!done && n != null && n < 0 ? ' late' : !done && n != null && n <= 1 ? ' soon' : '') + '">' + esc(k ? S.rel(k) : '') + '</span>'; };
 
@@ -83,6 +83,7 @@
     groups = groups.filter(x => x[1].length);
     html += groups.length ? groups.map(([name, list]) => '<section class="list"><div class="title-row"><span class="label">' + esc(name) + '</span></div>' + list.map(it => it.k === 'test' ? testRow(it.x) : hwRow(it.x)).join('') + '</section>').join('') : '<p class="card empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>';
     if (others.length && !showDone) html += '<details class="card fold"><summary><span>' + esc(t('Probably not yours')) + ' · ' + others.length + '</span><span class="hint">' + esc(t('Other groups and classes')) + '</span></summary>' +
+      '<p class="hint" style="margin:2px 0 6px">' + esc(t('Your groups: {x}', { x: (S.myGroups() || []).join(', ') || '—' })) + ' · <a href="' + S.link('/settings.html') + '#groups">' + esc(t('Change')) + '</a></p>' +
       others.map(x => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta" dir="auto">' + esc(S.fmtDay(x.testDate)) + ' · ' + esc(S.fitWhy(x)) + '</span></span><button class="btn" data-mine="' + esc(x.id) + '">' + esc(t('Mine')) + '</button></div>').join('') + '</details>';
     html += '<p class="hint" style="text-align:center">' + esc(t('Ticked here = ticked in your Dashboard too.')) + '</p>';
     $('#view').innerHTML = html;
@@ -125,7 +126,7 @@
   /* ---------- messages: sorted by teacher, set once ---------- */
   function messagesView() {
     const unknown = [];
-    msgs.forEach(m => { if (m.kind === 'teacher_message' && m.subject_id === 'inbox') { const n = S.senderOf(m) || '?'; if (!unknown.some(u => S.sameTeacher(u, n))) unknown.push(n); } });
+    msgs.forEach(m => { if (m.kind === 'teacher_message' && m.subject_id === 'inbox') { const n = S.senderOf(m); if (n && !unknown.some(u => S.sameTeacher(u, n))) unknown.push(n); } });
     const opts = '<option value="">—</option>' + S.subjects().map(s => '<option value="' + esc(s.id) + '">' + esc(s.name) + '</option>').join('') + '<option value="school">' + esc(t('School stuff')) + '</option>';
     const LAB = { teacher_message: ['mashov', 'Mashov'], teacher_summary: ['whatsapp', 'WhatsApp'] };
     $('#view').innerHTML = (unknown.length ? '<section class="card" style="display:flex;flex-direction:column;gap:10px"><h2>' + esc(t('Who teaches what? (once)')) + '</h2><p class="hint">' + esc(t('After this, their messages sort themselves.')) + '</p>' +

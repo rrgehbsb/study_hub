@@ -110,6 +110,8 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-10 (night): v0.4.1 — bug hunt (tools/check.js + tools/flows.js). Fixed: crash when the clipboard refuses the Claude prompt; Record page's last button hidden behind the tabs; small tap targets; English labels left in Hebrew; a "Done for tonight" without any question tried; group matching by word stem (מבחן באפליקציה → פיתוח אפליקציות); sender-less Mashov messages; Mashov subjects saved before teachers point at them.
+
 - 2026-11-10 (evening): v0.4.0 — owner's blueprint: new tabs, Tutor page, Record as a main tab with the timetable, Notebook, groups/teachers set once, other groups' tests folded away. The sandbox can now reach Mashov, the school site and the live app (allowed domains): calendar + timetable checked live; Mashov login format accepted.
 - 2026-11-10 (later): v0.3.1 — light/dark/auto switch; week planning in regular Claude with import back; in-app week and "Change tonight" assistant; imported sessions and per-day overrides in the planner.
 - 2026-11-10: v0.3.0 — owner picked design A (Coach) with C's course layout and the building blocks; rebuilt every page, added the planner, step sessions with graphs, in-app recording, progress, settings, Hebrew.

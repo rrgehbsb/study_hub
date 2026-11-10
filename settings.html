@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.4.0">
+<link rel="stylesheet" href="/app.css?v=0.4.1">
 <title>Settings · Study</title>
 </head>
 <body>
@@ -37,7 +37,7 @@
   <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
   <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
 </main>
-<script src="/app.js?v=0.4.0"></script>
+<script src="/app.js?v=0.4.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -144,6 +144,7 @@
   S.timetable().then(x => { tt = x; });
   S.rows(S.T.topics).then(r => r.forEach(x => (topicsBySubj[x.subject_id] = topicsBySubj[x.subject_id] || []).push(x))).catch(() => {});
   if (location.hash === '#week') setTimeout(() => $('#week').scrollIntoView({ behavior: 'smooth' }), 100);
+  if (location.hash === '#groups') setTimeout(() => $('#groups').scrollIntoView({ behavior: 'smooth' }), 300);
 })();
 </script>
 </body>

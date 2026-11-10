@@ -238,7 +238,7 @@ a.item:active, button.item:active { opacity:.7; }
 .plot { display:block; width:100%; max-width:480px; margin:8px 0; background:var(--ground); border-radius:14px; direction:ltr; }
 .transcript { white-space:pre-wrap; font-size:15px; line-height:1.7; color:var(--ink-2); max-height:60vh; overflow:auto; }
 .quote { background:var(--ground); border-radius:12px; padding:10px 12px; font-size:15px; color:var(--ink-2); }
-details.card summary { cursor:pointer; font-weight:700; min-height:28px; list-style:none; display:flex; justify-content:space-between; align-items:center; }
+details.card summary { cursor:pointer; font-weight:700; min-height:44px; list-style:none; display:flex; justify-content:space-between; align-items:center; }
 details.card summary::-webkit-details-marker { display:none; }
 details.card[open] summary { margin-bottom:10px; }
 
@@ -371,3 +371,7 @@ html { text-size-adjust:100%; }
   .tab-rec .tab-ic { width:50px; }
 }
 .lesson-row .tag { align-self:flex-start; }
+
+/* tap targets: text links in title rows and the brand reach 44px */
+.title-row a.hint, .title-row button.hint, a.hint[href] { min-height:44px; display:inline-flex; align-items:center; }
+.topbar .brand { min-height:44px; display:inline-flex; align-items:center; }

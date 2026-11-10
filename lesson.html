@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.4.0">
+<link rel="stylesheet" href="/app.css?v=0.4.1">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -35,7 +35,7 @@
   <section class="card"><h2 id="h-sum" style="margin-bottom:8px"></h2><div class="prose" dir="auto" id="summary"></div></section>
   <details class="card"><summary><span id="h-tx"></span><span class="hint" id="tx-len"></span></summary><div class="transcript" dir="auto" id="transcript"></div></details>
 </main>
-<script src="/app.js?v=0.4.0"></script>
+<script src="/app.js?v=0.4.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -58,7 +58,7 @@
   if (l.summary) S.renderRich($('#summary'), l.summary);
   else $('#summary').innerHTML = '<p class="hint">' + (S.lang() === 'he' ? 'אין סיכום (צריך את מפתח Gemini החינמי). למורה הפרטי יש את התמלול המלא.' : 'No summary (it needs the free Gemini key). The tutor still has the full transcript.') + '</p>';
   $('#transcript').textContent = (l.transcript || '').replace(/\[MARKED BY STUDENT: on the test\]/g, '⚑ ' + (S.lang() === 'he' ? 'סימנת: במבחן' : 'You marked: on the test')).replace(/\[BOARD PHOTO (\d+) taken here\]/g, '📷 $1');
-  $('#tx-len').textContent = l.transcript ? '~' + Math.max(1, Math.round(l.transcript.split(/\s+/).length / 130)) + ' min' : '';
+  $('#tx-len').textContent = l.transcript ? '~' + t('{n} min', { n: Math.max(1, Math.round(l.transcript.split(/\s+/).length / 130)) }) : '';
 })();
 </script>
 </body>

@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.4.0';
+const VERSION = '0.4.1';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -117,6 +117,7 @@ const HE = {
   'Summary ready': 'הסיכום מוכן', 'Transcript ready': 'התמלול מוכן', 'Your groups and teachers': 'הקבוצות והמורים שלך', 'Groups you’re in': 'הקבוצות שלך',
   'Taken from Mashov. Fix it if something’s wrong.': 'נלקח ממשו״ב. אפשר לתקן אם משהו לא נכון.', 'Guessed from your Dashboard timetable. Fix it if something’s wrong.': 'נוחש מהמערכת בדשבורד. אפשר לתקן אם משהו לא נכון.',
   'You set this': 'הגדרת את זה', 'Not known yet': 'עוד לא ידוע', 'Teachers show up here from Mashov and their messages.': 'מורים מופיעים כאן ממשו״ב ומההודעות שלהם.',
+  'Your groups: {x}': 'הקבוצות שלך: {x}', 'School site': 'אתר בית הספר', '{n} min': '{n} דק׳', 'Change': 'לשנות',
   'Quick change in your own words': 'שינוי מהיר במילים שלך', 'Signed in as {x}': 'מחובר בתור {x}', 'Sun': 'א׳', 'Mon': 'ב׳', 'Tue': 'ג׳', 'Wed': 'ד׳', 'Thu': 'ה׳', 'Fri': 'ו׳', 'Sat': 'ש׳'
 };
 let LANG = (() => { try { return localStorage.getItem('sh:lang') === 'he' ? 'he' : 'en'; } catch (e) { return 'en'; } })();
@@ -460,7 +461,11 @@ async function syncMashov() {
   });
   if (added || newGrades) { school.data[K.as] = as; school.data[K.gr] = gr; await school.save([K.subj, K.as, K.gr]); }
   const groups = (j.groups || []).filter(g => g && g.subject).map(g => ({ subject: g.subject, teachers: (g.teachers || []).filter(Boolean) }));
-  if (groups.length && JSON.stringify(groups) !== JSON.stringify(settings().mashovGroups || [])) await saveSettings({ mashovGroups: groups });
+  if (groups.length && JSON.stringify(groups) !== JSON.stringify(settings().mashovGroups || [])) {
+    groups.forEach(g => subjectFromHe(g.subject)); // their subjects exist (and sync) before teachers point at them
+    await school.save([K.subj]);
+    await saveSettings({ mashovGroups: groups });
+  }
   const msgs = (j.messages || []).map(m => ({
     subject_id: subjectFromTeacher(m.sender) || 'inbox', kind: 'teacher_message', source_ref: m.ref,
     title: (m.subject || 'Message') + (m.sender ? ' · ' + m.sender : ''),
@@ -538,7 +543,8 @@ function classMention(text) { // true = names your class, false = names only oth
 }
 const GROUP_STOP = new Set(['יישומים', 'מדעי', 'פיתוח', 'מבחן', 'בוחן']);
 function groupKeys(name) {
-  return heNorm(name).split(' ').map(w => w.replace(/^[ובהל](?=[א-ת]{4,})/, '')).filter(w => w.length >= 4 && !GROUP_STOP.has(w));
+  // stems, so "אפליקציה" in a title finds the group "פיתוח אפליקציות"
+  return heNorm(name).split(' ').map(w => w.replace(/^[ובהל](?=[א-ת]{4,})/, '')).filter(w => w.length >= 4 && !GROUP_STOP.has(w)).map(w => w.length >= 6 ? w.replace(/(ות|ים|ה)$/, '') : w);
 }
 function classGroups() {
   if (DEMO) return demoGroups();
@@ -1074,9 +1080,9 @@ function claudePrompt(tt, ctx) {
 }
 function openClaude(tt, ctx) {
   const text = claudePrompt(tt, ctx);
-  let copied = false;
-  try { if (navigator.clipboard) { navigator.clipboard.writeText(text); copied = true; } } catch (e) {}
-  if (!copied) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); }
+  const fallback = () => { const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly', ''); ta.style.position = 'fixed'; ta.style.opacity = '0'; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); };
+  // the clipboard can say no (permissions, old browsers): never crash, fall back quietly
+  try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).catch(fallback); else fallback(); } catch (e) { fallback(); }
   toast(t('Prompt copied: paste it in Claude.'));
   window.open(text.length < 6000 ? 'https://claude.ai/new?q=' + encodeURIComponent(text) : 'https://claude.ai/new', '_blank', 'noopener');
 }

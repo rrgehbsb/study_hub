@@ -178,7 +178,8 @@ async function rate(m, how) {
   saveChat();
 }
 function finish() {
-  S.writeJSON(S.doneKey(S.todayKey()), 1);
+  // tonight counts as done only if you actually tried a question (reading isn't studying)
+  if (msgs.some(m => m.rated)) S.writeJSON(S.doneKey(S.todayKey()), 1);
   location.href = S.link('/');
 }
 async function saveChat() {

@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.4.0">
+<link rel="stylesheet" href="/app.css?v=0.4.1">
 <title>Today · Study</title>
 </head>
 <body>
@@ -42,7 +42,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.4.0"></script>
+<script src="/app.js?v=0.4.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -94,7 +94,7 @@
       '<div class="btn-row" style="margin-top:6px"><a class="btn big accent" href="' + sessionLink(p) + '">' + ic('play', 'sm') + esc(t('Start · {n} min', { n: mins })) + '</a>' +
       '<button class="btn on-hero" id="skip">' + esc(t('Change tonight')) + '</button></div></div>' +
       '<div class="side only-desk" style="flex-direction:column"><span class="label" style="color:var(--hero-2)">' + esc(t('In this session')) + '</span>' +
-      parts.map((x, i) => '<div class="row"><span>' + (i + 1) + ' · ' + esc(x[0]) + '</span><span>' + x[1] + ' min</span></div>').join('') + '</div></div>';
+      parts.map((x, i) => '<div class="row"><span>' + (i + 1) + ' · ' + esc(x[0]) + '</span><span>' + esc(t('{n} min', { n: x[1] })) + '</span></div>').join('') + '</div></div>';
     const sk = $('#skip'); if (sk) sk.onclick = () => S.tonightSheet(dk, p, render);
     return p;
   }
@@ -120,7 +120,7 @@
     S.openTests().filter(x => S.daysUntil(x.testDate) <= 14).forEach(x => items.push({ kind: 'test', date: x.testDate, x }));
     S.openHomework().filter(a => a.dueDate ? (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 7) : S.daysUntil(String(a.givenDate || a.createdAt || '').slice(0, 10) || dk) >= -14).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999', x: a }));
     items.sort((a, b) => a.date.localeCompare(b.date));
-    const tagFor = x => x.source === 'mashov' ? '<span class="tag mashov">Mashov</span>' : x.source === 'calendar' ? '<span class="tag calendar">School site</span>' : x.source === 'ofek' ? '<span class="tag ofek">Ofek</span>' : '';
+    const tagFor = x => x.source === 'mashov' ? '<span class="tag mashov">Mashov</span>' : x.source === 'calendar' ? '<span class="tag calendar">' + esc(t('School site')) + '</span>' : x.source === 'ofek' ? '<span class="tag ofek">Ofek</span>' : '';
     $('#next').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Coming up')) + '</h2><a class="hint" href="' + S.link('/notebook.html', { tab: 'coming' }) + '">' + esc(t('Notebook')) + ' →</a></div>' +
       (items.length ? items.slice(0, 7).map(it => {
         const x = it.x, n = S.daysUntil(x.testDate || x.dueDate), when = '<span class="when' + (n != null && n < 0 ? ' late' : n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || '') + '</span>';
@@ -137,7 +137,7 @@
     came.forEach(m => list.push({ src: 'mashov', text: m.title || '', sub: S.subjectName(m.subject_id), href: S.link('/notebook.html', { tab: 'messages' }) }));
     const box = $('#came');
     box.hidden = !list.length;
-    const lab = { mashov: 'Mashov', calendar: 'School site', ofek: 'Ofek', whatsapp: 'WhatsApp' };
+    const lab = { mashov: 'Mashov', calendar: t('School site'), ofek: 'Ofek', whatsapp: 'WhatsApp' };
     box.innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Came in by itself')) + '</h2></div>' + list.slice(0, 5).map(x => '<a class="item" href="' + x.href + '"><span class="tag ' + esc(x.src) + '">' + esc(lab[x.src] || x.src) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.text) + '</span><span class="meta">' + esc(x.sub) + '</span></span></a>').join('');
   }
   function lastLesson() {

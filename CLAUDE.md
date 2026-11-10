@@ -190,6 +190,8 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 
 - `node tools/serve.js .` then open `http://localhost:5178/?demo`. Demo mode: sample subjects, tests, lessons and canned tutor replies; **no login, no network calls, no storage writes**.
 - `PLAYWRIGHT_PATH=$(npm root -g)/playwright SHOT_DIR=/tmp/shots node tools/shot.js` screenshots every page in demo mode at 390px and 1280px and fails on console errors or horizontal overflow.
+- `node tools/flows.js` (same `PLAYWRIGHT_PATH`): the main flows step by step with PASS/FAIL (fold a test away and back, tick + undo, teacher picker, groups, theme, record, session, old links).
+- `node tools/check.js`: the bug hunt (~25 min): every page at 390 / 360 / 1280 px, English + Hebrew, light + dark; console errors, missing files, broken links, small tap targets, English left in Hebrew; then taps every button on every page. Run it before big deploys.
 - `api/` needs the env vars; test it on the deployed site (or `vercel dev`).
 
 ---
