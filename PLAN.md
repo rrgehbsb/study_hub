@@ -59,6 +59,13 @@ Known limits to handle in this phase if they bite:
 - [ ] **Owner:** re-run the schema, set your week in Settings, record one real lesson, do one real session
 - [ ] Check on a real iPhone: recording with the screen on for a whole lesson (iOS may stop recording if the app is left)
 
+## v0.3.1 — owner feedback (done 2026-11-10)
+
+- [x] White background option: Settings → Appearance → Light / Dark / Auto
+- [x] Week planned in conversation: "Plan my week with Claude" (prompt → regular Claude interviews → ```studyhub block → Import), plus a quick in-app chat (`api/week.js`)
+- [x] "Change tonight": not tonight / shorter / later, or in your own words
+- [ ] **Owner:** plan the week once with Claude and import it
+
 ## Phase 2 — the best possible transcript and teaching
 
 - [ ] Compare Groq Whisper with ivrit.ai's Hebrew Whisper (`ivrit-ai/whisper-large-v3`) on the same real lesson; keep the winner. ivrit.ai has no hosted API, so if it wins it runs in a GitHub Action (free minutes) or on the owner's PC.
@@ -91,6 +98,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-10 (later): v0.3.1 — light/dark/auto switch; week planning in regular Claude with import back; in-app week and "Change tonight" assistant; imported sessions and per-day overrides in the planner.
 - 2026-11-10: v0.3.0 — owner picked design A (Coach) with C's course layout and the building blocks; rebuilt every page, added the planner, step sessions with graphs, in-app recording, progress, settings, Hebrew.
 - 2026-11-09 (later): v0.2.0 — school calendar + Mashov import, class setup, "From teachers" on home, sync status in Account. Owner wants everything pulled in automatically, not typed.
 - 2026-11-09: Repo started. Phase 1 code written in one night (unattended): pages, functions, schema, demo mode. Not yet tested against real Supabase/API keys.

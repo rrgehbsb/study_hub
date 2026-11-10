@@ -65,7 +65,8 @@ dashboard:school:v1:assignments [{id, subjectId, title, type, dueDate, priority,
 dashboard:school:v1:tests       [{id, subjectId, name, testDate, topics, studyStatus, importance, notes, createdAt, updatedAt}]
 dashboard:school:v1:grades      [{id, subjectId, type, gradeValue, maxGrade, date, weight, notes, testId?}]
 dashboard:school:v1:timetable   {cls:"11-3", mine:["מתמטיקה|teacher name", …]}  ← main Dashboard's; Study Hub only READS it
-study:v1:settings               {cls, lang, teachLang, week:[{id,name,days:[0-6],start,end}], studyMins, commuteMins, latest, updatedAt}  ← Study Hub's own
+study:v1:settings               {cls, lang, teachLang, theme:'light'|'dark'|'auto', week:[{id,name,days:[0-6],start,end}], studyMins, commuteMins, latest,
+                                 overrides:{'YYYY-MM-DD':{skip,start,mins}}, sessions:[{date,start,end,subject,topic,goal}], updatedAt}  ← Study Hub's own
 ```
 Imported items keep a `source` (`'calendar'` / `'mashov'`) and stable ids (`cal-<uid>`, `mashov-hw-<id>`), so re-imports and other devices never duplicate them. Calendar tests also carry `calUid`, which is how the main Dashboard hides its own read-only calendar copy.
 
@@ -112,8 +113,8 @@ teachers.html   Mashov messages + pasted WhatsApp summaries; unmatched ones get 
 progress.html   Solved alone vs with help, readiness per test, mistakes that keep coming back, grades
 record.html     Record a lesson in the app: wake lock, board photos and "On the test!" marks tied to the moment,
                 chunks kept in IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end
-settings.html   Sources status + class, your week (activities for the planner), study minutes, way home, latest time,
-                app and teaching language, AI turns this month, sign out
+settings.html   Appearance (Light / Dark / Auto), sources status + class, your week (chat, "Plan my week with Claude",
+                import, edit by hand), study minutes, way home, latest time, app and teaching language, AI turns, sign out
 lesson.html     One lesson: summary, full transcript (marks and photo moments shown)
 login.html      Email + password (same accounts as the main Dashboard)
 tutor.html      Redirect from old links to session.html
@@ -125,6 +126,8 @@ api/_lib.js     Server helpers: auth check, Supabase REST with the user's token,
 api/transcribe.js  audio → Groq (verbose_json) → transcript with [m:ss] stamps, marks and board-photo moments → summary
 api/read-file.js   board photo / notes / old test (image or PDF) → Claude → text
 api/tutor.js       one tutor turn; modes teach/test/session (+ step), lang he/en, plot blocks, VERDICT + MISTAKE tags
+api/week.js        the week assistant: mode 'week' (owner describes the week in their own words → activities, study
+                   minutes, latest, way home; asks one question at a time) and 'tonight' (skip / shorter / later)
 api/calendar.js    tests + events from the Handasaim class calendar (.ics)
 api/school.js      the class timetable (copied from the main Dashboard): today + 3 days and the regular week
 api/mashov.js      the owner's Mashov homework, grades and teacher messages (unofficial endpoints, read only)
@@ -132,7 +135,13 @@ supabase/schema.sql  tables, policies, storage bucket (re-run after each version
 tools/serve.js, tools/shot.js  local server; Playwright screenshots of every page in ?demo (phone, dark, computer)
 ```
 
-**The planner (`SH.plan`)**: day items = school (from the timetable; 07:45–15:20 if no class), the way home (`commuteMins`), and the owner's weekly activities (`settings.week`, +30 min after each). Free windows from 14:00 to `latest`. Block length = `studyMins` (+20 when the test is ≤2 days away). Target = nearest test within 14 days → first topic "with help", then "new"; all solved alone → practice test; no topics → the test's first listed topic from zero; no test → homework due within 2 days → review of the last lesson. "Move to tomorrow" and "done" are per-device per-day flags.
+**The planner (`SH.plan`)**: day items = school (from the timetable; 07:45–15:20 if no class), the way home (`commuteMins`), and the owner's weekly activities (`settings.week`, +30 min after each). Free windows from 14:00 to `latest`. Block length = `studyMins` (+20 when the test is ≤2 days away). Target = nearest test within 14 days → first topic "with help", then "new"; all solved alone → practice test; no topics → the test's first listed topic from zero; no test → homework due within 2 days → review of the last lesson. "Done" is a per-device per-day flag.
+
+On top of that: `settings.overrides[day]` (from "Change tonight": skip, a later start, shorter) and `settings.sessions` (imported from regular Claude) win over the computed block for that day; an imported session's `subject` is matched to a school subject by name.
+
+**Plan my week with Claude** (owner's idea, v0.3.1): `SH.claudePrompt` builds a prompt with school hours, activities, tests with topic readiness, homework and the next 7 days. `SH.openClaude` copies it and opens claude.ai. Claude interviews the owner, then ends with a ```studyhub JSON block (`{week, studyMins, latest, commuteMins, sessions}`). "Import from Claude" (`SH.importSheet`) takes the pasted text or a file, shows a preview, and saves. This costs nothing from the API budget. The in-app chat (`api/week.js`) is the quick version for small changes.
+
+**Theme:** `localStorage sh:theme` + `settings.theme`; every page's `<head>` sets `html[data-theme]` before paint; Auto = follow the phone.
 
 ## 5. The tutor (the most important part)
 

@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.3.0';
+const VERSION = '0.3.1';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -84,7 +84,16 @@ const HE = {
   'Old test': 'מבחן ישן', 'Board photo': 'צילום לוח', 'Notes': 'סיכום', 'Teacher summary': 'סיכום מהמורה', 'Mashov message': 'הודעה ממשו״ב', 'Worksheet': 'דף עבודה',
   'Lesson recording': 'הקלטת שיעור', 'Test date': 'תאריך מבחן', 'Add material': 'הוספת חומר', 'Ready': 'מוכן', 'Transcribing…': 'מתמלל…', 'Reading…': 'קורא…', 'Failed · retry': 'נכשל · שוב',
   'Full transcript': 'תמלול מלא', 'Summary': 'סיכום', 'Study this lesson': 'ללמוד את השיעור', 'Lesson': 'שיעור', 'All subjects': 'כל המקצועות', 'Next test': 'מבחן הבא',
-  'Which class are you in?': 'באיזו כיתה אתה?', 'Signed in as {x}': 'מחובר בתור {x}', 'Sun': 'א׳', 'Mon': 'ב׳', 'Tue': 'ג׳', 'Wed': 'ד׳', 'Thu': 'ה׳', 'Fri': 'ו׳', 'Sat': 'ש׳'
+  'Which class are you in?': 'באיזו כיתה אתה?',
+  'Change tonight': 'לשנות את הערב', 'Not tonight': 'לא הערב', 'Shorter · 20 min': 'קצר יותר · 20 דק׳', 'Later tonight': 'מאוחר יותר', 'Or tell me what’s going on…': 'או ספר מה קורה…',
+  'Tell me about your week': 'ספר לי על השבוע שלך', 'Looks right': 'נראה נכון', 'Edit by hand': 'עריכה ידנית', 'Appearance': 'מראה', 'Light': 'בהיר', 'Dark': 'כהה', 'Auto': 'אוטומטי',
+  'Like you’d tell a friend: practices, gym, how long the way home takes, how late you can study.': 'כמו שהיית מספר לחבר: אימונים, חדר כושר, כמה זמן הדרך הביתה, עד מתי אפשר ללמוד.',
+  'e.g. Volleyball Mon and Tue 5–7, robotics Sunday after school till 8, I can study till 10': 'למשל: כדורעף בשני ובשלישי 17–19, רובוטיקה בראשון אחרי בית ספר עד 20, אני יכול ללמוד עד 22',
+  'Tonight changed': 'הערב השתנה',
+  'Plan my week with Claude': 'לתכנן את השבוע עם Claude', 'Import from Claude': 'ייבוא מ־Claude', 'Prompt copied: paste it in Claude.': 'הפרומפט הועתק: הדבק אותו ב־Claude.',
+  'Paste what Claude gave you at the end (or upload the file).': 'הדבק את מה ש־Claude נתן לך בסוף (או העלה את הקובץ).', 'Import': 'ייבוא', 'Or choose the file': 'או לבחור את הקובץ',
+  'That doesn’t look like a Study plan. Copy the whole block Claude gave you.': 'זה לא נראה כמו תוכנית. העתק את כל הבלוק ש־Claude נתן.', 'Plan imported': 'התוכנית יובאה',
+  'Quick change in your own words': 'שינוי מהיר במילים שלך', 'Signed in as {x}': 'מחובר בתור {x}', 'Sun': 'א׳', 'Mon': 'ב׳', 'Tue': 'ג׳', 'Wed': 'ד׳', 'Thu': 'ה׳', 'Fri': 'ו׳', 'Sat': 'ש׳'
 };
 let LANG = (() => { try { return localStorage.getItem('sh:lang') === 'he' ? 'he' : 'en'; } catch (e) { return 'en'; } })();
 function t(s, v) { let out = LANG === 'he' && HE[s] != null ? HE[s] : s; if (v) Object.keys(v).forEach(k => { out = out.split('{' + k + '}').join(v[k]); }); return out; }
@@ -97,6 +106,14 @@ function setLang(l) {
 }
 const langToggle = () => '<div class="seg" role="group" aria-label="Language"><button type="button" data-lang="en" aria-pressed="' + (LANG === 'en') + '">EN</button><button type="button" data-lang="he" aria-pressed="' + (LANG === 'he') + '">עב</button></div>';
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-lang]'); if (b && b.dataset.lang !== LANG) setLang(b.dataset.lang); });
+
+/* light / dark / auto (follows the phone) */
+const theme = () => { try { const v = localStorage.getItem('sh:theme'); return v === 'light' || v === 'dark' ? v : 'auto'; } catch (e) { return 'auto'; } };
+function applyTheme(v) {
+  if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v); else document.documentElement.removeAttribute('data-theme');
+  try { if (v === 'light' || v === 'dark') localStorage.setItem('sh:theme', v); else localStorage.removeItem('sh:theme'); } catch (e) {}
+}
+function setTheme(v) { applyTheme(v); if (uid && !DEMO) saveSettings({ theme: v }); }
 
 /* dates (Israel time) */
 const TZ = 'Asia/Jerusalem';
@@ -233,6 +250,8 @@ school.load = async () => {
     writeJSON(schoolLS(), school.data);
     const l = school.data[K.set] && school.data[K.set].lang;
     if (l && l !== LANG) { try { localStorage.setItem('sh:lang', l); } catch (e) {} }
+    const th = school.data[K.set] && school.data[K.set].theme;
+    if (th && th !== theme()) applyTheme(th);
     emit();
   } catch (e) { console.warn('school load failed', e); toast('Offline: showing the last saved copy.'); }
 };
@@ -316,6 +335,12 @@ function subjectFromTeacher(name) {
   const last = String(name || '').trim().split(/\s+/).pop();
   const row = last && mine.find(m => String(m).split('|')[1] && String(m).split('|')[1].indexOf(last) >= 0);
   return row ? subjectFromHe(String(row).split('|')[0]) : null;
+}
+function subjectByName(name) {
+  const n = String(name || '').trim().toLowerCase();
+  if (!n) return null;
+  const hit = subjects().find(x => String(x.name).toLowerCase() === n) || subjects().find(x => { const a = String(x.name).toLowerCase(); return a.indexOf(n) === 0 || n.indexOf(a) === 0; });
+  return hit ? hit.id : subjectFromHe(name);
 }
 const myClass = () => (school.data[K.tt] && school.data[K.tt].cls) || (school.data[K.set] && school.data[K.set].cls) || '';
 const setMyClass = cls => saveSettings({ cls });
@@ -465,23 +490,55 @@ function pickTarget(ctx) {
 }
 function plan(dk, tt, ctx) {
   const s = settings(), items = dayItems(dk, tt);
+  const ov = (s.overrides || {})[dk] || {};
   const target = pickTarget(ctx || {});
   const close = target && target.test && daysUntil(target.test.testDate) <= 2;
-  const want = (+s.studyMins || 40) + (close ? 20 : 0);
+  const want = ov.mins || ((+s.studyMins || 40) + (close ? 20 : 0));
   const start = Math.max(dk === todayKey() ? nowMin() + 5 : 0, 14 * 60);
-  const wins = freeWindows(items, start, toMin(s.latest) || 1320);
+  const latest = toMin(s.latest) || 1320;
   let block = null;
-  const fit = wins.find(w => w[1] - w[0] >= want) || wins.find(w => w[1] - w[0] >= 25);
-  if (fit && target) {
-    const st = Math.ceil(fit[0] / 10) * 10, len = Math.min(want, fit[1] - st);
-    if (len >= 20) block = { start: st, end: st + len, mins: len };
+  if (ov.skip) return { dk, items: items.slice(), block: null, target, want, skipped: true, ov };
+  // a study session planned with Claude for this day wins over the automatic pick
+  const ses = (s.sessions || []).find(x => x.date === dk && toMin(x.start) != null);
+  if (ses) {
+    const sid = subjectByName(ses.subject), test = openTests().find(x => x.subjectId === sid);
+    const tgt = { kind: 'planned', subjectId: sid, topic: ses.topic || '', title: ses.topic || ses.subject || t('Study'), test, goal: ses.goal || '' };
+    const st = ov.start ? toMin(ov.start) : toMin(ses.start), len = ov.mins || Math.max(15, (toMin(ses.end) || st + 40) - toMin(ses.start));
+    const all = items.concat([{ kind: 'study', start: st, end: st + len, label: t('Study: {x}', { x: tgt.title }) }]).sort((a, b) => a.start - b.start);
+    const lastEnd = Math.max.apply(null, all.map(i => i.end));
+    if (lastEnd < latest - 30) all.push({ kind: 'free', start: lastEnd, end: latest, label: t('Free') });
+    return { dk, items: all, block: { start: st, end: st + len, mins: len }, target: tgt, want: len, ov };
+  }
+  if (ov.start && target && toMin(ov.start) != null) {
+    const st = toMin(ov.start);
+    block = { start: st, end: st + want, mins: want };
+  } else {
+    const wins = freeWindows(items, start, latest);
+    const fit = wins.find(w => w[1] - w[0] >= want) || wins.find(w => w[1] - w[0] >= 20);
+    if (fit && target) {
+      const st = Math.ceil(fit[0] / 10) * 10, len = Math.min(want, fit[1] - st);
+      if (len >= 15) block = { start: st, end: st + len, mins: len };
+    }
   }
   const all = items.slice();
   if (block) all.push({ kind: 'study', start: block.start, end: block.end, label: t('Study: {x}', { x: target.title }) });
   all.sort((a, b) => a.start - b.start);
   const lastEnd = all.length ? Math.max.apply(null, all.map(i => i.end)) : null;
   if (lastEnd != null && lastEnd < (toMin(s.latest) || 1320) - 30) all.push({ kind: 'free', start: lastEnd, end: toMin(s.latest) || 1320, label: t('Free') });
-  return { dk, items: all, block, target, want };
+  return { dk, items: all, block, target, want, ov };
+}
+// tonight's change ("not tonight", "shorter", "at 21:00"), synced; old days are pruned
+function setTonight(dk, ov) {
+  const all = Object.assign({}, settings().overrides || {}), from = addDays(todayKey(), -3);
+  Object.keys(all).forEach(k => { if (k < from) delete all[k]; });
+  if (ov) all[dk] = ov; else delete all[dk];
+  return saveSettings({ overrides: all });
+}
+// school hours per weekday, for the week assistant
+function schoolHours(tt) {
+  const out = {};
+  [0, 1, 2, 3, 4, 5].forEach(d => { const base = tt && tt.week && tt.week[d]; if (base && base.length) out[DOWS[d]] = base[0].start + '–' + base[base.length - 1].end; });
+  return out;
 }
 const skipKey = dk => 'sh:skip:' + uid + ':' + dk;
 const doneKey = dk => 'sh:done:' + uid + ':' + dk;
@@ -778,6 +835,171 @@ async function uploadMaterial(kind, sid, file, title, extra) {
     .catch(err => { toast('Couldn’t read it: ' + err.message); emitStudy(); });
   return m;
 }
+/* ================= talk to the planner =================
+   "Tell me about your week" and "Change tonight": he says it in his own words, the AI turns it
+   into settings and asks one question when something's missing. */
+function chatSheet(opts) {
+  const msgs = [];
+  sheet('<h2>' + esc(opts.title) + '</h2>' + (opts.intro ? '<p class="hint" style="margin-bottom:10px">' + esc(opts.intro) + '</p>' : '') +
+    '<div id="cs-top"></div><div id="cs-log" style="display:flex;flex-direction:column;gap:10px;margin:10px 0"></div>' +
+    '<form class="ask" id="cs-f"><textarea id="cs-in" rows="2" dir="auto" placeholder="' + esc(opts.placeholder) + '" aria-label="' + esc(opts.title) + '"></textarea><button class="icon-btn" type="submit" aria-label="' + esc(t('Send')) + '" style="background:var(--ink);color:var(--ground)">' + ic('send', 'flip') + '</button></form>' +
+    '<div id="cs-end" style="margin-top:12px"></div>', sh => {
+    const log = sh.querySelector('#cs-log'), inp = sh.querySelector('#cs-in');
+    if (opts.top) opts.top(sh.querySelector('#cs-top'), say);
+    const add = (role, text) => { const d = document.createElement('div'); d.dir = 'auto'; if (role === 'user') { d.className = 'me-line'; d.textContent = text; } else { d.className = 'card'; d.style.fontSize = '15px'; d.textContent = text; } log.appendChild(d); };
+    async function say(text) {
+      text = String(text || '').trim(); if (!text) return;
+      msgs.push({ role: 'user', text }); add('user', text); inp.value = '';
+      const wait = document.createElement('div'); wait.className = 'thinking'; wait.textContent = t('Thinking…'); log.appendChild(wait);
+      try {
+        const r = await api('week', Object.assign({ mode: opts.mode, lang: LANG, messages: msgs, today: fmtDay(todayKey(), true) + ' ' + todayKey() }, opts.context()));
+        wait.remove();
+        const reply = [r.reply, r.question].filter(Boolean).join(' ');
+        msgs.push({ role: 'assistant', text: reply }); add('assistant', reply);
+        await opts.apply(r);
+        const end = sh.querySelector('#cs-end');
+        end.innerHTML = '<button class="btn big dark block" id="cs-ok">' + esc(t('Looks right')) + '</button>';
+        end.querySelector('#cs-ok').onclick = () => { closeSheet(); if (opts.done) opts.done(); };
+      } catch (e) { wait.remove(); toast(e.message); }
+    }
+    sh.querySelector('#cs-f').onsubmit = e => { e.preventDefault(); say(inp.value); };
+    if (opts.first) say(opts.first);
+  });
+}
+/* ================= plan the week in Claude (no API cost) =================
+   The app writes a prompt with everything it knows; Claude interviews him and ends with a
+   ```studyhub JSON block; he pastes it back here (or uploads it as a file). */
+function claudePrompt(tt, ctx) {
+  ctx = ctx || {};
+  const s = settings(), he = LANG === 'he';
+  const tests = openTests().filter(x => daysUntil(x.testDate) <= 21).map(x => ({
+    subject: subjectName(x.subjectId), name: x.name, date: x.testDate, topics: x.topics || '',
+    readiness: ((ctx.topicsBySubj || {})[x.subjectId] || []).map(p => p.name + ': ' + ({ alone: 'solved alone', with_help: 'only with help', new: 'not started' }[p.state] || p.state))
+  }));
+  const hw = openHomework().filter(a => a.dueDate && daysUntil(a.dueDate) >= 0 && daysUntil(a.dueDate) <= 7).map(a => ({ subject: subjectName(a.subjectId), what: a.title, due: a.dueDate }));
+  const days = []; for (let i = 0; i < 7; i++) { const d = addDays(todayKey(), i); days.push(d + ' (' + DOWS[dow(d)] + ')'); }
+  return [
+    'You are my study planner. I\'m an 11th-grade student in Israel (school Sunday–Thursday). I train and have robotics, I come home tired, and I keep failing tests because I study too late and too guided. Help me build a realistic plan for this week.',
+    he ? 'Talk to me in Hebrew.' : 'Talk to me in English.',
+    '',
+    'First ASK ME questions, one or two at a time, until you really know my week: my fixed activities and their times, how long my way home takes, when I\'m too tired to study, how late I can study, how long I can focus, and anything special this week. Don\'t write the plan before you\'ve asked.',
+    '',
+    'Then plan study sessions for the next 7 days: short (20–60 min), in my free time, more as a test gets closer, starting with the topics I can\'t yet solve alone. Rest is allowed. Show me the plan as a short readable list and let me change it.',
+    '',
+    'What my study app already knows:',
+    '- Today: ' + todayKey() + ' (' + DOWS[dow(todayKey())] + '). The next 7 days: ' + days.join(', '),
+    '- School hours by weekday: ' + JSON.stringify(schoolHours(tt)),
+    '- My fixed activities so far: ' + JSON.stringify((s.week || []).map(a => ({ name: a.name, days: a.days, start: a.start, end: a.end }))),
+    '- Preferences so far: ' + JSON.stringify({ studyMins: s.studyMins, latest: s.latest, commuteMins: s.commuteMins }),
+    '- Upcoming tests: ' + JSON.stringify(tests),
+    '- Homework due this week: ' + JSON.stringify(hw),
+    '',
+    'When I say the plan is good, END with exactly one code block in this format, so I can import it into my app (days: 0=Sunday … 6=Saturday, times HH:MM 24h, subject names as I wrote them above):',
+    '```studyhub',
+    '{"version":1,"week":[{"name":"Volleyball","days":[1,2],"start":"17:00","end":"19:00"}],"studyMins":40,"latest":"22:00","commuteMins":60,"sessions":[{"date":"' + todayKey() + '","start":"19:30","end":"20:10","subject":"Maths","topic":"tangent lines","goal":"solve 2 test questions alone"}]}',
+    '```'
+  ].join('\n');
+}
+function openClaude(tt, ctx) {
+  const text = claudePrompt(tt, ctx);
+  let copied = false;
+  try { if (navigator.clipboard) { navigator.clipboard.writeText(text); copied = true; } } catch (e) {}
+  if (!copied) { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); try { document.execCommand('copy'); } catch (e) {} ta.remove(); }
+  toast(t('Prompt copied: paste it in Claude.'));
+  window.open(text.length < 6000 ? 'https://claude.ai/new?q=' + encodeURIComponent(text) : 'https://claude.ai/new', '_blank', 'noopener');
+}
+const hh = v => typeof v === 'string' && /^\d{1,2}:\d{2}$/.test(v) ? v.padStart(5, '0') : null;
+function parsePlan(text) {
+  const src = String(text || '');
+  const m = src.match(/```studyhub\s*([\s\S]*?)```/) || src.match(/(\{[\s\S]*\})/);
+  if (!m) return null;
+  let j; try { j = JSON.parse(m[1]); } catch (e) { return null; }
+  if (!isObj(j)) return null;
+  const out = {};
+  if (Array.isArray(j.week)) out.week = j.week.map(a => ({ id: newId(), name: String(a.name || '').slice(0, 40), days: (a.days || []).map(Number).filter(d => d >= 0 && d <= 6), start: hh(a.start), end: hh(a.end) })).filter(a => a.name && a.days.length && a.start && a.end && a.end > a.start);
+  if (+j.studyMins > 0) out.studyMins = Math.min(180, Math.round(+j.studyMins));
+  if (hh(j.latest)) out.latest = hh(j.latest);
+  if (j.commuteMins != null && +j.commuteMins >= 0) out.commuteMins = Math.min(180, Math.round(+j.commuteMins));
+  if (Array.isArray(j.sessions)) out.sessions = j.sessions.map(x => ({ date: String(x.date || '').slice(0, 10), start: hh(x.start), end: hh(x.end), subject: String(x.subject || '').slice(0, 40), topic: String(x.topic || '').slice(0, 80), goal: String(x.goal || '').slice(0, 120) })).filter(x => /^\d{4}-\d{2}-\d{2}$/.test(x.date) && x.start && x.end && x.end > x.start);
+  return Object.keys(out).length ? out : null;
+}
+async function importPlan(p) {
+  const patch = Object.assign({}, p);
+  if (p.sessions) {
+    const dates = new Set(p.sessions.map(x => x.date)), from = addDays(todayKey(), -1);
+    patch.sessions = (settings().sessions || []).filter(x => x.date >= from && !dates.has(x.date)).concat(p.sessions);
+  }
+  await saveSettings(patch);
+}
+function importSheet(done) {
+  sheet('<h2>' + esc(t('Import from Claude')) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(t('Paste what Claude gave you at the end (or upload the file).')) + '</p>' +
+    '<form class="form" id="imp-f"><label class="field"><textarea name="text" dir="ltr" placeholder="```studyhub&#10;{ … }&#10;```" style="font-family:ui-monospace,monospace;font-size:14px"></textarea></label>' +
+    '<label class="file-pick"><input type="file" name="file" accept=".json,.txt,.md,application/json,text/plain">' + esc(t('Or choose the file')) + '</label>' +
+    '<div id="imp-prev"></div><button class="btn big dark block" type="submit">' + esc(t('Import')) + '</button></form>', sh => {
+    const f = sh.querySelector('#imp-f'), prev = sh.querySelector('#imp-prev');
+    const show = () => {
+      const p = parsePlan(f.text.value);
+      prev.innerHTML = p ? '<div class="card" style="font-size:14px">' + (p.week ? '<div>' + p.week.length + (LANG === 'he' ? ' פעילויות קבועות' : ' fixed activities') + ': ' + esc(p.week.map(a => a.name).join(', ')) + '</div>' : '') +
+        (p.sessions ? '<div>' + p.sessions.length + (LANG === 'he' ? ' זמני למידה' : ' study sessions') + ': ' + esc(p.sessions.slice(0, 4).map(x => DOWS[dow(x.date)] + ' ' + x.start + ' ' + (x.topic || x.subject)).join(' · ')) + (p.sessions.length > 4 ? '…' : '') + '</div>' : '') + '</div>' : '';
+    };
+    f.text.addEventListener('input', show);
+    f.file.onchange = () => { const file = f.file.files[0]; if (!file) return; const r = new FileReader(); r.onload = () => { f.text.value = String(r.result || ''); show(); }; r.readAsText(file); };
+    f.onsubmit = async e => {
+      e.preventDefault();
+      const p = parsePlan(f.text.value);
+      if (!p) return toast(t('That doesn’t look like a Study plan. Copy the whole block Claude gave you.'));
+      await importPlan(p);
+      closeSheet(); toast(t('Plan imported')); if (done) done();
+    };
+  });
+}
+
+function weekSummary(el) {
+  const wk = settings().week || [];
+  el.innerHTML = wk.length ? '<div class="list" style="box-shadow:none;background:var(--surface)">' + wk.map(a => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(a.name) + '</span><span class="meta">' + esc((a.days || []).map(d => t(DOWS[d])).join(', ')) + ' · <span dir="ltr">' + esc(a.start + '–' + a.end) + '</span></span></span></div>').join('') + '</div>' : '';
+}
+let ctxForPrompt = {};
+function weekChat(tt, done, ctx) {
+  if (ctx) ctxForPrompt = ctx;
+  chatSheet({
+    mode: 'week', title: t('Tell me about your week'), intro: t('Like you’d tell a friend: practices, gym, how long the way home takes, how late you can study.'),
+    placeholder: t('e.g. Volleyball Mon and Tue 5–7, robotics Sunday after school till 8, I can study till 10'),
+    top: el => {
+      el.innerHTML = '<div class="grid2" style="margin-bottom:10px"><button class="btn dark" id="wc-claude">' + esc(t('Plan my week with Claude')) + '</button><button class="btn" id="wc-imp">' + esc(t('Import from Claude')) + '</button></div><div id="wc-sum"></div><span class="label" style="display:block;margin-top:12px">' + esc(t('Quick change in your own words')) + '</span>';
+      el.querySelector('#wc-claude').onclick = () => openClaude(tt, ctxForPrompt);
+      el.querySelector('#wc-imp').onclick = () => importSheet(done);
+      weekSummary(el.querySelector('#wc-sum'));
+    },
+    context: () => { const s = settings(); return { week: s.week || [], prefs: { studyMins: s.studyMins, latest: s.latest, commuteMins: s.commuteMins }, school: schoolHours(tt) }; },
+    apply: async r => {
+      const p = {};
+      if (Array.isArray(r.week)) p.week = r.week.map(a => Object.assign({ id: newId() }, a));
+      if (r.studyMins) p.studyMins = r.studyMins;
+      if (r.latest) p.latest = r.latest;
+      if (r.commuteMins != null) p.commuteMins = r.commuteMins;
+      if (Object.keys(p).length) await saveSettings(p);
+      const top = $('#wc-sum'); if (top) weekSummary(top);
+    },
+    done
+  });
+}
+function tonightSheet(dk, p, done) {
+  const quick = [[t('Not tonight'), { skip: true }], [t('Shorter · 20 min'), { mins: 20 }], [t('Later tonight'), { start: '21:00' }]];
+  chatSheet({
+    mode: 'tonight', title: t('Change tonight'), placeholder: t('Or tell me what’s going on…'),
+    top: el => {
+      el.innerHTML = '<div class="chips">' + quick.map((q, i) => '<button class="chip" data-q="' + i + '">' + esc(q[0]) + '</button>').join('') + (p.ov && Object.keys(p.ov).length ? '<button class="chip" data-q="reset">' + esc(t('Undo')) + '</button>' : '') + '</div>';
+      el.querySelectorAll('[data-q]').forEach(b => b.onclick = async () => {
+        await setTonight(dk, b.dataset.q === 'reset' ? null : quick[+b.dataset.q][1]);
+        closeSheet(); toast(t('Tonight changed')); if (done) done();
+      });
+    },
+    context: () => ({ tonight: p.block ? { start: hm(p.block.start), end: hm(p.block.end), topic: p.target && p.target.title, test: p.target && p.target.test ? p.target.test.testDate : null } : null }),
+    apply: async r => { if (r.skip) await setTonight(dk, { skip: true }); else if (r.start || r.mins) await setTonight(dk, Object.assign({}, r.start ? { start: r.start } : {}, r.mins ? { mins: r.mins } : {})); },
+    done
+  });
+}
+
 const studySubs = [];
 const onStudy = f => studySubs.push(f);
 const emitStudy = () => studySubs.forEach(f => { try { f(); } catch (e) {} });
@@ -845,6 +1067,8 @@ function demoRows(table, filter) {
 async function demoApi(name, p) {
   await wait(600);
   if (name === 'mashov') return { homework: [], messages: [], grades: [] };
+  if (name === 'week' && p.mode === 'tonight') return { reply: p.lang === 'he' ? 'סבבה, נעשה 20 דקות קלות ב־21:00.' : 'OK: an easy 20 minutes at 21:00.', skip: false, start: '21:00', mins: 20 };
+  if (name === 'week') return { reply: p.lang === 'he' ? 'שמרתי כדורעף ורובוטיקה. כמה זמן לוקחת לך הדרך הביתה?' : 'Saved volleyball and robotics.', question: p.lang === 'he' ? null : 'How long is your way home?', week: [{ name: 'Volleyball', days: [1, 2], start: '17:00', end: '19:00' }, { name: 'Robotics', days: [0], start: '16:30', end: '20:00' }], studyMins: null, latest: '22:00', commuteMins: null };
   if (name !== 'tutor') return {};
   const he = p.lang !== 'en';
   if (p.step === 'learn') return { text: he ? 'משיק הוא ישר שנוגע בגרף בנקודה אחת, ושם יש לו **אותו שיפוע** כמו לגרף. השיפוע הזה הוא הנגזרת בנקודה.\n\n```plot\n{"x":[-1,3],"y":[-2,9],"fns":[{"f":"x^2","label":"f(x)=x²"},{"f":"2x-1","label":"y=2x−1"}],"points":[{"x":1,"y":1,"label":"(1,1)"}]}\n```\n\n**שאלה קטנה:** מה השיפוע של המשיק ל־$f(x)=x^2$ בנקודה $x=3$?' : 'A tangent line (משיק) touches the graph at one point and has **the same slope** as the graph there. That slope is the derivative at that point.\n\n```plot\n{"x":[-1,3],"y":[-2,9],"fns":[{"f":"x^2","label":"f(x)=x²"},{"f":"2x-1","label":"y=2x−1"}],"points":[{"x":1,"y":1,"label":"(1,1)"}]}\n```\n\n**Quick check:** what is the slope of the tangent to $f(x)=x^2$ at $x=3$?' };
@@ -862,6 +1086,7 @@ window.SH = {
   rows, insert, update, setTopicState, upload, api, shrinkImage, renderRich, plotSVG, compile, openAdd, onStudy, emitStudy,
   uploadLessonAudio, uploadMaterial,
   syncAll, lastSync, myClass, setMyClass, subjectFromHe, timetable, currentLesson, plan, dayItems, skipKey, doneKey,
+  theme, setTheme, setTonight, weekChat, tonightSheet, weekSummary, claudePrompt, openClaude, parsePlan, importSheet,
   _test: { syncCalendar, syncMashov, subjectFromTeacher, freeWindows, pickTarget }
 };
 document.documentElement.lang = LANG;

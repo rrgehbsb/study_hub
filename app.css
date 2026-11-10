@@ -35,6 +35,20 @@
     color-scheme:dark;
   }
 }
+:root[data-theme="dark"] {
+  --ground:#101216; --surface:#1A1D23; --surface-2:#23272F; --line:#2A2E36;
+  --ink:#F1F2F4; --ink-2:#C9CCD3; --ink-3:#A3A8B3;
+  --hero:#252A33; --on-hero:#FFFFFF; --hero-2:#C9CCD3; --hero-card:#2E333D; --hero-btn:#353A45;
+  --accent-soft:#3A2418; --accent-ink:#FFA27A;
+  --good:#4CC27C; --good-ink:#7DDCA3; --good-soft:#163222;
+  --warn:#FFC233; --warn-ink:#FFD36B; --warn-soft:#3A2E0C;
+  --bad:#FF7A6E; --bad-ink:#FF9C93; --bad-soft:#3A1714;
+  --t-mashov:#1B2A47; --t-mashov-ink:#A9C3FF; --t-site:#2A2147; --t-site-ink:#C9B8FF;
+  --t-ofek:#3A2612; --t-ofek-ink:#FFC08A; --t-wa:#14301F; --t-wa-ink:#8EE0AE; --t-you:#2A2E36; --t-you-ink:#C9CCD3;
+  --scrim:rgba(0,0,0,.6); --shadow:0 1px 2px rgba(0,0,0,.3), 0 8px 24px rgba(0,0,0,.25);
+  --focus:#9DB5FF;
+  color-scheme:dark;
+}
 
 *, *::before, *::after { box-sizing:border-box; }
 html { -webkit-text-size-adjust:100%; background:var(--ground); }

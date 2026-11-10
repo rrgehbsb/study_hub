@@ -11,11 +11,11 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.0">
+<link rel="stylesheet" href="/app.css?v=0.3.1">
 <title>Today · Study</title>
 </head>
 <body>
@@ -40,7 +40,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.3.0"></script>
+<script src="/app.js?v=0.3.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -61,7 +61,7 @@
   }
   function hero() {
     const p = S.plan(dk, tt, { topicsBySubj, lessons });
-    const skipped = S.readJSON(S.skipKey(dk)), done = S.readJSON(S.doneKey(dk));
+    const skipped = p.skipped, done = S.readJSON(S.doneKey(dk));
     const tg = p.target;
     if (!tg) {
       $('#hero').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('Nothing planned tonight')) + '</span><h2>' + esc(t('No tests in the next two weeks. Good time to get ahead.')) + '</h2>' +
@@ -80,7 +80,7 @@
       $('#hero').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('Moved to tomorrow')) + '</span><h2>' + esc(t('Tonight is off')) + '</h2>' +
         (tp.block ? '<p class="line" dir="auto">' + esc(t('tomorrow')) + ' ' + S.hm(tp.block.start) + ' · ' + esc(tp.target.title) + '</p>' : '') +
         '<div class="btn-row"><button class="btn" id="unskip">' + esc(t('Undo')) + '</button></div></div></div>';
-      $('#unskip').onclick = () => { try { localStorage.removeItem(S.skipKey(dk)); } catch (e) {} render(); };
+      $('#unskip').onclick = async () => { await S.setTonight(dk, null); render(); };
       return p;
     }
     const b = p.block, mins = b ? b.mins : 20;
@@ -88,21 +88,23 @@
     $('#hero').innerHTML = '<div class="hero"><div class="main">' +
       '<span class="eyebrow"><span class="pill-accent">' + esc(t('Next').toUpperCase()) + '</span>' + (b ? '<span dir="ltr">' + S.hm(b.start) + ' – ' + S.hm(b.end) + '</span>' : esc(t('No free time today'))) + ' · ' + esc(sub) + '</span>' +
       '<h2 dir="auto">' + esc(tg.title) + '</h2>' +
+      (tg.goal ? '<p class="line" dir="auto" style="color:var(--on-hero)">' + esc(tg.goal) + '</p>' : '') +
       '<p class="line">' + esc(forLine) + '</p>' +
       '<div class="btn-row" style="margin-top:6px"><a class="btn big accent" href="' + sessionLink(p) + '">' + ic('play', 'sm') + esc(t('Start · {n} min', { n: mins })) + '</a>' +
-      (b ? '<button class="btn on-hero" id="skip">' + esc(t('Move to tomorrow')) + '</button>' : '') + '</div></div>' +
+      '<button class="btn on-hero" id="skip">' + esc(t('Change tonight')) + '</button></div></div>' +
       '<div class="side only-desk" style="flex-direction:column"><span class="label" style="color:var(--hero-2)">' + esc(t('In this session')) + '</span>' +
       parts.map((x, i) => '<div class="row"><span>' + (i + 1) + ' · ' + esc(x[0]) + '</span><span>' + x[1] + ' min</span></div>').join('') + '</div></div>';
-    const sk = $('#skip'); if (sk) sk.onclick = () => { S.writeJSON(S.skipKey(dk), 1); render(); S.toast(t('Moved to tomorrow'), () => { try { localStorage.removeItem(S.skipKey(dk)); } catch (e) {} render(); }); };
+    const sk = $('#skip'); if (sk) sk.onclick = () => S.tonightSheet(dk, p, render);
     return p;
   }
   function day(p) {
     const items = p.items;
     const lineTotal = Math.max(1, (items.length ? items[items.length - 1].end : 1320) - (items.length ? items[0].start : 480));
-    $('#day').innerHTML = '<div class="title-row" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><h2>' + esc(t('Your day')) + '</h2><span class="hint">' + esc(S.fmtDay(dk)) + '</span></div>' +
+    $('#day').innerHTML = '<div class="title-row" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><h2>' + esc(t('Your day')) + '</h2><button class="hint" id="wk-edit" style="min-height:36px;text-decoration:underline">' + esc(t('Your week (for the planner)').split(' (')[0]) + '</button></div>' +
       '<div class="dayline only-desk">' + items.map((it, i) => { const prev = i ? items[i - 1].end : it.start, gap = Math.max(0, it.start - prev); return (gap > 10 ? '<div class="gap" style="flex:' + gap + ' 1 0"></div>' : '') + '<div class="' + (it.kind === 'study' ? 'study' : it.kind === 'free' ? 'free' : it.kind === 'act' ? 'act' : '') + '" style="flex:' + Math.max(20, it.end - it.start) + ' 1 0" title="' + esc(it.label) + '" dir="auto">' + esc(it.label) + '</div>'; }).join('') + '</div>' +
       '<div class="day only-phone">' + items.map(it => '<div class="slot ' + it.kind + '"><span class="tm">' + S.hm(it.start) + '</span><span dir="auto">' + (it.kind === 'school' ? esc(t('School')) + ' · <span dir="ltr">' + S.hm(it.start) + '–' + S.hm(it.end) + '</span>' : esc(it.label)) + '</span></div>').join('') + '</div>';
   }
+  function wireDay() { const b = $('#wk-edit'); if (b) b.onclick = () => S.weekChat(tt, render, { topicsBySubj }); }
   function ready() {
     const x = S.openTests()[0];
     if (!x) { $('#ready').innerHTML = ''; return; }
@@ -145,9 +147,9 @@
     }
     const wk = $('#week-hint');
     wk.hidden = !(S.school.ready && !(S.settings().week || []).length);
-    if (!wk.hidden) wk.innerHTML = '<a class="card" style="display:flex;align-items:center;gap:12px;text-decoration:none" href="' + S.link('/settings.html') + '#week"><span style="flex:1">' + esc(t('Your week isn’t set yet: tell Study when you have volleyball, robotics, gym.')) + '</span><span class="btn dark">' + esc(t('Set your week')) + '</span></a>';
+    if (!wk.hidden) { wk.innerHTML = '<button class="card" id="wk-go" style="display:flex;align-items:center;gap:12px;width:100%;text-align:start"><span style="flex:1">' + esc(t('Your week isn’t set yet: tell Study when you have volleyball, robotics, gym.')) + '</span><span class="btn dark">' + esc(t('Tell me about your week')) + '</span></button>'; $('#wk-go').onclick = () => S.weekChat(tt, render, { topicsBySubj }); }
   }
-  function render() { setup(); const p = hero(); day(p); ready(); next(); cameIn(); }
+  function render() { setup(); const p = hero(); day(p); wireDay(); ready(); next(); cameIn(); }
 
   async function loadStudy() {
     try {

@@ -52,7 +52,27 @@ const PAGES = [
           await page.click('#flag'); await page.waitForTimeout(300);
           await page.screenshot({ path: `${DIR}/${tag}-recording.png`, fullPage: true });
         }
+        if (tag === 'phone' && scheme === 'dark' && name === 'settings') {
+          await page.click('[data-th="light"]'); await page.waitForTimeout(300);
+          await page.screenshot({ path: `${DIR}/${tag}-settings-forced-light.png` });
+          await page.click('#wk-chat'); await page.waitForTimeout(300);
+          await page.fill('#cs-in', 'volleyball mon tue 5-7, robotics sunday till 8'); await page.click('#cs-f button[type=submit]'); await page.waitForTimeout(1200);
+          await page.screenshot({ path: `${DIR}/${tag}-week-chat.png` });
+          await page.click('#cs-ok'); await page.waitForTimeout(300);
+          await page.click('#wk-chat'); await page.waitForTimeout(300);
+          await page.click('#wc-imp'); await page.waitForTimeout(300);
+          await page.fill('textarea[name=text]', 'Here you go:\n```studyhub\n{"version":1,"week":[{"name":"Volleyball","days":[1,2],"start":"17:00","end":"19:00"}],"sessions":[{"date":"' + new Date().toISOString().slice(0,10) + '","start":"20:00","end":"20:40","subject":"Maths","topic":"משיק","goal":"2 test questions alone"}]}\n```');
+          await page.waitForTimeout(200);
+          await page.screenshot({ path: `${DIR}/${tag}-import.png` });
+          await page.click('#imp-f button[type=submit]'); await page.waitForTimeout(500);
+          await page.click('[data-th="auto"]').catch(() => {});
+        }
         if (tag === 'phone' && scheme === 'light' && name === 'today') {
+          await page.click('#skip'); await page.waitForTimeout(300);
+          await page.fill('#cs-in', 'I have practice late, I am wiped'); await page.click('#cs-f button[type=submit]'); await page.waitForTimeout(1200);
+          await page.screenshot({ path: `${DIR}/${tag}-change-tonight.png` });
+          await page.click('#cs-ok'); await page.waitForTimeout(500);
+          await page.screenshot({ path: `${DIR}/${tag}-tonight-changed.png`, fullPage: true });
           await page.click('.only-phone [data-lang="he"]'); await page.waitForTimeout(1500);
           await page.screenshot({ path: `${DIR}/${tag}-today-hebrew.png`, fullPage: true });
           await page.click('.only-phone [data-lang="en"]'); await page.waitForTimeout(800);

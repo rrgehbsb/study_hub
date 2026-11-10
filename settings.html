@@ -11,16 +11,18 @@
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}}catch(e){}</script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.3.0">
+<link rel="stylesheet" href="/app.css?v=0.3.1">
 <title>Settings · Study</title>
 </head>
 <body>
 <main class="page narrow" id="page">
   <header class="head"><a class="icon-btn" id="back" aria-label="Back"></a><div class="t"><h1 id="h1"></h1></div></header>
+  <span class="label" id="l-look"></span>
+  <section class="card" id="look" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"></section>
   <span class="label" id="l-src"></span>
   <section class="list" id="sources"></section>
   <span class="label" id="week"></span>
@@ -30,7 +32,7 @@
   <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
   <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
 </main>
-<script src="/app.js?v=0.3.0"></script>
+<script src="/app.js?v=0.3.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -38,6 +40,7 @@
   $('#back').href = S.link('/'); $('#back').innerHTML = ic('back', 'flip');
   $('#h1').textContent = t('Settings');
   $('#l-src').textContent = t('Where info comes from');
+  $('#l-look').textContent = t('Appearance');
   $('#week').textContent = t('Your week (for the planner)');
   $('#l-lang').textContent = t('App language');
   if (!(await S.session())) return;
@@ -64,14 +67,25 @@
       S.toast(he ? 'מסנכרן…' : 'Syncing…'); await S.syncAll(true); sources();
     };
   }
+  let tt = null; const topicsBySubj = {};
+  function look() {
+    const cur = S.theme();
+    $('#look').innerHTML = '<span style="flex:1">' + esc(t('Appearance')) + '</span><div class="seg" role="group" aria-label="' + esc(t('Appearance')) + '">' +
+      [['light', 'Light'], ['dark', 'Dark'], ['auto', 'Auto']].map(x => '<button type="button" data-th="' + x[0] + '" aria-pressed="' + (cur === x[0]) + '">' + esc(t(x[1])) + '</button>').join('') + '</div>';
+    S.$$('[data-th]').forEach(b => b.onclick = () => { S.setTheme(b.dataset.th); look(); });
+  }
   function acts() {
     const wk = S.settings().week || [];
-    $('#acts').innerHTML = (wk.length ? wk.map(a => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(a.name) + '</span><span class="meta">' + esc((a.days || []).map(d => t(DAYS[d])).join(', ')) + ' · <span dir="ltr">' + esc(a.start + '–' + a.end) + '</span>' + '</span></span><button class="icon-btn" data-del="' + esc(a.id) + '" aria-label="Remove" style="box-shadow:none">' + ic('x', 'sm') + '</button></div>').join('')
-      : '<p class="empty">' + (he ? 'הוסף כדורעף, רובוטיקה, חדר כושר, כל דבר קבוע.' : 'Add volleyball, robotics, gym, anything fixed.') + '</p>') +
-      '<form class="form" id="act-f" style="padding:10px 0 14px;border-top:1px solid var(--line)"><label class="field"><span>' + esc(t('Add activity')) + '</span><input name="name" dir="auto" placeholder="' + (he ? 'כדורעף' : 'Volleyball') + '" autocomplete="off"></label>' +
+    $('#acts').innerHTML = '<div id="wk-sum"></div>' + (wk.length ? '' : '<p class="empty">' + (he ? 'עוד לא סיפרת על השבוע שלך.' : 'You haven’t told Study about your week yet.') + '</p>') +
+      '<div style="padding:10px 0"><button class="btn big dark block" id="wk-chat">' + esc(t('Tell me about your week')) + '</button></div>' +
+      '<details style="padding:0 0 12px"><summary class="hint" style="cursor:pointer;min-height:36px;display:flex;align-items:center">' + esc(t('Edit by hand')) + '</summary>' +
+      (wk.length ? wk.map(a => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(a.name) + '</span><span class="meta">' + esc((a.days || []).map(d => t(DAYS[d])).join(', ')) + ' · <span dir="ltr">' + esc(a.start + '–' + a.end) + '</span></span></span><button class="icon-btn" data-del="' + esc(a.id) + '" aria-label="Remove" style="box-shadow:none">' + ic('x', 'sm') + '</button></div>').join('') : '') +
+      '<form class="form" id="act-f" style="padding-top:10px"><label class="field"><span>' + esc(t('Add activity')) + '</span><input name="name" dir="auto" placeholder="' + (he ? 'כדורעף' : 'Volleyball') + '" autocomplete="off"></label>' +
       '<div class="days">' + DAYS.map((d, i) => '<label><input type="checkbox" name="d" value="' + i + '"><span>' + esc(t(d)) + '</span></label>').join('') + '</div>' +
       '<div class="grid2"><label class="field"><span>' + (he ? 'מ־' : 'From') + '</span><input type="time" name="start" value="17:00"></label><label class="field"><span>' + (he ? 'עד' : 'To') + '</span><input type="time" name="end" value="19:00"></label></div>' +
-      '<button class="btn dark" type="submit">' + esc(t('Add')) + '</button></form>';
+      '<button class="btn dark" type="submit">' + esc(t('Add')) + '</button></form></details>';
+    S.weekSummary($('#wk-sum'));
+    $('#wk-chat').onclick = () => S.weekChat(tt, () => { acts(); plan(); }, { topicsBySubj });
     S.$$('[data-del]').forEach(b => b.onclick = () => { const prev = S.settings().week || []; S.saveSettings({ week: prev.filter(a => a.id !== b.dataset.del) }); acts(); S.toast(he ? 'הוסר' : 'Removed', () => { S.saveSettings({ week: prev }); acts(); }); });
     $('#act-f').onsubmit = e => {
       e.preventDefault();
@@ -105,7 +119,9 @@
       '<span class="hint">' + esc(t('Signed in as {x}', { x: (S.user() || {}).email || '' })) + ' · v' + S.VERSION + '</span><button class="btn" id="so">' + esc(t('Sign out')) + '</button>';
     $('#so').onclick = S.signOut;
   }
-  sources(); acts(); plan(); langs(); account();
+  look(); sources(); acts(); plan(); langs(); account();
+  S.timetable().then(x => { tt = x; });
+  S.rows(S.T.topics).then(r => r.forEach(x => (topicsBySubj[x.subject_id] = topicsBySubj[x.subject_id] || []).push(x))).catch(() => {});
   if (location.hash === '#week') setTimeout(() => $('#week').scrollIntoView({ behavior: 'smooth' }), 100);
 })();
 </script>
