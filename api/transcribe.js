@@ -42,14 +42,29 @@ function annotate(tx, marks, photos) {
   return out.trim();
 }
 
+const summaryPrompt = (lang, subjectName, transcript) =>
+  'You get the transcript of a high-school lesson' + (lang === 'en' ? ' (an English class)' : ' in Hebrew') + (subjectName ? ' (subject: ' + subjectName + ')' : '') + '.\n' +
+  'Return JSON: {"title": short Hebrew title of what was taught, "summary": a Hebrew summary as 4-8 short bullet lines starting with "- " (definitions, formulas in LaTeX $...$, worked examples, what the teacher stressed or said will be on the test), "topics": 1-4 short Hebrew topic names}.\n' +
+  'Only use what is in the transcript.\n\nTRANSCRIPT:\n' + String(transcript).slice(0, 120000);
+
 module.exports = handler(async (req, res) => {
   const { token } = await auth(req);
-  const { lessonId, subjectName } = await body(req);
+  const { lessonId, subjectName, summarize } = await body(req);
   const lang = /english|אנגלית/i.test(String(subjectName || '')) ? 'en' : 'he';
   if (!lessonId) throw new HttpError(400, 'lessonId missing');
   const lesson = await one(token, 'study_lessons?id=eq.' + encodeURIComponent(lessonId) + '&select=*');
   if (!lesson) throw new HttpError(404, 'Lesson not found.');
-  if (lesson.status === 'ready' && lesson.transcript) return send(res, 200, { lesson });
+  if (lesson.status === 'ready' && lesson.transcript) {
+    if (!summarize || lesson.summary) return send(res, 200, { lesson });
+    // the transcript is there but the summary isn't (e.g. the Gemini key was added later): summarize only
+    const ai = await geminiJSON(summaryPrompt(lang, subjectName, lesson.transcript));
+    if (!ai || !ai.summary) throw new HttpError(503, 'No summary: is GEMINI_API_KEY set in Vercel (and redeployed)?');
+    const topics = Array.isArray(ai.topics) ? ai.topics.map(t => String(t).trim()).filter(Boolean).slice(0, 4) : [];
+    const values = { summary: String(ai.summary), topics: topics.length ? topics : lesson.topics };
+    if (!lesson.title && ai.title) values.title = String(ai.title).slice(0, 120);
+    await patch(token, 'study_lessons', lessonId, values);
+    return send(res, 200, { lesson: Object.assign({}, lesson, values) });
+  }
   if (!lesson.audio_path) throw new HttpError(400, 'This lesson has no audio.');
 
   await patch(token, 'study_lessons', lessonId, { status: 'transcribing', error: null });
@@ -82,11 +97,8 @@ module.exports = handler(async (req, res) => {
     }
     const transcript = annotate(tx, lesson.marks, photoTimes);
 
-    const ai = await geminiJSON(
-      'You get the transcript of a high-school lesson' + (lang === 'en' ? ' (an English class)' : ' in Hebrew') + (subjectName ? ' (subject: ' + subjectName + ')' : '') + '.\n' +
-      'Return JSON: {"title": short Hebrew title of what was taught, "summary": a Hebrew summary as 4-8 short bullet lines starting with "- " (definitions, formulas in LaTeX $...$, worked examples, what the teacher stressed or said will be on the test), "topics": 1-4 short Hebrew topic names}.\n' +
-      'Only use what is in the transcript.\n\nTRANSCRIPT:\n' + transcript.slice(0, 120000)
-    );
+    const ai = await geminiJSON(summaryPrompt(lang, subjectName, transcript));
+
     const topics = Array.isArray(ai && ai.topics) ? ai.topics.map(t => String(t).trim()).filter(Boolean).slice(0, 4) : [];
     const values = { status: 'ready', transcript, summary: ai && ai.summary ? String(ai.summary) : null, topics, audio_path: null, error: null };
     if (!lesson.title && ai && ai.title) values.title = String(ai.title).slice(0, 120);

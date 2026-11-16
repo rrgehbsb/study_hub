@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.2">
+<link rel="stylesheet" href="/app.css?v=0.6.3">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -30,7 +30,7 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.6.2"></script>
+<script src="/app.js?v=0.6.3"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -136,7 +136,7 @@
   function lessonsView() {
     const subs = Array.from(new Set(lessons.map(l => l.subject_id)));
     const list = lessons.filter(l => !lessonFilter || l.subject_id === lessonFilter);
-    const st = l => l.status === 'ready' ? '' : '<span class="tag">' + esc(l.status === 'error' ? t('Failed · retry') : l.status === 'recording' ? t('Recording') : t('Transcribing…')) + '</span>';
+    const st = l => l.status === 'ready' ? '' : '<span class="tag">' + esc(l.status === 'error' ? (he ? 'נכשל · לחצו לנסות שוב' : 'Failed · tap to retry') : l.status === 'recording' ? t('Recording') : t('Transcribing…')) + '</span>';
     $('#view').innerHTML = '<a class="btn big dark block" href="' + S.link('/record.html') + '"><span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson')) + '</a>' +
       (subs.length > 1 ? '<div class="chips"><button class="chip" data-lf="" aria-pressed="' + !lessonFilter + '">' + esc(t('All')) + '</button>' + subs.map(id => '<button class="chip" data-lf="' + esc(id) + '" aria-pressed="' + (lessonFilter === id) + '" dir="auto">' + esc(S.subjectName(id)) + '</button>').join('') + '</div>' : '') +
       (list.length ? list.map(l => '<a class="card lesson-row" href="' + S.link('/lesson.html', { id: l.id }) + '"><span class="hint" dir="auto">' + esc(S.subjectName(l.subject_id)) + ' · ' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + '</span>' +

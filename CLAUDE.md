@@ -129,7 +129,8 @@ progress.html   **Grades** tab: solved alone vs with help, readiness per test, m
 settings.html   Appearance (Light / Dark / Auto), sources status + class, your groups and teachers (set once), your week
                 (chat, "Plan my week with Claude", import, edit by hand), study minutes, way home, latest time,
                 app and teaching language, AI turns, sign out
-lesson.html     One lesson: summary, full transcript (marks and photo moments shown)
+lesson.html     One lesson: summary, full transcript (marks and photo moments shown); a failed lesson shows its error and
+                "Transcribe again"; a lesson without a summary gets "Make a summary"
 login.html      Email + password (same accounts as the main Dashboard)
 app.css         Command Center design system (dark default) + Coach light, course path, session, record styles
 app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,
@@ -209,7 +210,7 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 | `ALLOWED_EMAILS` | who may use the AI functions (the owner's email) | set during owner setup |
 | `GROQ_API_KEY` | transcription | set during owner setup |
 | `ANTHROPIC_API_KEY` | tutor, reading photos/PDFs | set during owner setup (with the $10/month cap) |
-| `GEMINI_API_KEY` | summaries (optional) | optional |
+| `GEMINI_API_KEY` | summaries (optional) | set 2026-11-16 |
 | `MASHOV_USER`, `MASHOV_PASS` | Mashov import | set by the owner; optional `MASHOV_SCHOOL` (default 570358), `MASHOV_YEAR`, `MASHOV_API_VERSION` |
 | `TUTOR_MODEL`, `GEMINI_MODEL`, `WHISPER_MODEL`, `DAILY_TUTOR_CALLS`, `CONTEXT_CHARS` | overrides | optional |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | optional; the defaults in `api/_lib.js` are the shared project's public values | optional |

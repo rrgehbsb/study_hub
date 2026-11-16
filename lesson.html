@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.2">
+<link rel="stylesheet" href="/app.css?v=0.6.3">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -30,12 +30,13 @@
     <a class="icon-btn" id="back" aria-label="Back"></a>
     <div class="t"><span class="sub" id="sub"></span><h1 id="name" dir="auto"></h1></div>
   </header>
+  <section class="card" id="state" hidden style="display:flex;flex-direction:column;gap:10px"></section>
   <a class="btn big accent block" id="study"></a>
   <div class="chips" id="topics"></div>
   <section class="card"><h2 id="h-sum" style="margin-bottom:8px"></h2><div class="prose" dir="auto" id="summary"></div></section>
   <details class="card"><summary><span id="h-tx"></span><span class="hint" id="tx-len"></span></summary><div class="transcript" dir="auto" id="transcript"></div></details>
 </main>
-<script src="/app.js?v=0.6.2"></script>
+<script src="/app.js?v=0.6.3"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -55,8 +56,31 @@
   $('#study').href = S.link('/session.html', { subject: l.subject_id, topic: topic || '', mode: 'learn' });
   $('#study').textContent = t('Study this lesson');
   $('#topics').innerHTML = (l.topics || []).map(x => '<a class="chip" dir="auto" href="' + S.link('/session.html', { subject: l.subject_id, topic: x, mode: 'learn' }) + '">' + esc(x) + '</a>').join('');
+  const he = S.lang() === 'he';
+  async function run(btn, payload) {
+    btn.disabled = true; btn.textContent = he ? 'עובד על זה… (עד דקה)' : 'Working on it… (up to a minute)';
+    try { await S.api('transcribe', Object.assign({ lessonId: l.id, subjectName: S.subjectName(l.subject_id) }, payload)); location.reload(); }
+    catch (e) { btn.disabled = false; btn.textContent = he ? 'לנסות שוב' : 'Try again'; S.toast(e.message); }
+  }
+  if (l.status !== 'ready') {
+    const box = $('#state'); box.hidden = false;
+    if (l.audio_path) {
+      box.innerHTML = '<b>' + (l.status === 'error' ? (he ? 'התמלול נכשל' : 'Transcription failed') : (he ? 'עוד לא תומלל' : 'Not transcribed yet')) + '</b>' +
+        (l.error ? '<p class="hint" dir="auto">' + esc(l.error) + '</p>' : '') +
+        '<p class="hint">' + (he ? 'ההקלטה שמורה. אפשר לנסות שוב.' : 'The recording is saved. You can try again.') + '</p>' +
+        '<button class="btn accent" id="retry">' + (he ? 'לתמלל שוב' : 'Transcribe again') + '</button>';
+      $('#retry').onclick = () => run($('#retry'), {});
+    } else {
+      box.innerHTML = '<b>' + (he ? 'ההקלטה לא הגיעה' : 'The recording didn’t arrive') + '</b><p class="hint">' + (he ? 'אם הקלטת בטלפון הזה: הקלטה ← "להעלות אותה". אם יש לך את הקובץ: שיעורים ← + ← הקלטת שיעור.' : 'If you recorded on this phone: Record → "Upload it". If you have the file: Lessons → + → Lesson recording.') + '</p>' +
+        '<a class="btn accent" href="' + S.link('/record.html') + '">' + (he ? 'לעמוד ההקלטה' : 'Go to Record') + '</a>';
+    }
+  }
   if (l.summary) S.renderRich($('#summary'), l.summary);
-  else $('#summary').innerHTML = '<p class="hint">' + (S.lang() === 'he' ? 'אין סיכום (צריך את מפתח Gemini החינמי). למורה הפרטי יש את התמלול המלא.' : 'No summary (it needs the free Gemini key). The tutor still has the full transcript.') + '</p>';
+  else if (l.status === 'ready' && l.transcript) {
+    $('#summary').innerHTML = '<p class="hint">' + (he ? 'אין עדיין סיכום.' : 'No summary yet.') + '</p><button class="btn" id="mksum" style="margin-top:8px">' + (he ? 'ליצור סיכום' : 'Make a summary') + '</button>';
+    $('#mksum').onclick = () => run($('#mksum'), { summarize: true });
+  }
+  else $('#summary').innerHTML = '<p class="hint">' + (he ? 'הסיכום יופיע אחרי התמלול.' : 'The summary shows up after the transcript.') + '</p>';
   $('#transcript').textContent = (l.transcript || '').replace(/\[MARKED BY STUDENT: on the test\]/g, '⚑ ' + (S.lang() === 'he' ? 'סימנת: במבחן' : 'You marked: on the test')).replace(/\[BOARD PHOTO (\d+) taken here\]/g, '📷 $1');
   $('#tx-len').textContent = l.transcript ? '~' + t('{n} min', { n: Math.max(1, Math.round(l.transcript.split(/\s+/).length / 130)) }) : '';
 })();

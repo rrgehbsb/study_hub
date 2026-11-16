@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-16 (afternoon): v0.6.3 — a lesson that failed or never finished now says why on its page, with "Transcribe again" (the audio stays until it succeeds) or a pointer to Record → "Upload it". Lessons that have a transcript but no summary get "Make a summary" (`transcribe` with `summarize:true`, Gemini only). Owner added GEMINI_API_KEY.
 - 2026-11-16 (afternoon): v0.6.2 — the owner's first real recording was 38 MB and failed (Safari ignores `audioBitsPerSecond`). Now any recording is cut into parts under 25 MB before upload (fragmented MP4 cut between fragments; other files decoded to 16 kHz WAV parts) and transcribed part by part, then stitched. Tested with a 40-min fragmented MP4 (2 parts) and a 65-min MP3 (6 WAV parts) in Chromium. Still to check on the real iPhone recording.
 - 2026-11-16 (afternoon): v0.6.1 — Record → "Black screen (keeps recording)": pure black over the page, the mic and wake lock keep going; hold the middle of the screen ~1 s to bring it back (a quick tap does nothing).
 - 2026-11-16 (afternoon): v0.6.0 — in-app guide: a short tour on each page the first time it opens, replay from Settings. Record page warns that locking the phone stops a browser recording (use Voice Memos + upload for screen-off). Standalone illustrated guide: https://claude.ai/artifact/Km4fZJhMXDuo7N9rDRMT6z
