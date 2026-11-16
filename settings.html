@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.0">
+<link rel="stylesheet" href="/app.css?v=0.5.1">
 <title>Settings · Study</title>
 </head>
 <body>
@@ -37,7 +37,7 @@
   <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
   <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
 </main>
-<script src="/app.js?v=0.5.0"></script>
+<script src="/app.js?v=0.5.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -63,7 +63,7 @@
       row(dotFor(st.mashov), 'Mashov', (he ? 'שיעורי בית, הודעות, ציונים · ' : 'Homework, messages, grades · ') + stTxt(st.mashov)) +
       row(dotFor(st.calendar), (he ? 'אתר בית הספר' : 'School site') + (S.myClass() ? ' · ' + S.myClass() : ''), (he ? 'מבחנים ומערכת · ' : 'Tests and timetable · ') + stTxt(st.calendar)) +
       row('with_help', 'Ofek', t('Not connected yet') + (he ? ' · בינתיים להוסיף ידנית' : ' · add by hand for now')) +
-      row('alone', 'WhatsApp', he ? 'הדבקה במחברת ← הודעות' : 'Paste in Notebook → Messages') +
+      row('alone', 'WhatsApp', he ? 'הדבקה במקורות ← הודעות' : 'Paste in Sources → Messages') +
       row('alone', he ? 'הדשבורד שלך' : 'Your Dashboard', he ? 'שיעורי בית ומבחנים משותפים' : 'Homework and tests shared both ways') +
       '<form class="item" id="cls-f" style="gap:10px"><label class="field" style="flex:1"><span>' + esc(t('Your class')) + '</span><input name="cls" value="' + esc(S.myClass()) + '" placeholder="11-3" autocomplete="off"></label><button class="btn dark" type="submit" style="align-self:flex-end">' + esc(t('Sync now')) + '</button></form>';
     $('#cls-f').onsubmit = async e => {

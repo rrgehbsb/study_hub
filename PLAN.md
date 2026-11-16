@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-16 (later): v0.5.1 — the + on Lessons and Sources now adds board photos, notes, old tests and worksheets too (before: only from a subject page).
 - 2026-11-16: v0.5.0 — Command Center look (dark default, lime, Space Grotesk), new tabs Home · Tutor · Lessons · Sources · Grades, sidebar on desktop, source cards on Sources. `tools/flows.js` "tapping a lesson picks its subject" fails on v0.4.1 too (depends on the day's demo timetable), not fixed here.
 - 2026-11-10 (night): v0.4.1 — bug hunt (tools/check.js + tools/flows.js). Fixed: crash when the clipboard refuses the Claude prompt; Record page's last button hidden behind the tabs; small tap targets; English labels left in Hebrew; a "Done for tonight" without any question tried; group matching by word stem (מבחן באפליקציה → פיתוח אפליקציות); sender-less Mashov messages; Mashov subjects saved before teachers point at them.
 

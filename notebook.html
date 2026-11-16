@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.0">
+<link rel="stylesheet" href="/app.css?v=0.5.1">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -30,7 +30,7 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.5.0"></script>
+<script src="/app.js?v=0.5.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -180,7 +180,7 @@
     $('#add').hidden = tab === 'subjects';
     if (tab === 'coming') coming(); else if (tab === 'lessons') lessonsView(); else if (tab === 'messages') messagesView(); else subjectsView();
   }
-  $('#add').onclick = () => tab === 'lessons' ? S.openAdd(null, load, ['lesson']) : tab === 'messages' ? S.openAdd(null, load, ['teacher_summary']) : S.openAdd(null, render, ['homework', 'test']);
+  $('#add').onclick = () => tab === 'lessons' ? S.openAdd(null, load, ['board', 'notes', 'lesson', 'teacher_summary', 'old_test', 'worksheet']) : tab === 'messages' ? S.openAdd(null, load, ['teacher_summary']) : S.openAdd(null, () => { load(); render(); }, ['homework', 'test', 'board', 'notes', 'old_test', 'worksheet']);
 
   async function load() {
     try {
