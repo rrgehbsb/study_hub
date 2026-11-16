@@ -116,7 +116,8 @@ tutor.html      Tutor: "study now" (the planner's pick), your tests with topic p
 session.html/.js  Study session in 4 steps: Learn → Example → Your turn → Check ("Test me" starts at Your turn)
 record.html     Record tab (red, middle): picks the lesson from today's class timetable (your group when the class splits),
                 today's lessons to tap, wake lock, board photos and "On the test!" marks tied to the moment, chunks in
-                IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording
+                IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording;
+                "Black screen" covers the page in black while it keeps recording (hold the middle ~1 s to return)
 notebook.html   Two tabs in one page. ?tab=lessons = **Lessons** (Record button, every lesson with summary → lesson.html).
                 Otherwise **Sources**: a card per source (WhatsApp, Mashov, school site → Settings), then Coming up (tests +
                 homework by date, "Probably not yours" fold) · Messages (Mashov + WhatsApp, by teacher) · Subjects (→ subject.html)

@@ -416,3 +416,9 @@ html { text-size-adjust:100%; }
 .tour-btns .btn { min-height:44px; }
 @media (prefers-reduced-motion: reduce) { .tour-ring { transition:none; } }
 .rec-warn { display:flex; gap:10px; align-items:flex-start; }
+
+/* Record → Black screen (v0.6.1): pure black over everything, one invisible hold-to-return button in the middle */
+.blackout { position:fixed; inset:0; z-index:200; background:#000; display:grid; place-items:center; cursor:none; touch-action:none; -webkit-user-select:none; user-select:none; }
+.blackout-hit { width:180px; height:180px; border-radius:50%; background:transparent; border:0; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
+.blackout-hit:focus-visible { outline:none; }
+.rec .btn.blackout-btn { background:#111827; color:#F9FAFB; box-shadow:none; }

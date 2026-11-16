@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.0">
+<link rel="stylesheet" href="/app.css?v=0.6.1">
 <meta name="theme-color" content="#0B0F19">
 <title>Record lesson · Study</title>
 </head>
@@ -28,7 +28,7 @@
   </header>
   <section id="view" style="display:flex;flex-direction:column;gap:18px"></section>
 </main>
-<script src="/app.js?v=0.6.0"></script>
+<script src="/app.js?v=0.6.1"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -36,7 +36,7 @@
   S.tour('record', [
     { sel: '.rec-now', en: ['The lesson', 'Picked from your timetable. Wrong one? Tap the right lesson in the list below.'], he: ['השיעור', 'נבחר לפי המערכת. לא נכון? לוחצים על השיעור הנכון ברשימה למטה.'] },
     { sel: '#start', en: ['Start recording', 'Keep the screen on. Locking the phone or leaving the app stops the recording. Turn the brightness down and put it face down.'], he: ['להתחיל להקליט', 'המסך צריך להישאר דלוק. נעילת הטלפון או יציאה מהאפליקציה עוצרות את ההקלטה. מנמיכים בהירות ומניחים הפוך.'] },
-    { sel: '.rec-warn', en: ['Screen off?', 'Then record with Voice Memos instead, and upload it after class: Lessons → + → Lesson recording.'], he: ['מסך כבוי?', 'אז מקליטים בתזכורות קוליות ומעלים אחרי השיעור: שיעורים ← + ← הקלטת שיעור.'] }
+    { sel: '.rec-warn', en: ['Want it to look off?', 'While recording, tap Black screen. The screen goes black and keeps recording. Hold the middle of the screen for a second to bring it back.'], he: ['רוצים שייראה כבוי?', 'בזמן ההקלטה לוחצים "מסך שחור". המסך נהיה שחור וממשיך להקליט. מחזיקים את אמצע המסך שנייה כדי להחזיר אותו.'] }
   ]);
   if (!(await S.session())) return;
   await S.school.load();
@@ -83,7 +83,7 @@
       : '<span class="eyebrow">' + esc(curP && curP.split ? t('Now: your class splits. Which one is yours?') : nextP ? t('Next lesson {x}', { x: nextP.start }) : t('No lesson right now')) + '</span><h1 class="rec-subj" dir="auto">' + esc(sid ? S.subjectName(sid) : t('Record lesson')) + '</h1>';
     $('#view').innerHTML = '<section class="rec-now">' + nowLine + '</section>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin:8px 0 4px"><button class="stop start" id="start" aria-label="' + esc(t('Start recording')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Start recording')) + '</span></div>' +
-      '<p class="note rec-warn">' + (he ? 'השאירו את המסך דלוק. נעילת הטלפון או יציאה מהאפליקציה עוצרות את ההקלטה. צריך מסך כבוי? הקליטו בתזכורות קוליות והעלו אחרי השיעור (שיעורים ← +).' : 'Keep the screen on. Locking the phone or leaving the app stops the recording. Need the screen off? Record in Voice Memos and upload it after class (Lessons → +).') + '</p>' +
+      '<p class="note rec-warn">' + (he ? 'השאירו את המסך דלוק: נעילת הטלפון או יציאה מהאפליקציה עוצרות את ההקלטה. רוצים שייראה כבוי? בזמן ההקלטה לוחצים "מסך שחור".' : 'Keep the screen on: locking the phone or leaving the app stops the recording. Want it to look off? While recording, tap "Black screen".') + '</p>' +
       (left.length ? '<div class="note">' + (he ? 'יש הקלטה שלא הסתיימה מהפעם הקודמת.' : 'There’s an unfinished recording from last time.') + ' <button class="btn" id="recover" style="margin-top:8px">' + (he ? 'להעלות אותה' : 'Upload it') + '</button></div>' : '') +
       (today.length ? '<div class="rec-day"><span class="label">' + esc(t('Today’s lessons')) + '</span><div class="rec-list">' + today.map((p, i) => '<button class="rec-p' + (p === pick ? ' on' : '') + (p === curP ? ' now' : '') + (S.toMin(p.end) <= nowM ? ' past' : '') + '" data-p="' + i + '"><span class="tm" dir="ltr">' + esc(p.start) + '</span><span dir="auto">' + esc(p.he) + '</span></button>').join('') + '</div></div>' : '') +
       '<details class="rec-more"><summary>' + esc(t('Another subject')) + '</summary>' + subjSelect() + '</details>' +
@@ -131,6 +131,7 @@
       '<div class="grid2"><label class="tile">' + ic('camera') + esc(t('Snap the board')) + '<small id="pc">0</small><input type="file" accept="image/*" capture="environment" id="snap"></label>' +
       '<button class="tile flag" id="flag">' + ic('flag') + esc(t('"On the test!"')) + '<small id="mc">' + esc(t('marks this moment')) + '</small></button></div>' +
       '<div class="note">' + (he ? 'טיפ: צלם את הלוח רגע לפני שהמורה מוחק. התמונה משויכת לרגע הזה בשיעור.' : 'Tip: snap the board right before the teacher erases it. The photo is matched to this moment in the lesson.') + '</div>' +
+      '<button class="btn block blackout-btn" id="dark">' + (he ? 'מסך שחור (ההקלטה ממשיכה)' : 'Black screen (keeps recording)') + '</button>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px"><button class="stop" id="stop" aria-label="' + esc(t('Stop')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Stop')) + '</span></div>';
     $('#snap').onchange = async e => {
       const f = e.target.files[0]; e.target.value = ''; if (!f) return;
@@ -144,6 +145,7 @@
       clearTimeout(marksT); marksT = setTimeout(() => { if (lesson) S.update(S.T.lessons, lesson.id, { marks }).catch(() => {}); }, 800);
     };
     $('#stop').onclick = stop;
+    $('#dark').onclick = blackout;
     const bars = S.$$('#wave span'), buf = new Uint8Array(128);
     clearInterval(tick);
     tick = setInterval(() => {
@@ -154,7 +156,24 @@
       if (stopAt && Date.now() >= stopAt) stop();
     }, 150);
   }
+  /* Black screen: the page stays open (so the mic and the wake lock keep going) but shows only black.
+     A hidden button in the middle brings it back: press and hold it for a second, so a pocket tap can't. */
+  function unblack() { const o = document.getElementById('blackout'); if (o) o.remove(); }
+  function blackout() {
+    unblack();
+    const o = document.createElement('div'); o.id = 'blackout'; o.className = 'blackout';
+    o.innerHTML = '<button type="button" class="blackout-hit" aria-label="' + (he ? 'החזקה להחזרת המסך' : 'Hold to bring the screen back') + '"></button>';
+    document.body.appendChild(o);
+    const hit = o.querySelector('.blackout-hit'); let hold = null;
+    const go = e => { e.preventDefault(); clearTimeout(hold); hold = setTimeout(unblack, 900); };
+    const no = () => clearTimeout(hold);
+    hit.addEventListener('pointerdown', go); hit.addEventListener('pointerup', no); hit.addEventListener('pointerleave', no); hit.addEventListener('pointercancel', no);
+    hit.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') unblack(); });
+    hit.addEventListener('contextmenu', e => e.preventDefault());
+    wake();
+  }
   async function stop() {
+    unblack();
     clearInterval(tick); stopAt = null;
     document.body.classList.remove('recording');
     try { lock && lock.release(); } catch (e) {}
