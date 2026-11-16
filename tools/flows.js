@@ -33,7 +33,7 @@ const ok = (name, cond, extra) => results.push((cond ? 'PASS ' : 'FAIL ') + name
   await p.click('.toast button'); await p.waitForTimeout(500);
   ok('Undo un-ticks it', (await p.textContent('[data-f="todo"]')) === todo0);
   // tabs
-  for (const tb of ['lessons', 'messages', 'subjects', 'coming']) { await p.click(`[data-tab="${tb}"]`); await p.waitForTimeout(300); }
+  for (const tb of ['messages', 'subjects', 'coming']) { await p.click(`[data-tab="${tb}"]`); await p.waitForTimeout(300); }
   ok('notebook tabs switch and keep the URL', p.url().includes('tab=coming'));
   await p.close();
 

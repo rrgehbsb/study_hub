@@ -105,7 +105,7 @@ Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`
 
 ## 4. Design and files
 
-**Design (chosen by the owner on 2026-11-10):** "Coach" (direction A) for the look and the Today page: warm off-white, one dark hero card, one orange accent, Rubik. Each subject/test uses the "Course" layout from direction C: topics in order as a path, the next one highlighted, a practice test at the end, and "what the tutor teaches from". The canvas with all directions: https://claude.ai/artifact/9rPanErtktfF7ef4MHpdtQ (rows A, B, C and "Building blocks"). Phone = bottom tabs **Home · Tutor · Record · Notebook · Progress** (owner's blueprint, v0.4; Record is the red middle tab); computer (≥900px) = top bar and two columns with a red Record button. Settings = the gear.
+**Design (chosen by the owner on 2026-11-12, v0.5):** "Command Center": dark by default (`#0B0D12` ground, `#12161E` cards with a 1px ring instead of shadows), lime `#C6FF3D` hero and accent, orange for tests, teal for sources/WhatsApp, purple for the tutor; Space Grotesk for Latin text and Rubik for Hebrew. Light ("Coach": warm off-white, orange accent) stays as Settings → Appearance → Light. Mockups: https://claude.ai/artifact/1jFxaqynScDq75VuXM7YzG (row 2 = all tabs). Each subject/test still uses the "Course" layout (topic path, practice test, "what the tutor teaches from"). Phone = bottom tabs **Home · Tutor · Lessons · Sources · Grades**; computer (≥900px) = a left sidebar with the same tabs, a red "Record lesson" button, language and Settings at the bottom. Record lives inside Lessons (and the sidebar button). Settings = the gear. (Before v0.5: Coach look, tabs Home · Tutor · Record · Notebook · Progress.)
 
 **Language:** the app is English or Hebrew (`SH.t('English text')` looks up `HE` in `app.js`; `html[dir]` switches to RTL). Teaching language is separate: "same as the test" (Hebrew, English for the English subject) or a per-session EN/עב switch. Times and formulas stay left-to-right inside Hebrew (`<span dir="ltr">`, `.katex` isolate).
 
@@ -117,17 +117,18 @@ session.html/.js  Study session in 4 steps: Learn → Example → Your turn → 
 record.html     Record tab (red, middle): picks the lesson from today's class timetable (your group when the class splits),
                 today's lessons to tap, wake lock, board photos and "On the test!" marks tied to the moment, chunks in
                 IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording
-notebook.html   Notebook: Coming up (tests + homework by date, "Probably not yours" fold) · Lessons (summaries →
-                lesson.html) · Messages (Mashov + WhatsApp, sorted by teacher) · Subjects (→ subject.html)
+notebook.html   Two tabs in one page. ?tab=lessons = **Lessons** (Record button, every lesson with summary → lesson.html).
+                Otherwise **Sources**: a card per source (WhatsApp, Mashov, school site → Settings), then Coming up (tests +
+                homework by date, "Probably not yours" fold) · Messages (Mashov + WhatsApp, by teacher) · Subjects (→ subject.html)
 homework.html, subjects.html, teachers.html  redirects into the Notebook (old links)
 subject.html    One subject as a course: next test, topic path, practice test, lessons, what the tutor teaches from
-progress.html   Solved alone vs with help, readiness per test, mistakes that keep coming back, grades
+progress.html   **Grades** tab: solved alone vs with help, readiness per test, mistakes that keep coming back, grades
 settings.html   Appearance (Light / Dark / Auto), sources status + class, your groups and teachers (set once), your week
                 (chat, "Plan my week with Claude", import, edit by hand), study minutes, way home, latest time,
                 app and teaching language, AI turns, sign out
 lesson.html     One lesson: summary, full transcript (marks and photo moments shown)
 login.html      Email + password (same accounts as the main Dashboard)
-app.css         Coach design system (light + dark), course path, session, record styles
+app.css         Command Center design system (dark default) + Coach light, course path, session, record styles
 app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,
                 planner, study tables, uploads, api(), graphs (```plot → SVG, safe formula parser), i18n, nav, demo data
 sw.js           Service worker (network-first), cache name = version
@@ -150,7 +151,7 @@ On top of that: `settings.overrides[day]` (from "Change tonight": skip, a later 
 
 **Plan my week with Claude** (owner's idea, v0.3.1): `SH.claudePrompt` builds a prompt with school hours, activities, tests with topic readiness, homework and the next 7 days. `SH.openClaude` copies it and opens claude.ai. Claude interviews the owner, then ends with a ```studyhub JSON block (`{week, studyMins, latest, commuteMins, sessions}`). "Import from Claude" (`SH.importSheet`) takes the pasted text or a file, shows a preview, and saves. This costs nothing from the API budget. The in-app chat (`api/week.js`) is the quick version for small changes.
 
-**Theme:** `localStorage sh:theme` + `settings.theme`; every page's `<head>` sets `html[data-theme]` before paint; Auto = follow the phone.
+**Theme:** `localStorage sh:theme` (`light` / `dark` / `auto`, nothing stored = dark) + `settings.theme`; every page's `<head>` sets `html[data-theme]` before paint; Auto = follow the phone.
 
 ## 5. The tutor (the most important part)
 

@@ -5,19 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
 <meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#101216" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#0B0D12" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme');if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'dark';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/rubik-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.4.1">
+<link rel="stylesheet" href="/app.css?v=0.5.0">
 <title>Today · Study</title>
 </head>
 <body>
@@ -42,7 +42,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.4.1"></script>
+<script src="/app.js?v=0.5.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -121,7 +121,7 @@
     S.openHomework().filter(a => a.dueDate ? (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 7) : S.daysUntil(String(a.givenDate || a.createdAt || '').slice(0, 10) || dk) >= -14).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999', x: a }));
     items.sort((a, b) => a.date.localeCompare(b.date));
     const tagFor = x => x.source === 'mashov' ? '<span class="tag mashov">Mashov</span>' : x.source === 'calendar' ? '<span class="tag calendar">' + esc(t('School site')) + '</span>' : x.source === 'ofek' ? '<span class="tag ofek">Ofek</span>' : '';
-    $('#next').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Coming up')) + '</h2><a class="hint" href="' + S.link('/notebook.html', { tab: 'coming' }) + '">' + esc(t('Notebook')) + ' →</a></div>' +
+    $('#next').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Coming up')) + '</h2><a class="hint" href="' + S.link('/notebook.html', { tab: 'coming' }) + '">' + esc(t('All')) + ' →</a></div>' +
       (items.length ? items.slice(0, 7).map(it => {
         const x = it.x, n = S.daysUntil(x.testDate || x.dueDate), when = '<span class="when' + (n != null && n < 0 ? ' late' : n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || '') + '</span>';
         if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(x.type === 'Quiz' ? 'Quiz' : 'Test') + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</a>';

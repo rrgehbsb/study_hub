@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.4.1';
+const VERSION = '0.5.0';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -94,7 +94,7 @@ const HE = {
   'Plan my week with Claude': 'לתכנן את השבוע עם Claude', 'Import from Claude': 'ייבוא מ־Claude', 'Prompt copied: paste it in Claude.': 'הפרומפט הועתק: הדבק אותו ב־Claude.',
   'Paste what Claude gave you at the end (or upload the file).': 'הדבק את מה ש־Claude נתן לך בסוף (או העלה את הקובץ).', 'Import': 'ייבוא', 'Or choose the file': 'או לבחור את הקובץ',
   'That doesn’t look like a Study plan. Copy the whole block Claude gave you.': 'זה לא נראה כמו תוכנית. העתק את כל הבלוק ש־Claude נתן.', 'Plan imported': 'התוכנית יובאה',
-  'Home': 'בית', 'Tutor': 'מורה פרטי', 'Record': 'הקלטה', 'Notebook': 'מחברת', 'Messages': 'הודעות', 'School stuff': 'בית ספר (כללי)', 'All': 'הכל', 'Quiz': 'בוחן', 'Test': 'מבחן',
+  'Home': 'בית', 'Sources': 'מקורות', 'Tutor': 'מורה פרטי', 'Record': 'הקלטה', 'Notebook': 'מחברת', 'Messages': 'הודעות', 'School stuff': 'בית ספר (כללי)', 'All': 'הכל', 'Quiz': 'בוחן', 'Test': 'מבחן',
   'You said it’s not yours': 'סימנת שזה לא שלך', 'For another class': 'לכיתה אחרת', 'Group you don’t take: {x}': 'קבוצה שאתה לא בה: {x}',
   'Your groups show up here once your class is set.': 'הקבוצות שלך יופיעו כאן כשהכיתה מוגדרת.', 'Everything from school, in one place': 'כל מה שמגיע מבית הספר, במקום אחד',
   'One time: which groups are you in?': 'פעם אחת: באילו קבוצות אתה?', 'Your class splits for these. Tests of groups you’re not in fold away (never deleted).': 'בשיעורים האלה הכיתה מתחלקת. מבחנים של קבוצות שאתה לא בהן מתקפלים הצידה (לא נמחקים).',
@@ -133,10 +133,10 @@ const langToggle = () => '<div class="seg" role="group" aria-label="Language"><b
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-lang]'); if (b && b.dataset.lang !== LANG) setLang(b.dataset.lang); });
 
 /* light / dark / auto (follows the phone) */
-const theme = () => { try { const v = localStorage.getItem('sh:theme'); return v === 'light' || v === 'dark' ? v : 'auto'; } catch (e) { return 'auto'; } };
+const theme = () => { try { const v = localStorage.getItem('sh:theme'); return v === 'light' || v === 'dark' || v === 'auto' ? v : 'dark'; } catch (e) { return 'dark'; } };
 function applyTheme(v) {
   if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v); else document.documentElement.removeAttribute('data-theme');
-  try { if (v === 'light' || v === 'dark') localStorage.setItem('sh:theme', v); else localStorage.removeItem('sh:theme'); } catch (e) {}
+  try { localStorage.setItem('sh:theme', v === 'light' || v === 'dark' ? v : 'auto'); } catch (e) {}
 }
 function setTheme(v) { applyTheme(v); if (uid && !DEMO) saveSettings({ theme: v }); }
 
@@ -207,18 +207,20 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['record', '/record.html', 'mic', 'Record'], ['notebook', '/notebook.html', 'book', 'Notebook'], ['progress', '/progress.html', 'chart', 'Progress']];
+const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['lessons', '/notebook.html', 'mic', 'Lessons', { tab: 'lessons' }], ['sources', '/notebook.html', 'inbox', 'Sources'], ['progress', '/progress.html', 'chart', 'Grades']];
 function nav(active) {
+  const cur = active === 'record' ? 'lessons' : active === 'notebook' ? 'sources' : active;
+  const href = x => link(x[1], x[4]);
   const top = document.createElement('header');
   top.className = 'topbar';
-  top.innerHTML = '<a class="brand" href="' + link('/') + '">Study</a><nav aria-label="Main">' +
-    TABS.filter(x => x[0] !== 'record').map(x => '<a href="' + link(x[1]) + '"' + (x[0] === active ? ' aria-current="page"' : '') + '>' + esc(t(x[3])) + '</a>').join('') + '</nav>' +
-    langToggle() + '<a class="btn rec-btn" href="' + link('/record.html') + '"' + (active === 'record' ? ' aria-current="page"' : '') + '><span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson')) + '</a>' +
-    '<a class="icon-btn" href="' + link('/settings.html') + '" aria-label="' + esc(t('Settings')) + '">' + ic('gear', 'sm') + '</a>';
+  top.innerHTML = '<a class="brand" href="' + link('/') + '">Study<span>Hub</span></a><nav aria-label="Main">' +
+    TABS.map(x => '<a href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '>' + ic(x[2], 'sm') + esc(t(x[3])) + '</a>').join('') + '</nav>' +
+    '<div class="topbar-foot"><a class="btn rec-btn" href="' + link('/record.html') + '"' + (active === 'record' ? ' aria-current="page"' : '') + '><span class="dot" style="background:#FF4D4D"></span>' + esc(t('Record lesson')) + '</a>' +
+    '<div class="topbar-row">' + langToggle() + '<a class="icon-btn" href="' + link('/settings.html') + '" aria-label="' + esc(t('Settings')) + '">' + ic('gear', 'sm') + '</a></div></div>';
   document.body.prepend(top);
   const tabs = document.createElement('nav');
   tabs.className = 'tabs'; tabs.setAttribute('aria-label', 'Main');
-  tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab' + (x[0] === 'record' ? ' tab-rec' : '') + '" href="' + link(x[1]) + '"' + (x[0] === active ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
+  tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab" href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
   document.body.appendChild(tabs);
 }
 

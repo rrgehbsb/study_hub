@@ -31,6 +31,7 @@ const PAGES = [
     for (const scheme of ['light', 'dark']) {
       if (scheme === 'dark' && tag !== 'phone') continue;
       const ctx = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: 2, colorScheme: scheme });
+      await ctx.addInitScript(th => { try { if (!sessionStorage.getItem('shot:th')) { localStorage.setItem('sh:theme', th); sessionStorage.setItem('shot:th', '1'); } } catch (e) {} }, scheme);
       for (const [name, path] of PAGES) {
         const page = await ctx.newPage();
         page.on('console', m => { if (m.type() === 'error') problems.push(`${tag}/${name}: console: ${m.text()}`); });

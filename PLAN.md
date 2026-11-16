@@ -78,6 +78,13 @@ Known limits to handle in this phase if they bite:
 - [ ] **Owner:** check that "Groups you're in" in Settings is right; send a screenshot if Android text still looks off
 - [ ] First real Mashov run: check `groupFields` and that the groups list fills
 
+## v0.5 — the Command Center look (done 2026-11-16)
+
+- [x] Owner picked the dark "Command Center" mockup (2026-11-12): dark by default, lime + orange/teal/purple, Space Grotesk
+- [x] Tabs: Home · Tutor · Lessons · Sources · Grades; left sidebar on a computer; Record inside Lessons + the sidebar button
+- [x] Sources: one card per source on top of Coming up / Messages / Subjects
+- [ ] **Owner:** use it for a few days, then say what's missing (the mockup's tutor diagnostic and Grades "snap a test" are not built yet)
+
 ## Phase 2 — the best possible transcript and teaching
 
 - [ ] Compare Groq Whisper with ivrit.ai's Hebrew Whisper (`ivrit-ai/whisper-large-v3`) on the same real lesson; keep the winner. ivrit.ai has no hosted API, so if it wins it runs in a GitHub Action (free minutes) or on the owner's PC.
@@ -110,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-16: v0.5.0 — Command Center look (dark default, lime, Space Grotesk), new tabs Home · Tutor · Lessons · Sources · Grades, sidebar on desktop, source cards on Sources. `tools/flows.js` "tapping a lesson picks its subject" fails on v0.4.1 too (depends on the day's demo timetable), not fixed here.
 - 2026-11-10 (night): v0.4.1 — bug hunt (tools/check.js + tools/flows.js). Fixed: crash when the clipboard refuses the Claude prompt; Record page's last button hidden behind the tabs; small tap targets; English labels left in Hebrew; a "Done for tonight" without any question tried; group matching by word stem (מבחן באפליקציה → פיתוח אפליקציות); sender-less Mashov messages; Mashov subjects saved before teachers point at them.
 
 - 2026-11-10 (evening): v0.4.0 — owner's blueprint: new tabs, Tutor page, Record as a main tab with the timetable, Notebook, groups/teachers set once, other groups' tests folded away. The sandbox can now reach Mashov, the school site and the live app (allowed domains): calendar + timetable checked live; Mashov login format accepted.
