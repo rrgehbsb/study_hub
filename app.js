@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.1';
+const VERSION = '0.6.2';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -1008,7 +1008,7 @@ function openAddForm(kind, subjectId, onDone) {
   let inner = subjectField(subjectId);
   if (kind === 'lesson') inner += '<label class="field"><span>Lesson date</span><input type="date" name="date" value="' + today + '"></label>' +
     '<label class="file-pick"><input type="file" name="file" accept="audio/*,.m4a,.mp3,.wav,.aac,.ogg,.webm">Choose the recording</label>' +
-    '<p class="hint">Up to 25 MB (about 45 min of Voice Memos at “Compressed” quality). Or record straight in Study: Record lesson.</p>';
+    '<p class="hint">Any length: long recordings are cut into parts automatically. Or record straight in Study: Record lesson.</p>';
   else if (kind === 'teacher_summary') inner += '<label class="field"><span>Paste the text</span><textarea name="text" dir="auto" placeholder="Long-press the teacher’s message in WhatsApp → Copy, then paste here"></textarea></label>';
   else if (kind === 'homework') inner += '<label class="field"><span>What</span><input name="title" dir="auto" placeholder="e.g. Questions 4–7, page 112" autocomplete="off"></label><label class="field"><span>Due</span><input type="date" name="date" value="' + addDays(today, 1) + '"></label>';
   else if (kind === 'test') inner += '<label class="field"><span>Test name</span><input name="title" dir="auto" placeholder="e.g. Kinematics test" autocomplete="off"></label><label class="field"><span>Date</span><input type="date" name="date" value="' + addDays(today, 7) + '"></label><label class="field"><span>Topics (optional)</span><input name="topics" dir="auto" placeholder="e.g. free fall, two bodies meeting" autocomplete="off"></label>';
@@ -1058,10 +1058,87 @@ async function saveAdd(kind, sid, f) {
   }
   await uploadMaterial(kind, sid, file, (f.title && f.title.value.trim()) || null);
 }
+/* Long recordings: the free transcriber takes 25 MB per file, so anything bigger is cut into parts.
+   1. A fragmented MP4 (what an iPhone records in Study) is cut between its fragments, no re-encoding:
+      every part = the file's header (ftyp + moov) + a run of moof/mdat fragments.
+   2. Anything else (a Voice Memo, WebM) is decoded and re-saved as 16 kHz mono WAV parts (~12 min each).
+   audio_path then holds the parts joined with '|'; api/transcribe.js stitches the transcript back together. */
+const PART_MAX = 23 * 1024 * 1024;
+function mp4Boxes(u8) {
+  const dv = new DataView(u8.buffer, u8.byteOffset, u8.byteLength), out = [];
+  let o = 0;
+  while (o + 8 <= u8.length) {
+    let size = dv.getUint32(o); const type = String.fromCharCode(u8[o + 4], u8[o + 5], u8[o + 6], u8[o + 7]);
+    if (size === 1) { if (o + 16 > u8.length) break; size = dv.getUint32(o + 8) * 4294967296 + dv.getUint32(o + 12); }
+    else if (size === 0) size = u8.length - o;
+    if (size < 8 || o + size > u8.length) break;
+    out.push({ type, start: o, end: o + size }); o += size;
+  }
+  return out;
+}
+function splitFragmentedMp4(u8, mime) {
+  const boxes = mp4Boxes(u8);
+  if (!boxes.length || boxes[0].type !== 'ftyp' || !boxes.some(b => b.type === 'moof')) return null;
+  const head = boxes.filter(b => b.type === 'ftyp' || b.type === 'moov');
+  if (!head.some(b => b.type === 'moov')) return null;
+  const headBytes = head.map(b => u8.subarray(b.start, b.end)), headSize = head.reduce((n, b) => n + b.end - b.start, 0);
+  const frags = []; // [moof, mdat, …] runs, kept together
+  let cur = null;
+  boxes.forEach(b => {
+    if (b.type === 'moof') { cur = { start: b.start, end: b.end }; frags.push(cur); }
+    else if (cur && (b.type === 'mdat' || b.type === 'sidx' || b.type === 'styp')) cur.end = b.end;
+  });
+  const parts = []; let run = [], size = headSize;
+  frags.forEach(f => {
+    const n = f.end - f.start;
+    if (run.length && size + n > PART_MAX) { parts.push(run); run = []; size = headSize; }
+    run.push(f); size += n;
+  });
+  if (run.length) parts.push(run);
+  return parts.map(r => new Blob(headBytes.concat(r.map(f => u8.subarray(f.start, f.end))), { type: mime || 'audio/mp4' }));
+}
+function wavBlob(samples, rate) {
+  const buf = new ArrayBuffer(44 + samples.length * 2), dv = new DataView(buf);
+  const w = (o, str) => { for (let i = 0; i < str.length; i++) dv.setUint8(o + i, str.charCodeAt(i)); };
+  w(0, 'RIFF'); dv.setUint32(4, 36 + samples.length * 2, true); w(8, 'WAVE'); w(12, 'fmt ');
+  dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 1, true); dv.setUint32(24, rate, true);
+  dv.setUint32(28, rate * 2, true); dv.setUint16(32, 2, true); dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, samples.length * 2, true);
+  for (let i = 0, o = 44; i < samples.length; i++, o += 2) { const v = Math.max(-1, Math.min(1, samples[i])); dv.setInt16(o, v < 0 ? v * 32768 : v * 32767, true); }
+  return new Blob([buf], { type: 'audio/wav' });
+}
+async function splitByDecoding(arrayBuf) {
+  const RATE = 16000;
+  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!Ctx) throw new Error('This browser can’t cut the recording into parts.');
+  const ctx = new Ctx(1, RATE, RATE);
+  const audio = await new Promise((res, rej) => { const p = ctx.decodeAudioData(arrayBuf, res, rej); if (p && p.then) p.then(res, rej); });
+  const ch0 = audio.getChannelData(0), ch1 = audio.numberOfChannels > 1 ? audio.getChannelData(1) : null;
+  const per = Math.floor(PART_MAX / 2), out = [];
+  for (let s = 0; s < ch0.length; s += per) {
+    const n = Math.min(per, ch0.length - s), mono = new Float32Array(n);
+    for (let i = 0; i < n; i++) mono[i] = ch1 ? (ch0[s + i] + ch1[s + i]) / 2 : ch0[s + i];
+    out.push(wavBlob(mono, audio.sampleRate || RATE));
+  }
+  return out;
+}
+async function audioParts(file) {
+  if (file.size <= PART_MAX) return [file];
+  const buf = await file.arrayBuffer();
+  const frag = splitFragmentedMp4(new Uint8Array(buf), file.type);
+  if (frag && frag.length) return frag;
+  try { return await splitByDecoding(buf); }
+  catch (e) { throw new Error('That recording is ' + Math.round(file.size / 1048576) + ' MB and couldn’t be cut into parts on this phone. Try uploading it from a computer, or record it in shorter pieces.'); }
+}
 async function uploadLessonAudio(file, sid, date, extra) {
-  if (file.size > 25 * 1024 * 1024) throw new Error('That recording is ' + Math.round(file.size / 1048576) + ' MB. The limit is 25 MB: record in two parts, or use “Compressed” quality.');
-  const ext = (file.type && /mp4|m4a|aac/.test(file.type)) ? 'm4a' : (file.type && /webm/.test(file.type)) ? 'webm' : (file.name && file.name.split('.').pop() || 'm4a').toLowerCase();
-  const path = await upload('audio', file, ext);
+  const parts = await audioParts(file);
+  if (parts.length > 1) toast((LANG === 'he' ? 'מעלה ב-' + parts.length + ' חלקים…' : 'Long lesson: uploading in ' + parts.length + ' parts…'));
+  const extOf = b => (b.type && /wav/.test(b.type)) ? 'wav' : (b.type && /mp4|m4a|aac/.test(b.type)) ? 'm4a' : (b.type && /webm/.test(b.type)) ? 'webm' : (file.name && file.name.includes('.') ? file.name.split('.').pop() : 'm4a').toLowerCase();
+  const paths = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (parts.length > 1 && i) toast((LANG === 'he' ? 'מעלה חלק ' : 'Uploading part ') + (i + 1) + ' / ' + parts.length + '…');
+    paths.push(await upload('audio', parts[i], extOf(parts[i])));
+  }
+  const path = paths.join('|');
   let lesson;
   if (extra && extra.lessonId) { await update(T.lessons, extra.lessonId, { status: 'uploaded', audio_path: path }); lesson = { id: extra.lessonId }; }
   else lesson = await insert(T.lessons, { subject_id: sid, lesson_date: date, status: 'uploaded', audio_path: path });
@@ -1331,7 +1408,7 @@ async function demoApi(name, p) {
 
 window.SH = {
   VERSION, DEMO, K, T, $, $$, esc, ic, qs, wait, link, stamp, newId, uuid, readJSON, writeJSON,
-  t, lang, setLang, langToggle, nav, tour, tourReset, TAB_SEL,
+  t, lang, setLang, langToggle, nav, tour, tourReset, TAB_SEL, audioParts,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,

@@ -99,6 +99,8 @@ All have `user_id uuid default auth.uid()` and row-level security "own rows only
 
 Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`; the policies only allow a user inside their own `<uid>/` folder.
 
+**Long recordings (v0.6.2):** Groq takes 25 MB per file, so `SH.audioParts` cuts anything bigger before upload: a fragmented MP4 (what Safari's recorder makes) between its moof/mdat fragments with the ftyp+moov header copied to each part (no re-encoding); anything else is decoded and re-saved as 16 kHz mono WAV parts of ~23 MB (~12 min). `audio_path` then holds the part paths joined with `|`; `api/transcribe.js` transcribes the parts in parallel and shifts each part's segment times by the length of the parts before it.
+
 **Audio is deleted from Storage once transcribed.** Keep only the text: it saves space and it's the teacher's voice.
 
 ---

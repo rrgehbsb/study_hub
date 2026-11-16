@@ -45,7 +45,7 @@ Goal: upload a real lesson, then study it with a tutor at the teacher's level.
 - [ ] Fix whatever the first real lesson shows (likely: transcript quality, upload size, tutor tone).
 
 Known limits to handle in this phase if they bite:
-- **Recordings over 25 MB** (Groq's free cap). Voice Memos "Compressed" quality is about 0.5 MB/min, so 45 minutes is close. If uploads fail: split the audio server-side (ffmpeg in the function, or a GitHub Action), or record two shorter files.
+- ~~**Recordings over 25 MB**~~ handled in v0.6.2: cut into parts in the browser before upload.
 - **Vercel function time limit.** `vercel.json` asks for 60 s; Groq usually transcribes 45 min in well under that. If it times out, move transcription to a background job (GitHub Action triggered by a webhook).
 
 ## v0.3 — the chosen design (done 2026-11-10)
@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-16 (afternoon): v0.6.2 — the owner's first real recording was 38 MB and failed (Safari ignores `audioBitsPerSecond`). Now any recording is cut into parts under 25 MB before upload (fragmented MP4 cut between fragments; other files decoded to 16 kHz WAV parts) and transcribed part by part, then stitched. Tested with a 40-min fragmented MP4 (2 parts) and a 65-min MP3 (6 WAV parts) in Chromium. Still to check on the real iPhone recording.
 - 2026-11-16 (afternoon): v0.6.1 — Record → "Black screen (keeps recording)": pure black over the page, the mic and wake lock keep going; hold the middle of the screen ~1 s to bring it back (a quick tap does nothing).
 - 2026-11-16 (afternoon): v0.6.0 — in-app guide: a short tour on each page the first time it opens, replay from Settings. Record page warns that locking the phone stops a browser recording (use Voice Memos + upload for screen-off). Standalone illustrated guide: https://claude.ai/artifact/Km4fZJhMXDuo7N9rDRMT6z
 - 2026-11-16 (later): v0.5.1 — the + on Lessons and Sources now adds board photos, notes, old tests and worksheets too (before: only from a subject page).

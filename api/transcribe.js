@@ -1,5 +1,7 @@
 // POST {lessonId}: the lesson's uploaded audio -> Groq Whisper (Hebrew) -> transcript,
 // then a short summary + topic list (Gemini, optional), then the audio is deleted.
+// Long lessons arrive in parts (audio_path = 'a.m4a|b.m4a|…', each under 25 MB): every part is
+// transcribed (in parallel, to fit the time limit) and the times are shifted so it reads as one lesson.
 const { HttpError, send, body, auth, one, db, patch, download, remove, geminiJSON, handler } = require('./_lib');
 
 const GROQ_MAX = 25 * 1024 * 1024; // Groq's free-tier file limit
@@ -16,7 +18,9 @@ async function groq(buf, filename, type, lang) {
   const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) throw new HttpError(502, 'Transcription failed: ' + ((j.error && j.error.message) || r.status));
-  return { text: String(j.text || '').trim(), segments: Array.isArray(j.segments) ? j.segments : [] };
+  const segments = Array.isArray(j.segments) ? j.segments : [];
+  const duration = +j.duration || (segments.length ? +segments[segments.length - 1].end || 0 : 0);
+  return { text: String(j.text || '').trim(), segments, duration };
 }
 
 const mmss = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
@@ -50,10 +54,24 @@ module.exports = handler(async (req, res) => {
 
   await patch(token, 'study_lessons', lessonId, { status: 'transcribing', error: null });
   try {
-    const { buf, type } = await download(token, lesson.audio_path);
-    if (buf.length > GROQ_MAX) throw new HttpError(413, 'The recording is ' + Math.round(buf.length / 1048576) + ' MB; the free transcriber takes up to 25 MB. Record in two parts, or set Voice Memos to "Compressed".');
-    const ext = (lesson.audio_path.split('.').pop() || 'm4a').toLowerCase();
-    const tx = await groq(buf, 'lesson.' + ext, type, lang);
+    const parts = String(lesson.audio_path).split('|').filter(Boolean);
+    const doPart = async (path, i) => {
+      const { buf, type } = await download(token, path);
+      if (buf.length > GROQ_MAX) throw new HttpError(413, 'Part ' + (i + 1) + ' of the recording is ' + Math.round(buf.length / 1048576) + ' MB; the free transcriber takes up to 25 MB per part.');
+      const ext = (path.split('.').pop() || 'm4a').toLowerCase();
+      return groq(buf, 'lesson-' + (i + 1) + '.' + ext, type, lang);
+    };
+    const done = await Promise.all(parts.map(doPart));
+    // stitch: shift each part's segment times by the length of the parts before it
+    let offset = 0;
+    const tx = { text: '', segments: [] };
+    done.forEach(d => {
+      tx.text += (tx.text ? ' ' : '') + d.text;
+      d.segments.forEach(seg => tx.segments.push(Object.assign({}, seg, { start: (+seg.start || 0) + offset, end: (+seg.end || 0) + offset })));
+      const lastEnd = d.segments.length ? +d.segments[d.segments.length - 1].end || 0 : 0;
+      // a part cut from a longer file can report the whole file's length; trust the speech then
+      offset += d.duration && (!lastEnd || d.duration < lastEnd + 120) ? d.duration : lastEnd;
+    });
     if (!tx.text) throw new HttpError(422, 'The recording came back empty. Was the microphone covered?');
     // board photos taken during this lesson in the app: their seconds from the start
     let photoTimes = [];
@@ -73,7 +91,7 @@ module.exports = handler(async (req, res) => {
     const values = { status: 'ready', transcript, summary: ai && ai.summary ? String(ai.summary) : null, topics, audio_path: null, error: null };
     if (!lesson.title && ai && ai.title) values.title = String(ai.title).slice(0, 120);
     await patch(token, 'study_lessons', lessonId, values);
-    await remove(token, lesson.audio_path); // keep the text, not the teacher's voice
+    for (const path of parts) await remove(token, path); // keep the text, not the teacher's voice
 
     if (topics.length) {
       try {
