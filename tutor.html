@@ -21,7 +21,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.1">
+<link rel="stylesheet" href="/app.css?v=0.6.0">
 <title>Tutor · Study</title>
 </head>
 <body>
@@ -42,11 +42,16 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.5.1"></script>
+<script src="/app.js?v=0.6.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
   S.nav('tutor');
+  S.tour('tutor', [
+    { sel: '#now', en: ['Study now', 'The same pick as tonight. Start = a full session. Test me = questions only, no hints until you try.'], he: ['ללמוד עכשיו', 'אותה בחירה כמו הערב. התחלה = שיעור מלא. בחן אותי = רק שאלות, בלי רמזים עד שניסית.'] },
+    { sel: '#tests', en: ['Your tests', 'Every test and its topics. A topic turns green only when you solve it alone.'], he: ['המבחנים שלך', 'כל מבחן והנושאים שלו. נושא נצבע ירוק רק כשפתרת אותו לבד.'] },
+    { sel: '#from', en: ['What it teaches from', 'Everything the tutor has for each subject. Old tests matter most: they set the level.'], he: ['ממה הוא מלמד', 'כל מה שיש למורה בכל מקצוע. מבחנים ישנים הכי חשובים: הם קובעים את הרמה.'] }
+  ]);
   $('#h1').textContent = t('Tutor');
   $('#sub').textContent = t('Knows your tests. Teaches at your teacher’s level.');
   $('#lang-phone').innerHTML = S.langToggle();

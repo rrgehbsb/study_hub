@@ -151,6 +151,8 @@ On top of that: `settings.overrides[day]` (from "Change tonight": skip, a later 
 
 **Plan my week with Claude** (owner's idea, v0.3.1): `SH.claudePrompt` builds a prompt with school hours, activities, tests with topic readiness, homework and the next 7 days. `SH.openClaude` copies it and opens claude.ai. Claude interviews the owner, then ends with a ```studyhub JSON block (`{week, studyMins, latest, commuteMins, sessions}`). "Import from Claude" (`SH.importSheet`) takes the pasted text or a file, shows a preview, and saves. This costs nothing from the API budget. The in-app chat (`api/week.js`) is the quick version for small changes.
 
+**In-app guide (v0.6):** `SH.tour(key, steps)` shows a short spotlight walkthrough the first time each page opens (keys `today`, `tutor`, `lessons`, `sources`, `grades`, `record`, `session` in `localStorage sh:tour:<key>`). Steps carry English and Hebrew text and are skipped when their element isn't on screen. Settings → Guide → "Show the guide again" clears them. Off in `?demo` unless `&tour=1`, so the test tools aren't blocked. Keep each step to one or two sentences.
+
 **Theme:** `localStorage sh:theme` (`light` / `dark` / `auto`, nothing stored = dark) + `settings.theme`; every page's `<head>` sets `html[data-theme]` before paint; Auto = follow the phone.
 
 ## 5. The tutor (the most important part)

@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.1">
+<link rel="stylesheet" href="/app.css?v=0.6.0">
 <title>Grades · Study</title>
 </head>
 <body>
@@ -28,11 +28,16 @@
   <section class="list" id="mistakes"></section>
   <section class="list" id="grades"></section>
 </main>
-<script src="/app.js?v=0.5.1"></script>
+<script src="/app.js?v=0.6.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, t } = S;
   S.nav('progress');
+  S.tour('grades', [
+    { sel: '#stats', en: ['Alone vs with help', 'Only questions you solved alone count as progress.'], he: ['לבד מול עם עזרה', 'רק שאלות שפתרת לבד נחשבות התקדמות.'] },
+    { sel: '#ready', en: ['Ready for the test', 'For each test: how many topics you can already do alone.'], he: ['מוכנות למבחן', 'לכל מבחן: כמה נושאים אתה כבר יודע לבד.'] },
+    { sel: '#mistakes', en: ['Mistakes that repeat', 'The same mistake twice shows up here. Tap to practice just that.'], he: ['טעויות שחוזרות', 'טעות שחוזרת פעמיים מופיעה כאן. לוחצים כדי לתרגל רק אותה.'] }
+  ]);
   $('#h1').textContent = t('Grades');
   $('#sub').textContent = t('Counts only what you solved alone');
   if (!(await S.session())) return;

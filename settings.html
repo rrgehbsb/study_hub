@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.1">
+<link rel="stylesheet" href="/app.css?v=0.6.0">
 <title>Settings · Study</title>
 </head>
 <body>
@@ -25,6 +25,7 @@
   <header class="head"><a class="icon-btn" id="back" aria-label="Back"></a><div class="t"><h1 id="h1"></h1></div></header>
   <span class="label" id="l-look"></span>
   <section class="card" id="look" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"></section>
+  <section class="card" id="guide" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"></section>
   <span class="label" id="l-src"></span>
   <section class="list" id="sources"></section>
   <span class="label" id="l-who"></span>
@@ -37,7 +38,7 @@
   <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
   <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
 </main>
-<script src="/app.js?v=0.5.1"></script>
+<script src="/app.js?v=0.6.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -138,6 +139,8 @@
       '<span class="hint">' + esc(t('Signed in as {x}', { x: (S.user() || {}).email || '' })) + ' · v' + S.VERSION + '</span><button class="btn" id="so">' + esc(t('Sign out')) + '</button>';
     $('#so').onclick = S.signOut;
   }
+  $('#guide').innerHTML = '<span style="flex:1 1 200px;display:flex;flex-direction:column"><span>' + esc(t('Guide')) + '</span><span class="hint">' + esc(t('Shows the short tour on each page again.')) + '</span></span><button type="button" class="btn" id="guide-go">' + esc(t('Show the guide again')) + '</button>';
+  $('#guide-go').onclick = () => { S.tourReset(); location.href = S.link('/', S.DEMO ? { tour: 1 } : null); };
   look(); sources(); groups(); teachers(); acts(); plan(); langs(); account();
   S.loadGroups().then(groups);
   S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 60).then(r => { inbox = r; teachers(); }).catch(() => {});

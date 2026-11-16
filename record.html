@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.1">
+<link rel="stylesheet" href="/app.css?v=0.6.0">
 <meta name="theme-color" content="#0B0F19">
 <title>Record lesson · Study</title>
 </head>
@@ -28,11 +28,16 @@
   </header>
   <section id="view" style="display:flex;flex-direction:column;gap:18px"></section>
 </main>
-<script src="/app.js?v=0.5.1"></script>
+<script src="/app.js?v=0.6.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
   S.nav('record');
+  S.tour('record', [
+    { sel: '.rec-now', en: ['The lesson', 'Picked from your timetable. Wrong one? Tap the right lesson in the list below.'], he: ['השיעור', 'נבחר לפי המערכת. לא נכון? לוחצים על השיעור הנכון ברשימה למטה.'] },
+    { sel: '#start', en: ['Start recording', 'Keep the screen on. Locking the phone or leaving the app stops the recording. Turn the brightness down and put it face down.'], he: ['להתחיל להקליט', 'המסך צריך להישאר דלוק. נעילת הטלפון או יציאה מהאפליקציה עוצרות את ההקלטה. מנמיכים בהירות ומניחים הפוך.'] },
+    { sel: '.rec-warn', en: ['Screen off?', 'Then record with Voice Memos instead, and upload it after class: Lessons → + → Lesson recording.'], he: ['מסך כבוי?', 'אז מקליטים בתזכורות קוליות ומעלים אחרי השיעור: שיעורים ← + ← הקלטת שיעור.'] }
+  ]);
   if (!(await S.session())) return;
   await S.school.load();
   const he = S.lang() === 'he';
@@ -78,6 +83,7 @@
       : '<span class="eyebrow">' + esc(curP && curP.split ? t('Now: your class splits. Which one is yours?') : nextP ? t('Next lesson {x}', { x: nextP.start }) : t('No lesson right now')) + '</span><h1 class="rec-subj" dir="auto">' + esc(sid ? S.subjectName(sid) : t('Record lesson')) + '</h1>';
     $('#view').innerHTML = '<section class="rec-now">' + nowLine + '</section>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin:8px 0 4px"><button class="stop start" id="start" aria-label="' + esc(t('Start recording')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Start recording')) + '</span></div>' +
+      '<p class="note rec-warn">' + (he ? 'השאירו את המסך דלוק. נעילת הטלפון או יציאה מהאפליקציה עוצרות את ההקלטה. צריך מסך כבוי? הקליטו בתזכורות קוליות והעלו אחרי השיעור (שיעורים ← +).' : 'Keep the screen on. Locking the phone or leaving the app stops the recording. Need the screen off? Record in Voice Memos and upload it after class (Lessons → +).') + '</p>' +
       (left.length ? '<div class="note">' + (he ? 'יש הקלטה שלא הסתיימה מהפעם הקודמת.' : 'There’s an unfinished recording from last time.') + ' <button class="btn" id="recover" style="margin-top:8px">' + (he ? 'להעלות אותה' : 'Upload it') + '</button></div>' : '') +
       (today.length ? '<div class="rec-day"><span class="label">' + esc(t('Today’s lessons')) + '</span><div class="rec-list">' + today.map((p, i) => '<button class="rec-p' + (p === pick ? ' on' : '') + (p === curP ? ' now' : '') + (S.toMin(p.end) <= nowM ? ' past' : '') + '" data-p="' + i + '"><span class="tm" dir="ltr">' + esc(p.start) + '</span><span dir="auto">' + esc(p.he) + '</span></button>').join('') + '</div></div>' : '') +
       '<details class="rec-more"><summary>' + esc(t('Another subject')) + '</summary>' + subjSelect() + '</details>' +

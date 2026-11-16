@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.5.1">
+<link rel="stylesheet" href="/app.css?v=0.6.0">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -30,12 +30,22 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.5.1"></script>
+<script src="/app.js?v=0.6.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
   const LESSONS = S.qs('tab') === 'lessons';
   S.nav(LESSONS ? 'lessons' : 'sources');
+  if (LESSONS) S.tour('lessons', [
+    { sel: '#view a[href*="record"]', en: ['Record lesson', 'Opens the recorder for the lesson happening now. Keep the screen on while it records.'], he: ['הקלטת שיעור', 'פותח הקלטה לשיעור שקורה עכשיו. המסך צריך להישאר דלוק בזמן ההקלטה.'] },
+    { sel: '#add', en: ['The + button', 'Send a board photo, notes, an old test, a worksheet, a WhatsApp summary or a recording you already have.'], he: ['כפתור ה-+', 'שולחים צילום לוח, סיכום, מבחן ישן, דף עבודה, סיכום מוואטסאפ או הקלטה שכבר יש לך.'] },
+    { sel: '#view .lesson-row', en: ['A lesson', 'Tap it for the summary, the full transcript, or to study it with the tutor.'], he: ['שיעור', 'לוחצים לסיכום, לתמלול המלא, או ללמוד אותו עם המורה.'] }
+  ]);
+  else S.tour('sources', [
+    { sel: '#srcs', en: ['Where things come from', 'WhatsApp, Mashov and the school site. Tap a card for its settings.'], he: ['מאיפה זה מגיע', 'וואטסאפ, משוב ואתר בית הספר. לוחצים על כרטיס להגדרות שלו.'] },
+    { sel: '#tabs', en: ['Three views', 'Coming up: tests and homework by date. Messages: by teacher. Subjects: each one as a course.'], he: ['שלוש תצוגות', 'בקרוב: מבחנים ושיעורי בית לפי תאריך. הודעות: לפי מורה. מקצועות: כל אחד כקורס.'] },
+    { sel: '#add', en: ['The + button', 'Add homework, a test date, a board photo, notes or an old test.'], he: ['כפתור ה-+', 'מוסיפים שיעורי בית, תאריך מבחן, צילום לוח, סיכום או מבחן ישן.'] }
+  ]);
   const he = S.lang() === 'he';
   $('#h1').textContent = LESSONS ? t('Lessons') : t('Sources');
   $('#sub').textContent = LESSONS ? (he ? 'כל שיעור: סיכום, תמלול והלוח' : 'Every lesson: summary, transcript, the board') : (he ? 'וואטסאפ, משוב ואתר בית הספר, במקום אחד' : 'WhatsApp, Mashov and the school site, in one place');

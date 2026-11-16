@@ -14,6 +14,11 @@ const startedAt = Date.now();
 
 $('#back').innerHTML = ic('back', 'flip');
 if (!(await S.session())) return;
+S.tour('session', [
+  { sel: '#steps', en: ['Four steps', 'Learn → Example → Your turn → Check. The last question you solve alone, on paper.'], he: ['ארבעה שלבים', 'לומדים ← דוגמה ← תורך ← בדיקה. את השאלה האחרונה פותרים לבד, על דף.'] },
+  { sel: '#tlang', en: ['Language', 'Switch the teaching language for this session.'], he: ['שפה', 'מחליפים את שפת ההוראה לשיעור הזה.'] },
+  { sel: '#dock', en: ['Your buttons', 'Move on, ask for another explanation, or ask your own question. In Check, answer honestly: alone or with help.'], he: ['הכפתורים שלך', 'ממשיכים, מבקשים הסבר אחר, או שואלים. בבדיקה עונים בכנות: לבד או עם עזרה.'] }
+]);
 await S.school.load();
 const subj = S.subject(P.subject);
 const test = P.test ? S.school.get(S.K.te).find(x => x.id === P.test) : S.openTests().find(x => x.subjectId === P.subject);

@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.5.1';
+const VERSION = '0.6.0';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -94,7 +94,7 @@ const HE = {
   'Plan my week with Claude': 'לתכנן את השבוע עם Claude', 'Import from Claude': 'ייבוא מ־Claude', 'Prompt copied: paste it in Claude.': 'הפרומפט הועתק: הדבק אותו ב־Claude.',
   'Paste what Claude gave you at the end (or upload the file).': 'הדבק את מה ש־Claude נתן לך בסוף (או העלה את הקובץ).', 'Import': 'ייבוא', 'Or choose the file': 'או לבחור את הקובץ',
   'That doesn’t look like a Study plan. Copy the whole block Claude gave you.': 'זה לא נראה כמו תוכנית. העתק את כל הבלוק ש־Claude נתן.', 'Plan imported': 'התוכנית יובאה',
-  'Home': 'בית', 'Sources': 'מקורות', 'Tutor': 'מורה פרטי', 'Record': 'הקלטה', 'Notebook': 'מחברת', 'Messages': 'הודעות', 'School stuff': 'בית ספר (כללי)', 'All': 'הכל', 'Quiz': 'בוחן', 'Test': 'מבחן',
+  'Home': 'בית', 'Sources': 'מקורות', 'Guide': 'מדריך', 'Show the guide again': 'להציג שוב את המדריך', 'Shows the short tour on each page again.': 'מציג שוב את הסיור הקצר בכל עמוד.', 'Tutor': 'מורה פרטי', 'Record': 'הקלטה', 'Notebook': 'מחברת', 'Messages': 'הודעות', 'School stuff': 'בית ספר (כללי)', 'All': 'הכל', 'Quiz': 'בוחן', 'Test': 'מבחן',
   'You said it’s not yours': 'סימנת שזה לא שלך', 'For another class': 'לכיתה אחרת', 'Group you don’t take: {x}': 'קבוצה שאתה לא בה: {x}',
   'Your groups show up here once your class is set.': 'הקבוצות שלך יופיעו כאן כשהכיתה מוגדרת.', 'Everything from school, in one place': 'כל מה שמגיע מבית הספר, במקום אחד',
   'One time: which groups are you in?': 'פעם אחת: באילו קבוצות אתה?', 'Your class splits for these. Tests of groups you’re not in fold away (never deleted).': 'בשיעורים האלה הכיתה מתחלקת. מבחנים של קבוצות שאתה לא בהן מתקפלים הצידה (לא נמחקים).',
@@ -223,6 +223,74 @@ function nav(active) {
   tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab" href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
   document.body.appendChild(tabs);
 }
+
+
+/* ================= in-app guide (v0.6) =================
+   SH.tour(key, steps): a short spotlight walkthrough, shown once per page (localStorage sh:tour:<key>).
+   Each step: { sel: 'css, css', en: [title, text], he: [title, text] }. A step whose element isn't on
+   screen is skipped. Settings → "Show the guide again" clears every key. Off in ?demo unless &tour. */
+const TOUR_KEYS = ['today', 'tutor', 'lessons', 'sources', 'grades', 'record', 'session'];
+function tourDone(key) { try { return localStorage.getItem('sh:tour:' + key) === '1'; } catch (e) { return true; } }
+function tourReset() { try { TOUR_KEYS.forEach(k => localStorage.removeItem('sh:tour:' + k)); } catch (e) {} }
+function visibleEl(sel) {
+  for (const el of document.querySelectorAll(sel)) {
+    const r = el.getBoundingClientRect(), cs = getComputedStyle(el);
+    if (r.width > 0 && r.height > 0 && cs.visibility !== 'hidden' && cs.display !== 'none' && !el.closest('[hidden]')) return el;
+  }
+  return null;
+}
+async function tour(key, steps, opt) {
+  if (DEMO && !qs('tour')) return;
+  if (!(opt && opt.force) && tourDone(key)) return;
+  if (document.querySelector('.tour-block')) return;
+  for (let i = 0; i < 40 && !steps.some(st => visibleEl(st.sel)); i++) await wait(150);
+  await wait(500);
+  const list = steps.filter(st => visibleEl(st.sel));
+  if (!list.length) return;
+  const he = LANG === 'he';
+  const block = document.createElement('div'); block.className = 'tour-block';
+  const ring = document.createElement('div'); ring.className = 'tour-ring';
+  const card = document.createElement('div'); card.className = 'tour-card'; card.setAttribute('role', 'dialog'); card.setAttribute('aria-modal', 'true');
+  document.body.append(block, ring, card);
+  let i = 0;
+  const finish = () => { try { localStorage.setItem('sh:tour:' + key, '1'); } catch (e) {} block.remove(); ring.remove(); card.remove(); removeEventListener('resize', place); removeEventListener('keydown', onKey, true); };
+  function place() {
+    const el = visibleEl(list[i].sel); if (!el) return;
+    const r = el.getBoundingClientRect(), pad = 6, vw = innerWidth, vh = innerHeight;
+    const top = Math.max(4, r.top - pad), left = Math.max(4, r.left - pad);
+    const bottom = Math.min(vh - 4, r.bottom + pad), right = Math.min(vw - 4, r.right + pad);
+    Object.assign(ring.style, { top: top + 'px', left: left + 'px', width: Math.max(0, right - left) + 'px', height: Math.max(0, bottom - top) + 'px' });
+    const cw = Math.min(340, vw - 32); card.style.width = cw + 'px';
+    const ch = card.offsetHeight;
+    let y = bottom + 12 + ch <= vh - 8 ? bottom + 12 : top - 12 - ch >= 8 ? top - 12 - ch : Math.max(8, vh - ch - 8);
+    let x = Math.min(Math.max(16, (left + right) / 2 - cw / 2), vw - cw - 16);
+    Object.assign(card.style, { top: y + 'px', left: x + 'px' });
+  }
+  function show() {
+    const st = list[i], txt = (he && st.he) || st.en;
+    const el = visibleEl(st.sel);
+    const fixedBar = el && el.closest('.tabs, .topbar');
+    if (el && !fixedBar) el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    card.innerHTML = '<div class="tour-top"><span class="tour-n">' + (i + 1) + ' / ' + list.length + '</span><button type="button" class="tour-skip">' + (he ? 'דילוג' : 'Skip') + '</button></div>' +
+      '<b class="tour-t" dir="auto">' + esc(txt[0]) + '</b><p class="tour-d" dir="auto">' + esc(txt[1]) + '</p>' +
+      '<div class="tour-btns">' + (i ? '<button type="button" class="btn ghost tour-back">' + (he ? 'הקודם' : 'Back') + '</button>' : '<span></span>') +
+      '<button type="button" class="btn accent tour-next">' + (i === list.length - 1 ? (he ? 'הבנתי' : 'Got it') : (he ? 'הבא' : 'Next')) + '</button></div>';
+    card.setAttribute('aria-label', txt[0]);
+    card.querySelector('.tour-skip').onclick = finish;
+    card.querySelector('.tour-next').onclick = () => { if (i < list.length - 1) { i++; show(); } else finish(); };
+    const back = card.querySelector('.tour-back'); if (back) back.onclick = () => { i--; show(); };
+    place(); setTimeout(place, 350);
+    card.querySelector('.tour-next').focus({ preventScroll: true });
+  }
+  function onKey(e) {
+    if (e.key === 'Escape') { e.preventDefault(); finish(); }
+    else if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { const fwd = (e.key === 'ArrowRight') !== (document.documentElement.dir === 'rtl'); if (fwd && i < list.length - 1) { i++; show(); } else if (!fwd && i) { i--; show(); } }
+  }
+  addEventListener('resize', place); addEventListener('keydown', onKey, true);
+  block.onclick = () => card.querySelector('.tour-next').focus();
+  show();
+}
+const TAB_SEL = id => '.tabs a[href*="' + id + '"], .topbar nav a[href*="' + id + '"]';
 
 /* ================= Supabase + session ================= */
 let _sb = null, uid = null, user = null;
@@ -1263,7 +1331,7 @@ async function demoApi(name, p) {
 
 window.SH = {
   VERSION, DEMO, K, T, $, $$, esc, ic, qs, wait, link, stamp, newId, uuid, readJSON, writeJSON,
-  t, lang, setLang, langToggle, nav,
+  t, lang, setLang, langToggle, nav, tour, tourReset, TAB_SEL,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,
