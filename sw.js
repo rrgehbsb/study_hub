@@ -2,7 +2,7 @@
 // from the phone at once (no waiting for the network). A new version (CACHE changes with VERSION in
 // app.js) installs in the background and takes over on the next page; the old copy is deleted.
 // CACHE must match VERSION in app.js (bump both on every change).
-const CACHE = 'study-v0.7.0';
+const CACHE = 'study-v0.7.1';
 const V = '?v=' + CACHE.replace('study-v', '');
 const PAGES = ['/', '/index.html', '/tutor.html', '/session.html', '/record.html', '/notebook.html', '/subject.html', '/progress.html',
   '/settings.html', '/lesson.html', '/login.html', '/homework.html', '/subjects.html', '/teachers.html'];

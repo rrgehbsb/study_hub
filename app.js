@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.7.0';
+const VERSION = '0.7.1';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -209,7 +209,7 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-/* v0.7.0: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+/* v0.7.1: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
    the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
    the gear (Settings) sits at the top of every page. */
 /* v0.7 ("Bright", chosen 2026-11-17): bottom bar Today · Subjects · [Record] · Tutor · Grades, the big red Record
