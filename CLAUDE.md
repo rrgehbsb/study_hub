@@ -99,7 +99,9 @@ All have `user_id uuid default auth.uid()` and row-level security "own rows only
 
 Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`; the policies only allow a user inside their own `<uid>/` folder.
 
-**Long recordings (v0.6.2):** Groq takes 25 MB per file, so `SH.audioParts` cuts anything bigger before upload: a fragmented MP4 (what Safari's recorder makes) between its moof/mdat fragments with the ftyp+moov header copied to each part (no re-encoding); anything else is decoded and re-saved as 16 kHz mono WAV parts of ~23 MB (~12 min). `audio_path` then holds the part paths joined with `|`; `api/transcribe.js` transcribes the parts in parallel and shifts each part's segment times by the length of the parts before it.
+**Recording format (v0.6.4):** Record does NOT use the iPhone's MediaRecorder MP4 (Groq refused it: "could not process file", and iOS 26 MP4 recordings are known to be truncated). `SH.mp3Recorder` captures the mic with Web Audio (AudioWorklet, ScriptProcessor fallback), downsamples to 16 kHz mono and encodes MP3 live with lamejs (`/vendor/lame-1.2.1.min.js`, LGPL, loaded on the Record page), 32 kbps ≈ 14 MB/hour. Chunks are whole MP3 frames, so IndexedDB recovery always gives a playable file. If no sound arrives in 5 s it falls back to MediaRecorder (WebM first). The Record page has one state at a time (`mode`: idle/starting/recording/stopping/done): Start ignores double taps, nothing redraws over a recording, and the timer redraws the recording screen if anything replaced it. A failed lesson's "Fix and transcribe again" (`SH.repairLessonAudio`) downloads the parts, rebuilds a split MP4, decodes it in the browser, re-encodes MP3, re-uploads and transcribes.
+
+**Long recordings (v0.6.2):** MP3s are cut between frames (`SH.splitMp3`). Groq takes 25 MB per file, so `SH.audioParts` cuts anything bigger before upload: a fragmented MP4 (what Safari's recorder makes) between its moof/mdat fragments with the ftyp+moov header copied to each part (no re-encoding); anything else is decoded and re-saved as 16 kHz mono WAV parts of ~23 MB (~12 min). `audio_path` then holds the part paths joined with `|`; `api/transcribe.js` transcribes the parts in parallel and shifts each part's segment times by the length of the parts before it.
 
 **Audio is deleted from Storage once transcribed.** Keep only the text: it saves space and it's the teacher's voice.
 
@@ -119,7 +121,7 @@ session.html/.js  Study session in 4 steps: Learn → Example → Your turn → 
 record.html     Record tab (red, middle): picks the lesson from today's class timetable (your group when the class splits),
                 today's lessons to tap, wake lock, board photos and "On the test!" marks tied to the moment, chunks in
                 IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording;
-                "Black screen" covers the page in black while it keeps recording (hold the middle ~1 s to return)
+                "Black screen" covers the page in black while it keeps recording (hold the middle ~1 s to return); records MP3 (§3)
 notebook.html   Two tabs in one page. ?tab=lessons = **Lessons** (Record button, every lesson with summary → lesson.html).
                 Otherwise **Sources**: a card per source (WhatsApp, Mashov, school site → Settings), then Coming up (tests +
                 homework by date, "Probably not yours" fold) · Messages (Mashov + WhatsApp, by teacher) · Subjects (→ subject.html)
@@ -130,7 +132,7 @@ settings.html   Appearance (Light / Dark / Auto), sources status + class, your g
                 (chat, "Plan my week with Claude", import, edit by hand), study minutes, way home, latest time,
                 app and teaching language, AI turns, sign out
 lesson.html     One lesson: summary, full transcript (marks and photo moments shown); a failed lesson shows its error and
-                "Transcribe again"; a lesson without a summary gets "Make a summary"
+                "Fix and transcribe again" (converts to MP3 first) + "Download the recording"; a lesson without a summary gets "Make a summary"
 login.html      Email + password (same accounts as the main Dashboard)
 app.css         Command Center design system (dark default) + Coach light, course path, session, record styles
 app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,
@@ -197,6 +199,7 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 
 - `node tools/serve.js .` then open `http://localhost:5178/?demo`. Demo mode: sample subjects, tests, lessons and canned tutor replies; **no login, no network calls, no storage writes**.
 - `PLAYWRIGHT_PATH=$(npm root -g)/playwright SHOT_DIR=/tmp/shots node tools/shot.js` screenshots every page in demo mode at 390px and 1280px and fails on console errors or horizontal overflow.
+- `node tools/rec-test.js` (same `PLAYWRIGHT_PATH`): records with Chromium's fake microphone (`FAKE_WAV=file.wav` to feed a file): triple-tap Start, screen wiped mid-recording, black screen, sound bars, Stop → a real MP3 checked with ffprobe, crash → "Upload it", MP3 splitting.
 - `node tools/flows.js` (same `PLAYWRIGHT_PATH`): the main flows step by step with PASS/FAIL (fold a test away and back, tick + undo, teacher picker, groups, theme, record, session, old links).
 - `node tools/check.js`: the bug hunt (~25 min): every page at 390 / 360 / 1280 px, English + Hebrew, light + dark; console errors, missing files, broken links, small tap targets, English left in Hebrew; then taps every button on every page. Run it before big deploys.
 - `api/` needs the env vars; test it on the deployed site (or `vercel dev`).

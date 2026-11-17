@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.3';
+const VERSION = '0.6.4';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -1121,9 +1121,179 @@ async function splitByDecoding(arrayBuf) {
   }
   return out;
 }
+/* MP3 frames stand alone, so an MP3 is cut between frames: every part is a valid file. */
+function mp3FrameLen(u8, o) {
+  if (u8[o] !== 0xFF || (u8[o + 1] & 0xE0) !== 0xE0) return 0;
+  const ver = (u8[o + 1] >> 3) & 3, layer = (u8[o + 1] >> 1) & 3, bi = u8[o + 2] >> 4, si = (u8[o + 2] >> 2) & 3, pad = (u8[o + 2] >> 1) & 1;
+  if (ver === 1 || layer !== 1 || bi === 0 || bi === 15 || si === 3) return 0; // Layer III only
+  const v1 = ver === 3;
+  const kbps = (v1 ? [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320] : [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160])[bi];
+  const rate = [44100, 48000, 32000][si] / (v1 ? 1 : ver === 2 ? 2 : 4);
+  return Math.floor((v1 ? 144 : 72) * kbps * 1000 / rate) + pad;
+}
+function isMp3(u8) {
+  if (u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33) return true; // ID3
+  const n = mp3FrameLen(u8, 0); return !!n && mp3FrameLen(u8, n) > 0;
+}
+function splitMp3(u8, max) {
+  max = max || PART_MAX;
+  let o = 0;
+  if (u8[0] === 0x49 && u8[1] === 0x44 && u8[2] === 0x33) o = 10 + ((u8[6] & 127) << 21 | (u8[7] & 127) << 14 | (u8[8] & 127) << 7 | (u8[9] & 127));
+  const cuts = [o]; let start = o, frames = 0;
+  while (o + 4 <= u8.length) {
+    const n = mp3FrameLen(u8, o);
+    if (!n) { o++; continue; }
+    if (o + n - start > max && o > start) { cuts.push(o); start = o; }
+    o += n; frames++;
+  }
+  if (!frames) return null;
+  cuts.push(u8.length);
+  const out = [];
+  for (let i = 0; i < cuts.length - 1; i++) out.push(new Blob([u8.subarray(cuts[i], cuts[i + 1])], { type: 'audio/mpeg' }));
+  return out;
+}
+/* ================= recording straight to MP3 =================
+   An iPhone's own recorder makes MP4 files the transcriber sometimes can't open, so Study records the
+   microphone itself (Web Audio), shrinks it to 16 kHz mono and encodes MP3 as it goes (lamejs, ~14 MB an hour).
+   Every chunk is whole MP3 frames: chunks saved so far always make a playable file, even after a crash. */
+const MP3_RATE = 16000, MP3_KBPS = 32, MP3_MIME = 'audio/mpeg';
+let lameP = null;
+function loadLame() {
+  if (window.lamejs && window.lamejs.Mp3Encoder) return Promise.resolve();
+  return lameP || (lameP = new Promise((res, rej) => {
+    const s = document.createElement('script'); s.src = '/vendor/lame-1.2.1.min.js';
+    s.onload = () => (window.lamejs && window.lamejs.Mp3Encoder) ? res() : rej(new Error('MP3 encoder missing'));
+    s.onerror = () => { lameP = null; rej(new Error('Couldn’t load the MP3 encoder.')); };
+    document.head.appendChild(s);
+  }));
+}
+/* float samples at any rate in → MP3 bytes out (16 kHz mono). Box-filter downsampling is plenty for speech. */
+function mp3Stream(inRate) {
+  const enc = new window.lamejs.Mp3Encoder(1, MP3_RATE, MP3_KBPS), step = inRate / MP3_RATE;
+  let left = new Float32Array(0), pos = 0, out = new Int16Array(1152 * 8), on = 0, samples = 0;
+  const bytes = [];
+  const emit = b => { if (b && b.length) bytes.push(new Uint8Array(b.buffer, b.byteOffset, b.length).slice()); };
+  const take = () => { if (!bytes.length) return null; let n = 0; bytes.forEach(b => n += b.length); const u = new Uint8Array(n); let o = 0; bytes.forEach(b => { u.set(b, o); o += b.length; }); bytes.length = 0; return u; };
+  return {
+    push(f32) {
+      let x = f32;
+      if (left.length) { x = new Float32Array(left.length + f32.length); x.set(left); x.set(f32, left.length); }
+      while (pos + step <= x.length) {
+        const a = Math.floor(pos), b = Math.max(a + 1, Math.floor(pos + step));
+        let s = 0; for (let i = a; i < b; i++) s += x[i];
+        const v = Math.max(-1, Math.min(1, s / (b - a)));
+        out[on++] = v < 0 ? v * 32768 : v * 32767; samples++;
+        if (on === out.length) { emit(enc.encodeBuffer(out)); on = 0; }
+        pos += step;
+      }
+      const keep = Math.floor(pos); left = x.slice(keep); pos -= keep;
+      return take();
+    },
+    flush() { if (on) { emit(enc.encodeBuffer(out.subarray(0, on))); on = 0; } emit(enc.flush()); return take(); },
+    get seconds() { return samples / MP3_RATE; }
+  };
+}
+const CAPTURE_JS = 'class C extends AudioWorkletProcessor{constructor(){super();this.b=new Float32Array(4096);this.n=0}process(i){const c=i[0]&&i[0][0];if(c){for(let k=0;k<c.length;k++){this.b[this.n++]=c[k];if(this.n===4096){this.port.postMessage(this.b,[this.b.buffer]);this.b=new Float32Array(4096);this.n=0}}}return true}}registerProcessor("sh-capture",C);';
+/* ctx: an AudioContext made during the tap (iPhones need that). onChunk(Uint8Array) gets MP3 bytes every few seconds. */
+async function mp3Recorder(stream, ctx, onChunk) {
+  await loadLame();
+  if (ctx.state !== 'running') { try { await ctx.resume(); } catch (e) {} }
+  const enc = mp3Stream(ctx.sampleRate), src = ctx.createMediaStreamSource(stream);
+  const analyser = ctx.createAnalyser(); analyser.fftSize = 256; src.connect(analyser);
+  const mute = ctx.createGain(); mute.gain.value = 0; mute.connect(ctx.destination);
+  let pend = [], pendN = 0, got = 0, node = null, stopped = false;
+  const out = (u, force) => { if (u) { pend.push(u); pendN += u.length; } if (pendN && (force || pendN >= 12000)) { const all = new Uint8Array(pendN); let o = 0; pend.forEach(p => { all.set(p, o); o += p.length; }); pend = []; pendN = 0; onChunk(all); } };
+  const feed = f32 => { if (stopped) return; got += f32.length; out(enc.push(f32)); };
+  const useScript = () => {
+    const sp = ctx.createScriptProcessor(4096, 1, 1);
+    sp.onaudioprocess = e => feed(new Float32Array(e.inputBuffer.getChannelData(0)));
+    src.connect(sp); sp.connect(mute); return sp;
+  };
+  try {
+    if (!ctx.audioWorklet || !window.AudioWorkletNode) throw new Error('no worklet');
+    const url = URL.createObjectURL(new Blob([CAPTURE_JS], { type: 'application/javascript' }));
+    await ctx.audioWorklet.addModule(url); URL.revokeObjectURL(url);
+    node = new AudioWorkletNode(ctx, 'sh-capture', { numberOfInputs: 1, numberOfOutputs: 1, channelCount: 1, channelCountMode: 'explicit' });
+    node.port.onmessage = e => feed(e.data);
+    src.connect(node); node.connect(mute);
+  } catch (e) { node = useScript(); }
+  // a worklet that loads but never delivers sound: fall back to the older capture
+  setTimeout(() => {
+    if (!stopped && !got) { if (ctx.state !== 'running') ctx.resume().catch(() => {}); if (window.AudioWorkletNode && node instanceof AudioWorkletNode) { try { node.disconnect(); } catch (e) {} node = useScript(); } }
+  }, 2500);
+  return {
+    analyser, mimeType: MP3_MIME,
+    get seconds() { return enc.seconds; },
+    get samples() { return got; },
+    stop() {
+      if (stopped) return; stopped = true;
+      try { src.disconnect(); } catch (e) {} try { node && node.disconnect(); } catch (e) {}
+      out(enc.flush(), true);
+    }
+  };
+}
+/* Turn any recording this browser can play into an MP3 (16 kHz mono). Used to rescue a recording
+   the transcriber refused. onProgress(0..1). */
+async function decodeAudio(buf) {
+  const Ctx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+  if (!Ctx) throw new Error('no decoder');
+  let ctx; try { ctx = new Ctx(1, MP3_RATE, MP3_RATE); } catch (e) { ctx = new Ctx(1, 44100, 44100); }
+  return await new Promise((res, rej) => { const p = ctx.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+}
+async function audioToMp3(buffers, onProgress) {
+  await loadLame();
+  const decoded = [];
+  // parts of one fragmented MP4: rebuild the whole file first (header + every fragment)
+  const u8s = buffers.map(b => new Uint8Array(b));
+  if (u8s.length > 1 && splitFragmentedMp4(u8s[0])) {
+    const rest = u8s.slice(1).map(u => { const fm = mp4Boxes(u).find(b => b.type === 'moof'); return fm ? u.subarray(fm.start) : u; });
+    const whole = new Uint8Array(u8s[0].length + rest.reduce((n, r) => n + r.length, 0));
+    let o = 0; [u8s[0]].concat(rest).forEach(r => { whole.set(r, o); o += r.length; });
+    try { decoded.push(await decodeAudio(whole.buffer)); } catch (e) {}
+  }
+  if (!decoded.length) for (const b of buffers) decoded.push(await decodeAudio(b.slice(0)));
+  const total = decoded.reduce((n, a) => n + a.length, 0) || 1;
+  const chunks = []; let done = 0;
+  for (const a of decoded) {
+    const enc = mp3Stream(a.sampleRate), ch = a.getChannelData(0), STEP = a.sampleRate * 20;
+    for (let s = 0; s < ch.length; s += STEP) {
+      const u = enc.push(ch.subarray(s, Math.min(ch.length, s + STEP))); if (u) chunks.push(u);
+      done += Math.min(STEP, ch.length - s); if (onProgress) onProgress(done / total);
+      await new Promise(r => setTimeout(r, 0));
+    }
+    const u = enc.flush(); if (u) chunks.push(u);
+  }
+  if (!chunks.length) throw new Error('empty');
+  return new Blob(chunks, { type: MP3_MIME });
+}
+/* The lesson page's "Fix and transcribe again": download the parts, convert them to MP3 here, upload, transcribe. */
+async function repairLessonAudio(lesson, onProgress) {
+  const paths = String(lesson.audio_path || '').split('|').filter(Boolean);
+  if (!paths.length) throw new Error('No recording to fix.');
+  await fresh();
+  const bufs = [];
+  for (const p of paths) { const r = await sb().storage.from(BUCKET).download(p); if (r.error) throw r.error; bufs.push(await r.data.arrayBuffer()); }
+  let mp3;
+  try { mp3 = await audioToMp3(bufs, onProgress); }
+  catch (e) { throw new Error(LANG === 'he' ? 'גם הטלפון לא מצליח לפתוח את ההקלטה, אז הקובץ פגום. אפשר להוריד אותו ולבדוק אם יש בו קול.' : 'This phone can’t open the recording either, so the file is damaged. You can download it to check whether it has any sound.'); }
+  const parts = mp3.size > PART_MAX ? splitMp3(new Uint8Array(await mp3.arrayBuffer())) : [mp3];
+  const np = [];
+  for (const b of parts) np.push(await upload('audio', b, 'mp3'));
+  await update(T.lessons, lesson.id, { status: 'uploaded', audio_path: np.join('|'), error: null });
+  sb().storage.from(BUCKET).remove(paths).catch(() => {});
+  return await api('transcribe', { lessonId: lesson.id, subjectName: subjectName(lesson.subject_id) });
+}
+async function audioUrl(path) {
+  await fresh();
+  const r = await sb().storage.from(BUCKET).createSignedUrl(path, 3600, { download: true });
+  if (r.error) throw r.error; return r.data.signedUrl;
+}
 async function audioParts(file) {
   if (file.size <= PART_MAX) return [file];
   const buf = await file.arrayBuffer();
+  if (/mpeg|mp3/i.test(file.type) || /\.mp3$/i.test(file.name || '') || isMp3(new Uint8Array(buf, 0, Math.min(buf.byteLength, 4096)))) {
+    const mp = splitMp3(new Uint8Array(buf)); if (mp && mp.length) return mp;
+  }
   const frag = splitFragmentedMp4(new Uint8Array(buf), file.type);
   if (frag && frag.length) return frag;
   try { return await splitByDecoding(buf); }
@@ -1132,7 +1302,7 @@ async function audioParts(file) {
 async function uploadLessonAudio(file, sid, date, extra) {
   const parts = await audioParts(file);
   if (parts.length > 1) toast((LANG === 'he' ? 'מעלה ב-' + parts.length + ' חלקים…' : 'Long lesson: uploading in ' + parts.length + ' parts…'));
-  const extOf = b => (b.type && /wav/.test(b.type)) ? 'wav' : (b.type && /mp4|m4a|aac/.test(b.type)) ? 'm4a' : (b.type && /webm/.test(b.type)) ? 'webm' : (file.name && file.name.includes('.') ? file.name.split('.').pop() : 'm4a').toLowerCase();
+  const extOf = b => (b.type && /mpeg|mp3/.test(b.type)) ? 'mp3' : (b.type && /wav/.test(b.type)) ? 'wav' : (b.type && /mp4|m4a|aac/.test(b.type)) ? 'm4a' : (b.type && /webm/.test(b.type)) ? 'webm' : (file.name && file.name.includes('.') ? file.name.split('.').pop() : 'm4a').toLowerCase();
   const paths = [];
   for (let i = 0; i < parts.length; i++) {
     if (parts.length > 1 && i) toast((LANG === 'he' ? 'מעלה חלק ' : 'Uploading part ') + (i + 1) + ' / ' + parts.length + '…');
@@ -1362,6 +1532,7 @@ const DEMO_ROWS = {
   study_lessons: [
     { id: 'l1', subject_id: 'phys', lesson_date: addDays(todayKey(), -2), title: 'נפילה חופשית', status: 'ready', topics: ['נפילה חופשית'], marks: [600], summary: '- גוף שנזרק כלפי מטה: $v_0<0$ כשהציר כלפי מעלה\n- $y(t)=y_0+v_0t-\\frac{1}{2}gt^2$\n- המורה: "במבחן תמיד יש שאלה עם שני גופים"', transcript: '[0:00] המורה: טוב, היום נדבר על נפילה חופשית. ניקח ציר כלפי מעלה, ואז התאוצה היא מינוס g…\n[MARKED BY STUDENT: on the test]\nבמבחן תמיד יש שאלה עם שני גופים…' },
     { id: 'l2', subject_id: 'phys', lesson_date: todayKey(), title: null, status: 'transcribing', topics: [] },
+    { id: 'l4', subject_id: 'math', lesson_date: addDays(todayKey(), -1), title: null, status: 'error', topics: [], audio_path: 'demo/audio/l4.m4a', error: 'The transcriber couldn’t open this recording file. Tap "Fix and transcribe again": the app converts it to MP3 first.' },
     { id: 'l3', subject_id: 'math', lesson_date: addDays(todayKey(), -2), title: 'נגזרת ומשיק', status: 'ready', topics: ['נגזרות', 'משיק'], summary: '- משוואת משיק: $y-y_0=f\'(x_0)(x-x_0)$', transcript: 'המורה: מה זה משיק? ישר שנוגע בגרף בנקודה אחת…' }
   ],
   study_materials: [
@@ -1408,7 +1579,7 @@ async function demoApi(name, p) {
 
 window.SH = {
   VERSION, DEMO, K, T, $, $$, esc, ic, qs, wait, link, stamp, newId, uuid, readJSON, writeJSON,
-  t, lang, setLang, langToggle, nav, tour, tourReset, TAB_SEL, audioParts,
+  t, lang, setLang, langToggle, nav, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,

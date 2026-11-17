@@ -17,7 +17,11 @@ async function groq(buf, filename, type, lang) {
   form.append('response_format', 'verbose_json'); // segments with times, so marks and board photos can be placed
   const r = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', { method: 'POST', headers: { Authorization: 'Bearer ' + key }, body: form });
   const j = await r.json().catch(() => ({}));
-  if (!r.ok) throw new HttpError(502, 'Transcription failed: ' + ((j.error && j.error.message) || r.status));
+  if (!r.ok) {
+    const msg = String((j.error && j.error.message) || r.status);
+    if (/valid media|could not process|invalid file/i.test(msg)) throw new HttpError(422, 'The transcriber couldn’t open this recording file. Tap "Fix and transcribe again": the app converts it to MP3 first.');
+    throw new HttpError(502, 'Transcription failed: ' + msg);
+  }
   const segments = Array.isArray(j.segments) ? j.segments : [];
   const duration = +j.duration || (segments.length ? +segments[segments.length - 1].end || 0 : 0);
   return { text: String(j.text || '').trim(), segments, duration };

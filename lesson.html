@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.3">
+<link rel="stylesheet" href="/app.css?v=0.6.4">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -36,7 +36,7 @@
   <section class="card"><h2 id="h-sum" style="margin-bottom:8px"></h2><div class="prose" dir="auto" id="summary"></div></section>
   <details class="card"><summary><span id="h-tx"></span><span class="hint" id="tx-len"></span></summary><div class="transcript" dir="auto" id="transcript"></div></details>
 </main>
-<script src="/app.js?v=0.6.3"></script>
+<script src="/app.js?v=0.6.4"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -66,10 +66,32 @@
     const box = $('#state'); box.hidden = false;
     if (l.audio_path) {
       box.innerHTML = '<b>' + (l.status === 'error' ? (he ? 'התמלול נכשל' : 'Transcription failed') : (he ? 'עוד לא תומלל' : 'Not transcribed yet')) + '</b>' +
-        (l.error ? '<p class="hint" dir="auto">' + esc(l.error) + '</p>' : '') +
+        (l.error ? '<p class="hint" dir="auto">' + esc(/open this recording|valid media|could not process|invalid file/i.test(l.error) ? (he ? 'המתמלל לא הצליח לפתוח את קובץ ההקלטה. לחיצה על "לתקן ולתמלל שוב" ממירה אותו ל-MP3 בטלפון ושולחת שוב.' : 'The transcriber couldn’t open the recording file. "Fix and transcribe again" converts it to MP3 on this phone and sends it again.') : l.error) + '</p>' : '') +
         '<p class="hint">' + (he ? 'ההקלטה שמורה. אפשר לנסות שוב.' : 'The recording is saved. You can try again.') + '</p>' +
-        '<button class="btn accent" id="retry">' + (he ? 'לתמלל שוב' : 'Transcribe again') + '</button>';
-      $('#retry').onclick = () => run($('#retry'), {});
+        '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button class="btn accent" id="retry">' + (he ? 'לתקן ולתמלל שוב' : 'Fix and transcribe again') + '</button>' +
+        '<button class="btn ghost" id="dl">' + (he ? 'להוריד את ההקלטה' : 'Download the recording') + '</button></div>';
+      const paths = String(l.audio_path).split('|').filter(Boolean);
+      const allMp3 = paths.every(p => /\.mp3$/i.test(p));
+      // MP3 already (or the demo): just try again. Anything else: convert to MP3 on this phone first,
+      // because the transcriber can't open some iPhone recordings.
+      $('#retry').onclick = async () => {
+        const btn = $('#retry');
+        if (allMp3 || S.DEMO || l.status !== 'error') return run(btn, {});
+        btn.disabled = true;
+        try {
+          await S.repairLessonAudio(l, f => { btn.textContent = (he ? 'מתקן את ההקלטה… ' : 'Fixing the recording… ') + Math.round(f * 100) + '%'; });
+          btn.textContent = he ? 'מתמלל…' : 'Transcribing…';
+          location.reload();
+        } catch (e) { btn.disabled = false; btn.textContent = he ? 'לנסות שוב' : 'Try again'; S.toast(e.message); }
+      };
+      $('#dl').onclick = async () => {
+        if (S.DEMO) return S.toast(he ? 'לא בדמו' : 'Not in the demo');
+        try {
+          const urls = []; for (const p of paths) urls.push(await S.audioUrl(p));
+          if (urls.length === 1) { location.href = urls[0]; return; }
+          $('#dl').outerHTML = urls.map((u, i) => '<a class="btn ghost" href="' + esc(u) + '">' + (he ? 'חלק ' : 'Part ') + (i + 1) + '</a>').join('');
+        } catch (e) { S.toast(e.message); }
+      };
     } else {
       box.innerHTML = '<b>' + (he ? 'ההקלטה לא הגיעה' : 'The recording didn’t arrive') + '</b><p class="hint">' + (he ? 'אם הקלטת בטלפון הזה: הקלטה ← "להעלות אותה". אם יש לך את הקובץ: שיעורים ← + ← הקלטת שיעור.' : 'If you recorded on this phone: Record → "Upload it". If you have the file: Lessons → + → Lesson recording.') + '</p>' +
         '<a class="btn accent" href="' + S.link('/record.html') + '">' + (he ? 'לעמוד ההקלטה' : 'Go to Record') + '</a>';

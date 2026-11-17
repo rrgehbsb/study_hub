@@ -17,7 +17,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.3">
+<link rel="stylesheet" href="/app.css?v=0.6.4">
 <meta name="theme-color" content="#0B0F19">
 <title>Record lesson · Study</title>
 </head>
@@ -28,7 +28,8 @@
   </header>
   <section id="view" style="display:flex;flex-direction:column;gap:18px"></section>
 </main>
-<script src="/app.js?v=0.6.3"></script>
+<script src="/vendor/lame-1.2.1.min.js"></script>
+<script src="/app.js?v=0.6.4"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -57,6 +58,9 @@
   let sid = S.qs('subject') || (pick ? S.subjectFromHe(pick.he) : '') || S.readJSON('sh:lastSubject') || (S.subjects()[0] || {}).id || '';
   const cur = pick ? { end: pick.end, subjectId: sid } : null;
   let rec = null, stream = null, chunks = [], lesson = null, t0 = 0, tick = null, photos = 0, marks = [], lock = null, actx = null, analyser = null, stopAt = null, marksT = null;
+  // one state at a time: a slow screen refresh or a double tap can never draw over (or start) a second recording
+  let mode = 'idle', renderN = 0;
+  const busy = () => mode === 'starting' || mode === 'recording' || mode === 'stopping';
   const DB = 'sh-rec', STORE = 'chunks';
 
   /* unfinished recordings survive a crash: chunks go to IndexedDB as they come */
@@ -75,8 +79,12 @@
     idle();
   }
   async function idle() {
+    if (busy()) return;
+    mode = 'idle';
+    const my = ++renderN;
     $('#state').textContent = '';
     const left = await idbAll();
+    if (my !== renderN || mode !== 'idle') return;
     const nowLine = pick
       ? '<span class="eyebrow">' + esc(pick === curP ? t('Now · lesson {n}', { n: pick.n }) : t('Lesson {n}', { n: pick.n })) + ' · <span dir="ltr">' + esc(pick.start + '–' + pick.end) + '</span></span><h1 class="rec-subj" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' +
         (S.toMin(pick.end) > nowM ? '<span class="hint">' + esc(t('Stops by itself at {x}', { x: pick.end })) + '</span>' : '')
@@ -96,40 +104,63 @@
     const rv = $('#recover'); if (rv) rv.onclick = async () => {
       const parts = await idbAll(); const meta = parts.find(p => p && p.meta) || {};
       const blob = new Blob(parts.filter(p => p instanceof Blob), { type: meta.type || 'audio/mp4' });
-      try { await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), meta.sid || sid, meta.date || S.todayKey(), meta.lessonId ? { lessonId: meta.lessonId } : null); await idbClear(); done(meta.sid || sid); } catch (e) { S.toast(e.message); }
+      rv.disabled = true; rv.textContent = he ? 'מעלה…' : 'Uploading…';
+      try { await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), meta.sid || sid, meta.date || S.todayKey(), meta.lessonId ? { lessonId: meta.lessonId } : null); await idbClear(); done(meta.sid || sid); } catch (e) { rv.disabled = false; rv.textContent = he ? 'להעלות אותה' : 'Upload it'; S.toast(e.message); }
     };
   }
   async function start() {
+    if (mode !== 'idle') return;
     if (!sid) return S.toast(he ? 'בחר מקצוע' : 'Pick a subject');
+    mode = 'starting';
+    const btn = $('#start'); if (btn) btn.disabled = true;
     S.writeJSON('sh:lastSubject', sid);
     if (!S.DEMO) S.school.save([S.K.subj]).catch(() => {}); // a subject first seen in the timetable gets saved
     if (!S.DEMO) {
-      try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true } }); }
-      catch (e) { return S.toast(he ? 'אין גישה למיקרופון. אשר גישה בהגדרות.' : 'No microphone access. Allow it in Settings.'); }
-      const type = ['audio/mp4', 'audio/webm;codecs=opus', 'audio/webm'].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x)) || '';
-      rec = new MediaRecorder(stream, Object.assign({ audioBitsPerSecond: 32000 }, type ? { mimeType: type } : {}));
-      chunks = [];
+      // the audio engine has to be made inside the tap (iPhones), before anything waits
+      let ctx = null; try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) {}
+      try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } }); }
+      catch (e) { try { ctx && ctx.close(); } catch (x) {} mode = 'idle'; if (btn) btn.disabled = false; return S.toast(he ? 'אין גישה למיקרופון. אשר גישה בהגדרות.' : 'No microphone access. Allow it in Settings.'); }
+      const mine = chunks = [];
       await idbClear();
-      rec.ondataavailable = e => { if (e.data && e.data.size) { chunks.push(e.data); idbAdd(e.data); } };
-      rec.start(10000);
-      try { actx = new (window.AudioContext || window.webkitAudioContext)(); analyser = actx.createAnalyser(); analyser.fftSize = 256; actx.createMediaStreamSource(stream).connect(analyser); } catch (e) {}
+      const keep = (data, type) => { const b = new Blob([data], { type }); mine.push(b); idbAdd(b); };
+      rec = null;
+      if (ctx) {
+        try { rec = await S.mp3Recorder(stream, ctx, u => keep(u, S.MP3_MIME)); analyser = rec.analyser; actx = ctx; }
+        catch (e) { rec = null; }
+      }
+      const oldWay = () => { // the browser's own recorder (MP4/WebM), if MP3 can't run here
+        const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x)) || '';
+        const mr = new MediaRecorder(stream, Object.assign({ audioBitsPerSecond: 32000 }, type ? { mimeType: type } : {}));
+        mr.ondataavailable = e => { if (e.data && e.data.size) { mine.push(e.data); idbAdd(e.data); } };
+        mr.start(10000);
+        rec = { mimeType: mr.mimeType || type || 'audio/mp4', stop: () => new Promise(r => { if (mr.state === 'inactive') return r(); mr.onstop = r; mr.stop(); }) };
+        if (!analyser) try { actx = new (window.AudioContext || window.webkitAudioContext)(); analyser = actx.createAnalyser(); analyser.fftSize = 256; actx.createMediaStreamSource(stream).connect(analyser); } catch (e) {}
+      };
+      if (!rec) { try { ctx && ctx.close(); } catch (e) {} oldWay(); }
+      else setTimeout(() => { // MP3 capture got no sound at all: switch to the old way before anything is lost
+        if (mode === 'recording' && rec && rec.samples === 0) { try { rec.stop(); } catch (e) {} mine.length = 0; oldWay(); const ty = rec.mimeType; idbClear().then(() => idbAdd({ meta: true, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: ty })); }
+      }, 5000);
+      const tr = stream.getAudioTracks()[0];
+      if (tr) tr.addEventListener('ended', () => { if (mode === 'recording') { S.toast(he ? 'המיקרופון נעצר. שומר את מה שהוקלט.' : 'The microphone stopped. Saving what was recorded.'); stop(); } });
     }
     t0 = Date.now(); photos = 0; marks = [];
     try { lesson = await S.insert(S.T.lessons, { subject_id: sid, lesson_date: S.todayKey(), status: 'recording', started_at: new Date(t0).toISOString(), marks: [] }); } catch (e) { S.toast(e.message); }
     idbAdd({ meta: true, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: rec ? rec.mimeType : '' });
     wake();
+    stopAt = null;
     if (pick && S.subjectFromHe(pick.he) === sid) { const end = S.toMin(pick.end), left = end != null ? end - S.nowMin() : null; stopAt = left != null && left > 0 ? Date.now() + left * 60000 : null; }
     document.body.classList.add('recording');
+    mode = 'recording';
     recording();
   }
   async function wake() { try { if ('wakeLock' in navigator) lock = await navigator.wakeLock.request('screen'); } catch (e) {} }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden && rec && rec.state === 'recording') wake(); });
+  document.addEventListener('visibilitychange', () => { if (!document.hidden && mode === 'recording') { wake(); if (actx && actx.state !== 'running') actx.resume().catch(() => {}); } });
   function recording() {
     $('#state').textContent = '● ' + t('Recording').toUpperCase();
     $('#view').innerHTML = '<div><h1 style="font-size:30px;font-weight:800" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' + (stopAt ? '<p style="color:#D1D5DB">' + esc(t('Stops by itself at {x}', { x: pick.end })) + '</p>' : '') + '</div>' +
       '<div class="big-time" id="time">0:00</div><div class="wave" aria-hidden="true" id="wave">' + '<span></span>'.repeat(24) + '</div>' +
-      '<div class="grid2"><label class="tile">' + ic('camera') + esc(t('Snap the board')) + '<small id="pc">0</small><input type="file" accept="image/*" capture="environment" id="snap"></label>' +
-      '<button class="tile flag" id="flag">' + ic('flag') + esc(t('"On the test!"')) + '<small id="mc">' + esc(t('marks this moment')) + '</small></button></div>' +
+      '<div class="grid2"><label class="tile">' + ic('camera') + esc(t('Snap the board')) + '<small id="pc">' + photos + '</small><input type="file" accept="image/*" capture="environment" id="snap"></label>' +
+      '<button class="tile flag" id="flag">' + ic('flag') + esc(t('"On the test!"')) + '<small id="mc">' + (marks.length ? '⚑ ' + marks.length : esc(t('marks this moment'))) + '</small></button></div>' +
       '<div class="note">' + (he ? 'טיפ: צלם את הלוח רגע לפני שהמורה מוחק. התמונה משויכת לרגע הזה בשיעור.' : 'Tip: snap the board right before the teacher erases it. The photo is matched to this moment in the lesson.') + '</div>' +
       '<button class="btn block blackout-btn" id="dark">' + (he ? 'מסך שחור (ההקלטה ממשיכה)' : 'Black screen (keeps recording)') + '</button>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-top:8px"><button class="stop" id="stop" aria-label="' + esc(t('Stop')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Stop')) + '</span></div>';
@@ -146,12 +177,20 @@
     };
     $('#stop').onclick = stop;
     $('#dark').onclick = blackout;
-    const bars = S.$$('#wave span'), buf = new Uint8Array(128);
+    const bars = S.$$('#wave span'), buf = new Uint8Array(256), fbuf = new Float32Array(256);
     clearInterval(tick);
     tick = setInterval(() => {
-      const sec = (Date.now() - t0) / 1000; $('#time').textContent = fmt(sec);
+      if (mode !== 'recording') return clearInterval(tick);
+      const tm = $('#time');
+      if (!tm) return recording(); // something redrew the page: put the recording screen back
+      const sec = (Date.now() - t0) / 1000; tm.textContent = fmt(sec);
       let lvl = 0.3 + Math.random() * 0.4;
-      if (analyser) { analyser.getByteTimeDomainData(buf); let m = 0; buf.forEach(v => { m = Math.max(m, Math.abs(v - 128)); }); lvl = Math.min(1, m / 50); }
+      if (analyser) { // loudness in dB, so a teacher across the room still moves the bars
+        let e = 0;
+        if (analyser.getFloatTimeDomainData) { analyser.getFloatTimeDomainData(fbuf); for (let i = 0; i < fbuf.length; i++) e += fbuf[i] * fbuf[i]; e /= fbuf.length; }
+        else { analyser.getByteTimeDomainData(buf); for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; e += v * v; } e /= buf.length; }
+        const db = 10 * Math.log10(e + 1e-10); lvl = Math.max(0.04, Math.min(1, (db + 65) / 50));
+      }
       bars.forEach((b, i) => { b.style.height = Math.max(8, Math.round(70 * lvl * (0.5 + 0.5 * Math.sin(i * 1.7 + sec * 3)))) + 'px'; b.style.opacity = 0.35 + i / 40; });
       if (stopAt && Date.now() >= stopAt) stop();
     }, 150);
@@ -173,33 +212,46 @@
     wake();
   }
   async function stop() {
+    if (mode !== 'recording') return;
+    mode = 'stopping';
     unblack();
     clearInterval(tick); stopAt = null;
     document.body.classList.remove('recording');
     try { lock && lock.release(); } catch (e) {}
-    if (lesson && marks.length) await S.update(S.T.lessons, lesson.id, { marks }).catch(() => {});
     $('#view').innerHTML = '<p class="big-time" style="font-size:28px">' + (he ? 'מעלה…' : 'Uploading…') + '</p>';
+    if (lesson && marks.length) await S.update(S.T.lessons, lesson.id, { marks }).catch(() => {});
     if (S.DEMO) return done(sid);
-    await new Promise(r => { rec.onstop = r; rec.stop(); });
-    stream.getTracks().forEach(x => x.stop());
+    try { await rec.stop(); } catch (e) {}
+    try { stream.getTracks().forEach(x => x.stop()); } catch (e) {}
     try { actx && actx.close(); } catch (e) {}
-    const blob = new Blob(chunks, { type: rec.mimeType || 'audio/mp4' });
-    try {
-      await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null);
+    actx = null; analyser = null;
+    const type = rec.mimeType || 'audio/mp4';
+    const blob = new Blob(chunks, { type });
+    const file = () => new File([blob], /mpeg/.test(type) ? 'lesson.mp3' : 'lesson', { type });
+    if (blob.size < 2000) {
+      if (lesson) S.update(S.T.lessons, lesson.id, { status: 'error', error: 'Nothing was recorded.' }).catch(() => {});
       await idbClear();
-      done(sid);
-    } catch (e) {
+      mode = 'done';
+      $('#view').innerHTML = '<div class="note">' + (he ? 'לא הוקלט כלום. בדוק שהמיקרופון מאושר ונסה שוב.' : 'Nothing was recorded. Check the microphone is allowed and try again.') + '</div><button class="btn" id="again">' + esc(t('Try again')) + '</button>';
+      $('#again').onclick = () => { lesson = null; mode = 'idle'; idle(); };
+      return;
+    }
+    const send = async () => { await S.uploadLessonAudio(file(), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null); await idbClear(); done(sid); };
+    try { await send(); }
+    catch (e) {
+      mode = 'done';
       $('#view').innerHTML = '<div class="note">' + esc(e.message) + '</div><button class="btn" id="again">' + esc(t('Try again')) + '</button>';
-      $('#again').onclick = async () => { try { await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null); await idbClear(); done(sid); } catch (err) { S.toast(err.message); } };
+      $('#again').onclick = async () => { const b = $('#again'); b.disabled = true; try { await send(); } catch (err) { b.disabled = false; S.toast(err.message); } };
     }
   }
   function done(s) {
+    mode = 'done';
     $('#state').textContent = '';
     $('#view').innerHTML = '<h1 style="font-size:30px;font-weight:800">' + (he ? 'השיעור נשמר' : 'Lesson saved') + '</h1><p style="color:#D1D5DB">' + (he ? 'מתמלל עכשיו (בערך דקה). המורה הפרטי ילמד ממנו.' : 'Transcribing now (about a minute). The tutor will teach from it.') + '</p>' +
       '<a class="btn accent big" href="' + S.link('/notebook.html', { tab: 'lessons' }) + '">' + esc(t('Lessons')) + ' →</a><button class="btn" id="again2" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Record another')) + '</button>';
-    $('#again2').onclick = () => { lesson = null; idle(); };
+    $('#again2').onclick = () => { lesson = null; mode = 'idle'; idle(); };
   }
-  window.addEventListener('beforeunload', e => { if (rec && rec.state === 'recording') { e.preventDefault(); e.returnValue = ''; } });
+  window.addEventListener('beforeunload', e => { if (mode === 'recording') { e.preventDefault(); e.returnValue = ''; } });
   idle();
 })();
 </script>
