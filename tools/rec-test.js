@@ -5,14 +5,17 @@ const OUT = process.env.OUT || '/tmp/rec-test'; fs.mkdirSync(OUT, { recursive: t
 const BASE = 'http://localhost:5178';
 let fails = 0; const ok = (c, m) => { console.log((c ? 'PASS ' : 'FAIL ') + m); if (!c) fails++; };
 const PATCH = `<script>(function(){var S=window.SH;S.DEMO=false;window.__gum=0;var g=navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);navigator.mediaDevices.getUserMedia=function(c){window.__gum++;return g(c)};
-S.uploadLessonAudio=async function(f){var b=new Uint8Array(await f.arrayBuffer());var s='';for(var i=0;i<b.length;i+=32768)s+=String.fromCharCode.apply(null,b.subarray(i,i+32768));window.__up={type:f.type,name:f.name,size:f.size,b64:btoa(s)};return {id:'x'};};})();</script>`;
+window.__SEG_MS=+sessionStorage.getItem('seg')||4000;window.__parts=[];var b64=async function(f){var b=new Uint8Array(await f.arrayBuffer());var s='';for(var i=0;i<b.length;i+=32768)s+=String.fromCharCode.apply(null,b.subarray(i,i+32768));return btoa(s);};
+S.upload=async function(kind,f,ext){window.__parts.push({kind:kind,ext:ext,type:f.type,size:f.size,b64:await b64(f)});return 'demo/'+kind+'/p'+window.__parts.length+'.'+ext;};
+S.uploadLessonAudio=async function(f){window.__up={type:f.type,name:f.name,size:f.size,b64:await b64(f)};return {id:'x'};};})();</script>`;
 (async () => {
   const br = await chromium.launch({ args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream', ...(process.env.FAKE_WAV ? ['--use-file-for-fake-audio-capture=' + process.env.FAKE_WAV] : []), '--autoplay-policy=no-user-gesture-required'] });
   const ctx = await br.newContext({ viewport: { width: 390, height: 844 }, permissions: ['microphone'] });
   await ctx.route('**/record.html*', async r => { const res = await r.fetch(); let h = await res.text(); h = h.replace(/(<script src="\/app.js[^"]*"><\/script>)/, '$1' + PATCH); r.fulfill({ response: res, body: h }); });
   const page = await ctx.newPage(); const errs = [];
   page.on('pageerror', e => errs.push(e.message)); page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
-  const save = async (name) => { const u = await page.evaluate(() => window.__up); if (!u) return null; const f = path.join(OUT, name); fs.writeFileSync(f, Buffer.from(u.b64, 'base64')); return { f, u }; };
+  // all parts sent so far (from index `from`), joined into one file = what the transcriber gets, in order
+  const save = async (name, from) => { const ps = (await page.evaluate(() => window.__parts)).slice(from || 0); if (!ps.length) return null; const f = path.join(OUT, name); fs.writeFileSync(f, Buffer.concat(ps.map(p => Buffer.from(p.b64, 'base64')))); return { f, n: ps.length, ext: ps.map(p => p.ext) }; };
   const probe = f => { try { return require('child_process').execSync('ffprobe -v error -show_entries format=duration,format_name -of csv=p=0 ' + f).toString().trim(); } catch (e) { return 'ERR'; } };
 
   await page.goto(BASE + '/record.html?demo'); await page.waitForSelector('#start');
@@ -38,29 +41,35 @@ S.uploadLessonAudio=async function(f){var b=new Uint8Array(await f.arrayBuffer()
   ok(hmax > 14, 'the sound bars move (' + hmax + ' px)');
   await page.screenshot({ path: path.join(OUT, 'recording.png') });
   await page.click('#stop');
-  await page.waitForFunction(() => window.__up, null, { timeout: 15000 });
+  await page.waitForFunction(() => /saved|נשמר/.test(document.querySelector('#view').textContent), null, { timeout: 15000 });
   const r1 = await save('lesson.mp3');
-  ok(r1 && r1.u.type === 'audio/mpeg' && r1.u.name === 'lesson.mp3', 'stop uploads an MP3 (' + (r1 && r1.u.type) + ', ' + (r1 && Math.round(r1.u.size / 1024)) + ' KB)');
+  ok(r1 && r1.n >= 3 && r1.ext.every(e => e === 'mp3'), 'the lesson went up in ' + (r1 && r1.n) + ' MP3 parts while recording (one every few seconds in this test, 5 min for real)');
   const p1 = probe(r1.f); const d1 = parseFloat(p1.split(',')[1] || p1.split(',')[0]);
   console.log('   ffprobe:', p1);
   ok(/mp3/.test(p1) && d1 > 8 && d1 < 15, 'the MP3 opens and is ~10 s long (' + d1 + ' s)');
   await page.waitForTimeout(500);
   ok(/saved|נשמר/.test(await page.textContent('#view')), 'shows Lesson saved');
   // 4) crash in the middle: reload, then "Upload it"
-  await page.click('#again2'); await page.waitForSelector('#start');
-  await page.evaluate(() => { window.__up = null; document.querySelector('#start').click(); });
-  await page.waitForTimeout(9000);
-  await page.reload(); await page.waitForSelector('#recover', { timeout: 8000 });
-  ok(true, 'after a crash the page offers the unfinished recording');
-  await page.click('#recover');
-  await page.waitForFunction(() => window.__up, null, { timeout: 15000 });
-  const r2 = await save('recovered.mp3'); const p2 = probe(r2.f);
-  console.log('   recovered:', r2.u.type, p2);
-  ok(/mp3/.test(p2) && parseFloat(p2.split(',')[1]) > 4, 'the recovered recording is a working MP3');
+  // crash test: long parts (60 s) so the recording is still only on the phone when the app closes
+  await page.evaluate(() => sessionStorage.setItem('seg', '60000')); await page.reload(); await page.waitForSelector('#start');
+  const n0 = 0;
+  await page.evaluate(() => document.querySelector('#start').click());
+  await page.waitForTimeout(10000);
+  const before = await page.evaluate(() => window.__parts);
+  await page.reload(); // the app closes mid-lesson
+  await page.waitForFunction(() => window.__parts && window.__parts.length > 0, null, { timeout: 15000 }).catch(async () => console.log('   rescue box:', await page.evaluate(() => { const r = document.querySelector('#rescue'); return r ? r.hidden + '|' + r.textContent : 'none'; })));
+  await page.waitForTimeout(2500);
+  const after = await page.evaluate(() => window.__parts);
+  const all = after;
+  fs.writeFileSync(path.join(OUT, 'recovered.mp3'), Buffer.concat(all.map(p => Buffer.from(p.b64, 'base64'))));
+  const p2 = probe(path.join(OUT, 'recovered.mp3'));
+  console.log('   crash: ' + after.length + ' part sent by itself after reopening:', p2);
+  ok(/mp3/.test(p2) && parseFloat(p2.split(',')[1]) > 8, 'after the app closes mid-lesson, reopening Record sends the rest by itself; nothing lost');
+  ok(/Sent|נשלח/.test(await page.textContent('#rescue')), 'it says it sent it');
   // 5) split + convert helpers
   const sp = await page.evaluate(async () => {
-    const u = Uint8Array.from(atob(window.__up.b64), c => c.charCodeAt(0));
-    const parts = window.SH.splitMp3(u, 8000);
+    const u = Uint8Array.from(atob(window.__parts[window.__parts.length - 1].b64), c => c.charCodeAt(0));
+    const parts = window.SH.splitMp3(u, 3000);
     return Promise.all(parts.map(async b => { const x = new Uint8Array(await b.arrayBuffer()); let s = ''; for (let i = 0; i < x.length; i += 32768) s += String.fromCharCode.apply(null, x.subarray(i, i + 32768)); return btoa(s); }));
   });
   let good = 0; sp.forEach((b, i) => { const f = path.join(OUT, 'part' + i + '.mp3'); fs.writeFileSync(f, Buffer.from(b, 'base64')); if (/mp3/.test(probe(f))) good++; });

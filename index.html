@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.8">
+<link rel="stylesheet" href="/app.css?v=0.6.9">
 <title>Today · Study</title>
 </head>
 <body>
@@ -43,7 +43,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.8"></script>
+<script src="/app.js?v=0.6.9"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -52,8 +52,8 @@
     { sel: '#hero', en: ['Tonight', 'What to study tonight. It’s picked from your next test and your free time. Tap Start and the tutor opens, already loaded.'], he: ['הערב', 'מה ללמוד הערב. נבחר לפי המבחן הקרוב והזמן הפנוי שלך. לוחצים התחלה והמורה נפתח מוכן.'] },
     { sel: '#day', en: ['Your day', 'School, the way home, practice and your study block, in order. Set your week once in Settings.'], he: ['היום שלך', 'בית ספר, הדרך הביתה, אימונים וזמן הלמידה, לפי הסדר. מגדירים את השבוע פעם אחת בהגדרות.'] },
     { sel: S.TAB_SEL('tutor'), en: ['Tutor', 'Your private teacher. Every test, with Teach me (from zero) or Test me (questions only).'], he: ['מורה פרטי', 'כל מבחן, עם "למד אותי" (מאפס) או "בחן אותי" (רק שאלות).'] },
-    { sel: S.TAB_SEL('tab=lessons'), en: ['Lessons', 'Record lessons and find any lesson later. The + there sends board photos, notes and old tests.'], he: ['שיעורים', 'מקליטים שיעורים ומוצאים כל שיעור אחר כך. ה-+ שם שולח צילומי לוח, סיכומים ומבחנים ישנים.'] },
-    { sel: '.tabs a:nth-child(4), .topbar nav a:nth-child(4)', en: ['Sources', 'Tests, homework and teacher messages that come in by themselves.'], he: ['מקורות', 'מבחנים, שיעורי בית והודעות מורים שנכנסים לבד.'] },
+    { sel: S.TAB_SEL('notebook'), en: ['Subjects', 'Everything about each subject in one place: tests, homework, lessons, teacher messages.'], he: ['מקצועות', 'הכל על כל מקצוע במקום אחד: מבחנים, שיעורי בית, שיעורים, הודעות מהמורים.'] },
+    { sel: '.fab, .plus-side', en: ['The + button', 'On every page: record a lesson, snap the board, add an old test or a WhatsApp message.'], he: ['כפתור ה-+', 'בכל עמוד: מקליטים שיעור, מצלמים לוח, מוסיפים מבחן ישן או הודעה מוואטסאפ.'] },
     { sel: S.TAB_SEL('progress'), en: ['Grades', 'Counts only what you solved alone. That’s your real readiness for the test.'], he: ['ציונים', 'נספר רק מה שפתרת לבד. זו המוכנות האמיתית שלך למבחן.'] },
     { sel: '#gear, .topbar a[href*="settings"]', en: ['Settings', 'Set your week, groups and language once. You can replay this guide from here.'], he: ['הגדרות', 'מגדירים פעם אחת את השבוע, הקבוצות והשפה. מכאן אפשר להציג שוב את המדריך.'] }
   ]);

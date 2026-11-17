@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.8">
+<link rel="stylesheet" href="/app.css?v=0.6.9">
 <meta name="theme-color" content="#0B0F19">
 <title>Record lesson · Study</title>
 </head>
@@ -30,7 +30,7 @@
   <section id="view" style="display:flex;flex-direction:column;gap:18px"></section>
 </main>
 <script src="/vendor/lame-1.2.1.min.js"></script>
-<script src="/app.js?v=0.6.8"></script>
+<script src="/app.js?v=0.6.9"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -64,11 +64,63 @@
   const busy = () => mode === 'starting' || mode === 'recording' || mode === 'stopping';
   const DB = 'sh-rec', STORE = 'chunks';
 
-  /* unfinished recordings survive a crash: chunks go to IndexedDB as they come */
+  /* Nothing gets lost (v0.6.9):
+     - every chunk goes to this phone's storage (IndexedDB) as it comes, tagged with its recording (rid)
+       and its 5-minute part (seg); starting a new recording never wipes an older one
+     - MP3: every 5 minutes the finished part is uploaded right away and added to the lesson, so a dead
+       phone or a closed app loses at most 5 minutes; an uploaded part is removed from the phone
+     - opening Record sends anything left from earlier by itself (no button to find) */
+  const SEG_MS = window.__SEG_MS || 5 * 60 * 1000; // (tests set __SEG_MS)
+  let rid = null, seg = 0, segStart = 0, segMem = {}, parts = [], partQ = Promise.resolve(), bytes = 0, rescuing = false;
   const idb = () => new Promise((res, rej) => { const r = indexedDB.open(DB, 1); r.onupgradeneeded = () => r.result.createObjectStore(STORE, { autoIncrement: true }); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
   async function idbAdd(v) { try { const d = await idb(); d.transaction(STORE, 'readwrite').objectStore(STORE).add(v); } catch (e) {} }
   async function idbAll() { try { const d = await idb(); return await new Promise(r => { const q = d.transaction(STORE).objectStore(STORE).getAll(); q.onsuccess = () => r(q.result || []); q.onerror = () => r([]); }); } catch (e) { return []; } }
   async function idbClear() { try { const d = await idb(); d.transaction(STORE, 'readwrite').objectStore(STORE).clear(); } catch (e) {} }
+  async function idbEntries() {
+    try { const d = await idb(); return await new Promise(r => { const out = [], q = d.transaction(STORE).objectStore(STORE).openCursor(); q.onsuccess = () => { const c = q.result; if (c) { out.push({ key: c.key, value: c.value }); c.continue(); } else r(out); }; q.onerror = () => r(out); }); } catch (e) { return []; }
+  }
+  async function idbDel(keys) { if (!keys.length) return; try { const d = await idb(); await new Promise(r => { const tx = d.transaction(STORE, 'readwrite'), st = tx.objectStore(STORE); keys.forEach(k => st.delete(k)); tx.oncomplete = r; tx.onerror = r; }); } catch (e) {} }
+  // recordings left on the phone, grouped (older versions stored bare chunks: they become one 'old' recording)
+  function leftovers(entries) {
+    const g = {};
+    entries.forEach(({ key, value: v }) => {
+      if (!v) return;
+      const id = v.rid || 'old', x = g[id] = g[id] || { rid: id, meta: null, chunks: [], keys: [] };
+      x.keys.push(key);
+      if (v.meta) x.meta = v; else if (v instanceof Blob) x.chunks.push({ seg: 0, b: v }); else if (v.b) x.chunks.push({ seg: v.seg || 0, b: v.b });
+    });
+    return Object.values(g);
+  }
+  const extOf = type => /mpeg/.test(type) ? 'mp3' : /webm/.test(type) ? 'webm' : 'm4a';
+  // send one recording that was left on the phone and add it to its lesson
+  async function rescue(g) {
+    const m = g.meta || {};
+    let type = m.type || (g.chunks[0] && g.chunks[0].b.type) || 'audio/mp4';
+    let blob = new Blob(g.chunks.slice().sort((a, b) => a.seg - b.seg).map(c => c.b), { type });
+    if (!/mpeg/.test(type)) { try { blob = await S.audioToMp3([await blob.arrayBuffer()]); type = S.MP3_MIME; } catch (e) { /* send it as it is; the lesson page can fix it */ } }
+    let before = '', lessonId = m.lessonId || null;
+    if (lessonId) { try { const l = (await S.rows(S.T.lessons, { id: lessonId }))[0]; if (l) before = l.audio_path || ''; else lessonId = null; } catch (e) {} }
+    const pieces = /mpeg/.test(type) && blob.size > 23 * 1048576 ? S.splitMp3(new Uint8Array(await blob.arrayBuffer())) : [blob];
+    const paths = []; for (const b of pieces) paths.push(await S.upload('audio', b, extOf(type)));
+    const all = before.split('|').filter(Boolean).concat(paths).join('|');
+    if (lessonId) await S.update(S.T.lessons, lessonId, { status: 'uploaded', audio_path: all, error: null });
+    else lessonId = (await S.insert(S.T.lessons, { subject_id: m.sid || sid, lesson_date: m.date || S.todayKey(), status: 'uploaded', audio_path: all })).id;
+    await idbDel(g.keys);
+    S.api('transcribe', { lessonId, subjectName: S.subjectName(m.sid || sid) }).then(() => { S.toast(t('Lesson ready')); S.emitStudy(); }).catch(e => S.toast(e.message));
+  }
+  async function rescueAll() {
+    if (rescuing || S.DEMO) return;
+    const left = leftovers(await idbEntries()).filter(x => x.rid !== rid);
+    const withSound = left.filter(x => x.chunks.length);
+    await idbDel(left.filter(x => !x.chunks.length).flatMap(x => x.keys)); // a start with no sound: nothing to keep
+    if (!withSound.length) return;
+    rescuing = true;
+    const box = $('#rescue'); if (box) { box.hidden = false; box.textContent = he ? 'שולח הקלטה שלא הסתיימה מקודם…' : 'Sending an unfinished recording from earlier…'; }
+    let ok = 0;
+    for (const g of withSound) { try { await rescue(g); ok++; } catch (e) { S.toast(e.message); } }
+    rescuing = false;
+    const b2 = $('#rescue'); if (b2) b2.textContent = ok ? (he ? 'נשלח. מתמלל עכשיו.' : 'Sent. Transcribing now.') : (he ? 'לא הצלחתי לשלוח (אין אינטרנט?). אנסה שוב בפעם הבאה.' : 'Couldn’t send it (no internet?). I’ll try again next time.');
+  }
 
   const fmt = s => Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   function subjSelect() {
@@ -84,7 +136,7 @@
     mode = 'idle';
     const my = ++renderN;
     $('#state').textContent = '';
-    const left = await idbAll();
+    await null;
     if (my !== renderN || mode !== 'idle') return;
     const nowLine = pick
       ? '<span class="eyebrow">' + esc(pick === curP ? t('Now · lesson {n}', { n: pick.n }) : t('Lesson {n}', { n: pick.n })) + ' · <span dir="ltr">' + esc(pick.start + '–' + pick.end) + '</span></span><h1 class="rec-subj" dir="auto">' + esc(S.subjectName(sid)) + '</h1>' +
@@ -93,7 +145,7 @@
     $('#view').innerHTML = '<section class="rec-now">' + nowLine + '</section>' +
       '<div style="display:flex;flex-direction:column;align-items:center;gap:12px;margin:8px 0 4px"><button class="stop start" id="start" aria-label="' + esc(t('Start recording')) + '"><i></i></button><span style="color:#D1D5DB">' + esc(t('Start recording')) + '</span></div>' +
       '<p class="note rec-warn">' + (he ? 'השאירו את המסך דלוק: נעילת הטלפון או יציאה מהאפליקציה עוצרות את ההקלטה. רוצים שייראה כבוי? בזמן ההקלטה לוחצים "מסך שחור".' : 'Keep the screen on: locking the phone or leaving the app stops the recording. Want it to look off? While recording, tap "Black screen".') + '</p>' +
-      (left.length ? '<div class="note">' + (he ? 'יש הקלטה שלא הסתיימה מהפעם הקודמת.' : 'There’s an unfinished recording from last time.') + ' <button class="btn" id="recover" style="margin-top:8px">' + (he ? 'להעלות אותה' : 'Upload it') + '</button></div>' : '') +
+      '<div class="note" id="rescue" hidden></div>' +
       (today.length ? '<div class="rec-day"><span class="label">' + esc(t('Today’s lessons')) + '</span><div class="rec-list">' + today.map((p, i) => '<button class="rec-p' + (p === pick ? ' on' : '') + (p === curP ? ' now' : '') + (S.toMin(p.end) <= nowM ? ' past' : '') + '" data-p="' + i + '"><span class="tm" dir="ltr">' + esc(p.start) + '</span><span dir="auto">' + esc(p.he) + '</span></button>').join('') + '</div></div>' : '') +
       '<details class="rec-more"><summary>' + esc(t('Another subject')) + '</summary>' + subjSelect() + '</details>' +
       '<div class="note">' + esc(t('Keep this screen open: it stays on by itself.')) + ' ' + esc(t('Transcribed in Hebrew or English by itself.')) + '</div>' +
@@ -102,12 +154,7 @@
     S.$$('[data-p]').forEach(b => b.onclick = () => choose(today[+b.dataset.p]));
     $('#start').onclick = start;
     $('#upload').onclick = () => S.openAdd(sid, () => location.href = S.link('/subject.html', { id: sid }), ['lesson']);
-    const rv = $('#recover'); if (rv) rv.onclick = async () => {
-      const parts = await idbAll(); const meta = parts.find(p => p && p.meta) || {};
-      const blob = new Blob(parts.filter(p => p instanceof Blob), { type: meta.type || 'audio/mp4' });
-      rv.disabled = true; rv.textContent = he ? 'מעלה…' : 'Uploading…';
-      try { await S.uploadLessonAudio(new File([blob], 'lesson', { type: blob.type }), meta.sid || sid, meta.date || S.todayKey(), meta.lessonId ? { lessonId: meta.lessonId } : null); await idbClear(); done(meta.sid || sid); } catch (e) { rv.disabled = false; rv.textContent = he ? 'להעלות אותה' : 'Upload it'; S.toast(e.message); }
-    };
+    rescueAll();
   }
   async function start() {
     if (mode !== 'idle') return;
@@ -122,8 +169,9 @@
       try { stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: true, autoGainControl: true } }); }
       catch (e) { try { ctx && ctx.close(); } catch (x) {} mode = 'idle'; if (btn) btn.disabled = false; return S.toast(he ? 'אין גישה למיקרופון. אשר גישה בהגדרות.' : 'No microphone access. Allow it in Settings.'); }
       const mine = chunks = [];
-      await idbClear();
-      const keep = (data, type) => { const b = new Blob([data], { type }); mine.push(b); idbAdd(b); };
+      rid = 'r' + Date.now(); seg = 0; segStart = Date.now(); segMem = {}; parts = []; partQ = Promise.resolve(); bytes = 0;
+      const myRid = rid;
+      const keep = (data, type) => { const b = new Blob([data], { type }); mine.push(b); bytes += b.size; (segMem[seg] = segMem[seg] || []).push(b); idbAdd({ rid: myRid, seg, b }); };
       rec = null;
       if (ctx) {
         try { rec = await S.mp3Recorder(stream, ctx, u => keep(u, S.MP3_MIME)); analyser = rec.analyser; actx = ctx; }
@@ -132,21 +180,24 @@
       const oldWay = () => { // the browser's own recorder (MP4/WebM), if MP3 can't run here
         const type = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/webm'].find(x => window.MediaRecorder && MediaRecorder.isTypeSupported(x)) || '';
         const mr = new MediaRecorder(stream, Object.assign({ audioBitsPerSecond: 32000 }, type ? { mimeType: type } : {}));
-        mr.ondataavailable = e => { if (e.data && e.data.size) { mine.push(e.data); idbAdd(e.data); } };
+        mr.ondataavailable = e => { if (e.data && e.data.size) { mine.push(e.data); bytes += e.data.size; idbAdd({ rid: myRid, seg: 0, b: e.data }); } };
         mr.start(10000);
         rec = { mimeType: mr.mimeType || type || 'audio/mp4', stop: () => new Promise(r => { if (mr.state === 'inactive') return r(); mr.onstop = r; mr.stop(); }) };
         if (!analyser) try { actx = new (window.AudioContext || window.webkitAudioContext)(); analyser = actx.createAnalyser(); analyser.fftSize = 256; actx.createMediaStreamSource(stream).connect(analyser); } catch (e) {}
       };
       if (!rec) { try { ctx && ctx.close(); } catch (e) {} oldWay(); }
       else setTimeout(() => { // MP3 capture got no sound at all: switch to the old way before anything is lost
-        if (mode === 'recording' && rec && rec.samples === 0) { try { rec.stop(); } catch (e) {} mine.length = 0; oldWay(); const ty = rec.mimeType; idbClear().then(() => idbAdd({ meta: true, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: ty })); }
+        if (mode === 'recording' && rec && rec.samples === 0) {
+          try { rec.stop(); } catch (e) {} mine.length = 0; segMem = {}; seg = 0; bytes = 0; oldWay(); const ty = rec.mimeType;
+          idbEntries().then(es => idbDel(es.filter(e => e.value && e.value.rid === myRid).map(e => e.key))).then(() => idbAdd({ meta: true, rid: myRid, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: ty }));
+        }
       }, 5000);
       const tr = stream.getAudioTracks()[0];
       if (tr) tr.addEventListener('ended', () => { if (mode === 'recording') { S.toast(he ? 'המיקרופון נעצר. שומר את מה שהוקלט.' : 'The microphone stopped. Saving what was recorded.'); stop(); } });
     }
     t0 = Date.now(); photos = 0; marks = [];
     try { lesson = await S.insert(S.T.lessons, { subject_id: sid, lesson_date: S.todayKey(), status: 'recording', started_at: new Date(t0).toISOString(), marks: [] }); } catch (e) { S.toast(e.message); }
-    idbAdd({ meta: true, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: rec ? rec.mimeType : '' });
+    idbAdd({ meta: true, rid, sid, date: S.todayKey(), lessonId: lesson && lesson.id, type: rec ? rec.mimeType : '' });
     wake();
     stopAt = null;
     if (pick && S.subjectFromHe(pick.he) === sid) { const end = S.toMin(pick.end), left = end != null ? end - S.nowMin() : null; stopAt = left != null && left > 0 ? Date.now() + left * 60000 : null; }
@@ -193,6 +244,7 @@
         const db = 10 * Math.log10(e + 1e-10); lvl = Math.max(0.04, Math.min(1, (db + 65) / 50));
       }
       bars.forEach((b, i) => { b.style.height = Math.max(8, Math.round(70 * lvl * (0.5 + 0.5 * Math.sin(i * 1.7 + sec * 3)))) + 'px'; b.style.opacity = 0.35 + i / 40; });
+      if (rec && /mpeg/.test(rec.mimeType) && Date.now() - segStart >= SEG_MS) { segStart = Date.now(); cutSegment(); }
       if (stopAt && Date.now() >= stopAt) stop();
     }, 150);
   }
@@ -212,6 +264,19 @@
     hit.addEventListener('contextmenu', e => e.preventDefault());
     wake();
   }
+  // MP3: send the finished part now (in order, one at a time); on failure it waits on the phone for the end
+  function cutSegment() {
+    const sNo = seg, list = segMem[sNo]; seg++; delete segMem[sNo];
+    if (list && list.length) partQ = partQ.then(() => sendSeg(sNo, list));
+  }
+  async function sendSeg(sNo, list) {
+    try {
+      parts[sNo] = await S.upload('audio', new Blob(list, { type: S.MP3_MIME }), 'mp3');
+      if (lesson) await S.update(S.T.lessons, lesson.id, { audio_path: parts.filter(Boolean).join('|') }).catch(() => {});
+      const es = await idbEntries(); await idbDel(es.filter(e => e.value && e.value.rid === rid && e.value.seg === sNo).map(e => e.key));
+      return true;
+    } catch (e) { segMem[sNo] = list; return false; }
+  }
   async function stop() {
     if (mode !== 'recording') return;
     mode = 'stopping';
@@ -227,17 +292,31 @@
     try { actx && actx.close(); } catch (e) {}
     actx = null; analyser = null;
     const type = rec.mimeType || 'audio/mp4';
-    const blob = new Blob(chunks, { type });
-    const file = () => new File([blob], /mpeg/.test(type) ? 'lesson.mp3' : 'lesson', { type });
-    if (blob.size < 2000) {
+    const forget = async () => { const es = await idbEntries(); await idbDel(es.filter(e => e.value && e.value.rid === rid).map(e => e.key)); };
+    if (bytes < 2000) {
       if (lesson) S.update(S.T.lessons, lesson.id, { status: 'error', error: 'Nothing was recorded.' }).catch(() => {});
-      await idbClear();
+      await forget();
       mode = 'done';
       $('#view').innerHTML = '<div class="note">' + (he ? 'לא הוקלט כלום. בדוק שהמיקרופון מאושר ונסה שוב.' : 'Nothing was recorded. Check the microphone is allowed and try again.') + '</div><button class="btn" id="again">' + esc(t('Try again')) + '</button>';
       $('#again').onclick = () => { lesson = null; mode = 'idle'; idle(); };
       return;
     }
-    const send = async () => { await S.uploadLessonAudio(file(), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null); await idbClear(); done(sid); };
+    const send = async () => {
+      if (/mpeg/.test(type)) {
+        cutSegment(); await partQ; // the last part, after any still on the way
+        for (const sNo of Object.keys(segMem).map(Number).sort((a, b) => a - b)) { const list = segMem[sNo]; delete segMem[sNo]; await sendSeg(sNo, list); }
+        if (Object.keys(segMem).length) throw new Error(he ? 'אין אינטרנט? ההקלטה שמורה בטלפון. אפשר לנסות שוב, או לפתוח את עמוד ההקלטה אחר כך והיא תישלח לבד.' : 'No internet? The recording is safe on this phone. Try again, or open Record later and it sends itself.');
+        const path = parts.filter(Boolean).join('|');
+        if (lesson) await S.update(S.T.lessons, lesson.id, { status: 'uploaded', audio_path: path, error: null });
+        else lesson = await S.insert(S.T.lessons, { subject_id: sid, lesson_date: S.todayKey(), status: 'uploaded', audio_path: path });
+        S.toast(t('Uploaded. Transcribing (about a minute)…'));
+        S.api('transcribe', { lessonId: lesson.id, subjectName: S.subjectName(sid) }).then(() => { S.toast(t('Lesson ready')); S.emitStudy(); }).catch(err => { S.toast('Transcription failed: ' + err.message); S.emitStudy(); });
+      } else {
+        const blob = new Blob(chunks, { type });
+        await S.uploadLessonAudio(new File([blob], 'lesson', { type }), sid, S.todayKey(), lesson ? { lessonId: lesson.id } : null);
+      }
+      await forget(); done(sid);
+    };
     try { await send(); }
     catch (e) {
       mode = 'done';
@@ -249,8 +328,8 @@
     mode = 'done';
     $('#state').textContent = '';
     $('#view').innerHTML = '<h1 style="font-size:30px;font-weight:800">' + (he ? 'השיעור נשמר' : 'Lesson saved') + '</h1><p style="color:#D1D5DB">' + (he ? 'מתמלל עכשיו (בערך דקה). המורה הפרטי ילמד ממנו.' : 'Transcribing now (about a minute). The tutor will teach from it.') + '</p>' +
-      '<a class="btn accent big" href="' + S.link('/notebook.html', { tab: 'lessons' }) + '">' + esc(t('Lessons')) + ' →</a><button class="btn" id="again2" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Record another')) + '</button>';
-    $('#again2').onclick = () => { lesson = null; mode = 'idle'; idle(); };
+      '<a class="btn accent big" href="' + S.link('/subject.html', { id: s }) + '">' + esc(t('Lessons')) + ' →</a><button class="btn" id="again2" style="background:#1F2937;color:#F9FAFB;box-shadow:none">' + esc(t('Record another')) + '</button>';
+    $('#again2').onclick = () => { lesson = null; rid = null; mode = 'idle'; idle(); };
   }
   window.addEventListener('beforeunload', e => { if (mode === 'recording') { e.preventDefault(); e.returnValue = ''; } });
   idle();

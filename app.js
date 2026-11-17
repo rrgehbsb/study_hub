@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.8';
+const VERSION = '0.6.9';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -71,6 +71,7 @@ const HE = {
   'Correct': 'נכון', 'Almost': 'כמעט', 'Not yet ': 'עוד לא', 'Did you solve it on your own?': 'פתרת את זה לבד?', 'Alone': 'לבד', 'I had help': 'היתה לי עזרה',
   'Another question': 'עוד שאלה', 'Finish': 'סיום', 'Thinking…': 'חושב…', 'Checking…': 'בודק…', 'Try again': 'לנסות שוב', '{n} min left': 'נשארו {n} דק׳',
   'Your answer': 'התשובה שלך', 'Photo attached': 'תמונה צורפה', 'Remove photo': 'להסיר תמונה', 'Teaching language': 'שפת הלימוד',
+  'Homework & tests': 'שיעורי בית ומבחנים',
   'To do': 'לעשות', 'Done': 'בוצע', 'Overdue': 'באיחור', 'This week': 'השבוע', 'Later': 'אחר כך', 'No date': 'בלי תאריך', 'Do it with the tutor': 'לעשות עם המורה הפרטי',
   'Ticked here = ticked in your Dashboard too.': 'מה שמסומן כאן מסומן גם בדשבורד.', 'Add homework': 'הוספת שיעורי בית', 'Mark done': 'לסמן כבוצע',
   'Paste from WhatsApp': 'הדבקה מוואטסאפ', 'Pick a subject': 'בחר מקצוע', 'The tutor uses this': 'המורה הפרטי משתמש בזה',
@@ -207,21 +208,60 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['lessons', '/notebook.html', 'mic', 'Lessons', { tab: 'lessons' }], ['sources', '/notebook.html', 'inbox', 'Sources'], ['progress', '/progress.html', 'chart', 'Grades']];
-function nav(active) {
-  const cur = active === 'record' ? 'lessons' : active === 'notebook' ? 'sources' : active;
+/* v0.6.9: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+   the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
+   the gear (Settings) sits at the top of every page. */
+const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['subjects', '/notebook.html', 'book', 'Subjects'], ['progress', '/progress.html', 'chart', 'Grades']];
+const PLUS_ON = ['today', 'tutor', 'subjects', 'progress'];
+function nav(active, opt) {
+  const cur = ['record', 'notebook', 'lessons', 'sources', 'subject'].indexOf(active) >= 0 ? 'subjects' : active;
   const href = x => link(x[1], x[4]);
   const top = document.createElement('header');
   top.className = 'topbar';
   top.innerHTML = '<a class="brand" href="' + link('/') + '">Study<span>Hub</span></a><nav aria-label="Main">' +
     TABS.map(x => '<a href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '>' + ic(x[2], 'sm') + esc(t(x[3])) + '</a>').join('') + '</nav>' +
     '<div class="topbar-foot"><a class="btn rec-btn" href="' + link('/record.html') + '"' + (active === 'record' ? ' aria-current="page"' : '') + '><span class="dot" style="background:#FF4D4D"></span>' + esc(t('Record lesson')) + '</a>' +
+    '<button class="btn plus-side" type="button" data-plus>' + ic('plus', 'sm') + esc(t('Add')) + '</button>' +
     '<div class="topbar-row">' + langToggle() + '<a class="icon-btn" href="' + link('/settings.html') + '" aria-label="' + esc(t('Settings')) + '">' + ic('gear', 'sm') + '</a></div></div>';
   document.body.prepend(top);
   const tabs = document.createElement('nav');
   tabs.className = 'tabs'; tabs.setAttribute('aria-label', 'Main');
   tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab" href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
   document.body.appendChild(tabs);
+  // the + button (phone: floating above the tabs) on the main pages
+  if (PLUS_ON.indexOf(active) >= 0 || active === 'subject') {
+    const fab = document.createElement('button');
+    fab.type = 'button'; fab.className = 'fab'; fab.setAttribute('data-plus', ''); fab.setAttribute('aria-label', t('Add'));
+    fab.innerHTML = ic('plus');
+    document.body.appendChild(fab);
+  }
+  document.querySelectorAll('[data-plus]').forEach(b => b.onclick = () => openPlus(opt && opt.subject));
+  // Settings at the top of every page on a phone (the sidebar has it on a computer)
+  const head = document.querySelector('.head');
+  if (head && !head.querySelector('a[href*="settings"]') && active !== 'settings') {
+    const g = document.createElement('a');
+    g.className = 'icon-btn only-phone head-gear'; g.href = link('/settings.html'); g.setAttribute('aria-label', t('Settings'));
+    g.innerHTML = ic('gear', 'sm');
+    head.appendChild(g);
+  }
+}
+/* everything you can add, in one place */
+function openPlus(subjectId) {
+  const he = LANG === 'he';
+  const opts = [
+    ['board', ic('camera'), he ? 'צילום של הלוח' : 'Photo of the board', he ? 'מה שהמורה כתב' : 'What the teacher wrote'],
+    ['old_test', ic('file'), he ? 'מבחן ישן' : 'Old test', he ? 'קובע את הרמה של המורה הפרטי' : 'Sets the tutor’s level'],
+    ['teacher_summary', ic('paste'), he ? 'הודעה מוואטסאפ' : 'WhatsApp message', he ? 'מדביקים סיכום של המורה' : 'Paste the teacher’s summary'],
+    ['notes', ic('book'), he ? 'סיכום או דף עבודה' : 'Notes or worksheet', he ? 'צילום או PDF' : 'Photo or PDF'],
+    ['homework', ic('hw'), he ? 'שיעורי בית' : 'Homework', he ? 'מופיע גם בדשבורד' : 'Shows in your Dashboard too'],
+    ['test', ic('clock'), he ? 'תאריך מבחן' : 'Test date', he ? 'מופיע גם בדשבורד' : 'Shows in your Dashboard too'],
+    ['lesson', ic('mic'), he ? 'הקלטה שכבר יש לי' : 'A recording I have', he ? 'מהטלפון או ממקום אחר' : 'From your phone or elsewhere']
+  ];
+  sheet('<h2>' + esc(he ? 'להוסיף' : 'Add') + '</h2>' +
+    '<a class="btn big block plus-rec" href="' + link('/record.html', subjectId ? { subject: subjectId } : null) + '"><span class="dot" style="background:#FF4D4D"></span>' + esc(t('Record lesson')) + '</a>' +
+    '<div class="plus-grid">' + opts.map(o => '<button type="button" class="plus-opt" data-k="' + o[0] + '">' + o[1] + '<b>' + esc(o[2]) + '</b><span>' + esc(o[3]) + '</span></button>').join('') + '</div>', s => {
+    s.querySelectorAll('.plus-opt').forEach(b => { b.onclick = () => openAddForm(b.dataset.k, subjectId, () => emitStudy()); });
+  });
 }
 
 
@@ -229,7 +269,7 @@ function nav(active) {
    SH.tour(key, steps): a short spotlight walkthrough, shown once per page (localStorage sh:tour:<key>).
    Each step: { sel: 'css, css', en: [title, text], he: [title, text] }. A step whose element isn't on
    screen is skipped. Settings → "Show the guide again" clears every key. Off in ?demo unless &tour. */
-const TOUR_KEYS = ['today', 'tutor', 'lessons', 'sources', 'grades', 'record', 'session'];
+const TOUR_KEYS = ['today', 'tutor', 'lessons', 'sources', 'subjects', 'grades', 'record', 'session'];
 function tourDone(key) { try { return localStorage.getItem('sh:tour:' + key) === '1'; } catch (e) { return true; } }
 function tourReset() { try { TOUR_KEYS.forEach(k => localStorage.removeItem('sh:tour:' + k)); } catch (e) {} }
 function visibleEl(sel) {
@@ -1220,7 +1260,7 @@ async function mp3Recorder(stream, ctx, onChunk) {
   const analyser = ctx.createAnalyser(); analyser.fftSize = 256; src.connect(analyser);
   const mute = ctx.createGain(); mute.gain.value = 0; mute.connect(ctx.destination);
   let pend = [], pendN = 0, got = 0, node = null, stopped = false;
-  const out = (u, force) => { if (u) { pend.push(u); pendN += u.length; } if (pendN && (force || pendN >= 12000)) { const all = new Uint8Array(pendN); let o = 0; pend.forEach(p => { all.set(p, o); o += p.length; }); pend = []; pendN = 0; onChunk(all); } };
+  const out = (u, force) => { if (u) { pend.push(u); pendN += u.length; } if (pendN && (force || pendN >= 4000)) { const all = new Uint8Array(pendN); let o = 0; pend.forEach(p => { all.set(p, o); o += p.length; }); pend = []; pendN = 0; onChunk(all); } };
   const feed = f32 => { if (stopped) return; got += f32.length; out(enc.push(f32)); };
   const useScript = () => {
     const sp = ctx.createScriptProcessor(4096, 1, 1);
@@ -1612,7 +1652,7 @@ async function demoApi(name, p) {
 
 window.SH = {
   VERSION, DEMO, K, T, $, $$, esc, ic, qs, wait, link, stamp, newId, uuid, readJSON, writeJSON,
-  t, lang, setLang, langToggle, nav, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
+  t, lang, setLang, langToggle, nav, openPlus, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,

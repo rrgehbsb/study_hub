@@ -18,63 +18,46 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.8">
+<link rel="stylesheet" href="/app.css?v=0.6.9">
 <title>Notebook · Study</title>
 </head>
 <body>
 <main class="page narrow" id="page">
   <header class="head">
     <div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div>
-    <button class="icon-btn" id="add"></button>
   </header>
-  <section class="src-strip" id="srcs" aria-label="Sources"></section>
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.6.8"></script>
+<script src="/app.js?v=0.6.9"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
-  const LESSONS = S.qs('tab') === 'lessons';
-  S.nav(LESSONS ? 'lessons' : 'sources');
-  if (LESSONS) S.tour('lessons', [
-    { sel: '#view a[href*="record"]', en: ['Record lesson', 'Opens the recorder for the lesson happening now. Keep the screen on while it records.'], he: ['הקלטת שיעור', 'פותח הקלטה לשיעור שקורה עכשיו. המסך צריך להישאר דלוק בזמן ההקלטה.'] },
-    { sel: '#add', en: ['The + button', 'Send a board photo, notes, an old test, a worksheet, a WhatsApp summary or a recording you already have.'], he: ['כפתור ה-+', 'שולחים צילום לוח, סיכום, מבחן ישן, דף עבודה, סיכום מוואטסאפ או הקלטה שכבר יש לך.'] },
-    { sel: '#view .lesson-row', en: ['A lesson', 'Tap it for the summary, the full transcript, or to study it with the tutor.'], he: ['שיעור', 'לוחצים לסיכום, לתמלול המלא, או ללמוד אותו עם המורה.'] }
-  ]);
-  else S.tour('sources', [
-    { sel: '#srcs', en: ['Where things come from', 'WhatsApp, Mashov and the school site. Tap a card for its settings.'], he: ['מאיפה זה מגיע', 'וואטסאפ, משוב ואתר בית הספר. לוחצים על כרטיס להגדרות שלו.'] },
-    { sel: '#tabs', en: ['Three views', 'Coming up: tests and homework by date. Messages: by teacher. Subjects: each one as a course.'], he: ['שלוש תצוגות', 'בקרוב: מבחנים ושיעורי בית לפי תאריך. הודעות: לפי מורה. מקצועות: כל אחד כקורס.'] },
-    { sel: '#add', en: ['The + button', 'Add homework, a test date, a board photo, notes or an old test.'], he: ['כפתור ה-+', 'מוסיפים שיעורי בית, תאריך מבחן, צילום לוח, סיכום או מבחן ישן.'] }
+  /* The Subjects tab (v0.6.9): one page, four views. Subjects (each one holds everything about it),
+     Homework & tests, Lessons, Messages. Adding anything = the + button. Sources' status lives in Settings. */
+  S.nav('subjects');
+  S.tour('subjects', [
+    { sel: '#tabs', en: ['Four views', 'Subjects: everything about each one. Homework & tests by date. Every lesson. Teacher messages.'], he: ['ארבע תצוגות', 'מקצועות: הכל על כל מקצוע. שיעורי בית ומבחנים לפי תאריך. כל השיעורים. הודעות מהמורים.'] },
+    { sel: '.subj-card', en: ['A subject', 'Tap it: its tests, homework, lessons, teacher messages and material, all in one place.'], he: ['מקצוע', 'לוחצים: המבחנים, שיעורי הבית, השיעורים, ההודעות והחומר שלו, הכל במקום אחד.'] },
+    { sel: '.fab, .plus-side', en: ['The + button', 'Record a lesson, snap the board, add an old test or a WhatsApp message. It’s on every page.'], he: ['כפתור ה-+', 'מקליטים שיעור, מצלמים לוח, מוסיפים מבחן ישן או הודעה מוואטסאפ. הוא בכל עמוד.'] }
   ]);
   const he = S.lang() === 'he';
-  $('#h1').textContent = LESSONS ? t('Lessons') : t('Sources');
-  $('#sub').textContent = LESSONS ? (he ? 'כל שיעור: סיכום, תמלול והלוח' : 'Every lesson: summary, transcript, the board') : (he ? 'וואטסאפ, משוב ואתר בית הספר, במקום אחד' : 'WhatsApp, Mashov and the school site, in one place');
-  document.title = (LESSONS ? t('Lessons') : t('Sources')) + ' · Study';
-  $('#add').innerHTML = ic('plus'); $('#add').setAttribute('aria-label', t('Add'));
+  $('#h1').textContent = t('Subjects');
+  $('#sub').textContent = he ? 'הכל על כל מקצוע, במקום אחד' : 'Everything about each subject, in one place';
+  document.title = t('Subjects') + ' · Study';
   if (!(await S.session())) return;
 
-  const TABS = [['coming', 'Coming up'], ['messages', 'Messages'], ['subjects', 'Subjects']];
-  let tab = LESSONS ? 'lessons' : (S.qs('tab') || S.readJSON('sh:nb:tab') || 'coming');
-  if (!LESSONS && !TABS.some(x => x[0] === tab)) tab = 'coming';
+  const TABS = [['subjects', 'Subjects'], ['coming', 'To do'], ['lessons', 'Lessons'], ['messages', 'Messages']];
+  let tab = S.qs('tab') || 'subjects';
+  if (!TABS.some(x => x[0] === tab)) tab = 'subjects';
   let gpOpen = false, showDone = false, lessons = [], msgs = [], topicsBy = {}, lessonFilter = '';
   const SRC = { mashov: 'Mashov', ofek: 'Ofek', calendar: t('School site'), whatsapp: 'WhatsApp' };
   const tag = x => x.source && SRC[x.source] ? ' <span class="tag ' + x.source + '">' + SRC[x.source] + '</span>' : '';
   const when = (k, done) => { const n = S.daysUntil(k); return '<span class="when' + (!done && n != null && n < 0 ? ' late' : !done && n != null && n <= 1 ? ' soon' : '') + '">' + esc(k ? S.rel(k) : '') + '</span>'; };
 
   function tabs() {
-    if (LESSONS) { $('#tabs').hidden = true; return; }
-    srcStrip();
     $('#tabs').innerHTML = TABS.map(x => '<button type="button" role="tab" data-tab="' + x[0] + '" aria-pressed="' + (x[0] === tab) + '" aria-selected="' + (x[0] === tab) + '">' + esc(t(x[1])) + '</button>').join('');
-    $$('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; S.writeJSON('sh:nb:tab', tab); history.replaceState(null, '', S.link('/notebook.html', { tab })); render(); });
-  }
-
-  /* ---------- the sources and how they're doing (details in Settings) ---------- */
-  function srcStrip() {
-    const st = S.lastSync() || {};
-    if (S.DEMO) { st.calendar = 'ok'; st.mashov = 'ok'; }
-    const one = (cls, name, v, hint) => '<a class="src-card ' + cls + '" href="' + S.link('/settings.html') + '#sources"><b>' + esc(name) + '</b><span>' + esc(v === 'ok' ? t('Connected') : v ? (he ? 'צריך תשומת לב' : 'Needs a look') : hint) + '</span></a>';
-    $('#srcs').innerHTML = one('wa', 'WhatsApp', null, he ? 'הדבקה בהודעות' : 'Paste in Messages') + one('ms', 'Mashov', st.mashov, he ? 'עוד לא נבדק' : 'Not checked yet') + one('site', he ? 'אתר בית הספר' : 'School site', st.calendar, he ? 'עוד לא נבדק' : 'Not checked yet');
+    $$('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; history.replaceState(null, '', S.link('/notebook.html', tab === 'subjects' ? null : { tab })); render(); window.scrollTo(0, 0); });
   }
 
   /* ---------- coming up: tests + homework by date ---------- */
@@ -188,10 +171,8 @@
 
   function render() {
     tabs();
-    $('#add').hidden = tab === 'subjects';
     if (tab === 'coming') coming(); else if (tab === 'lessons') lessonsView(); else if (tab === 'messages') messagesView(); else subjectsView();
   }
-  $('#add').onclick = () => tab === 'lessons' ? S.openAdd(null, load, ['board', 'notes', 'lesson', 'teacher_summary', 'old_test', 'worksheet']) : tab === 'messages' ? S.openAdd(null, load, ['teacher_summary']) : S.openAdd(null, () => { load(); render(); }, ['homework', 'test', 'board', 'notes', 'old_test', 'worksheet']);
 
   async function load() {
     try {
