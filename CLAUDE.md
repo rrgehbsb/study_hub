@@ -126,11 +126,10 @@ record.html     Record tab (red, middle): picks the lesson from today's class ti
                 today's lessons to tap, wake lock, board photos and "On the test!" marks tied to the moment, chunks in
                 IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording;
                 "Black screen" covers the page in black while it keeps recording (hold the middle ~1 s to return); records MP3 (§3)
-notebook.html   Two tabs in one page. ?tab=lessons = **Lessons** (Record button, every lesson with summary → lesson.html).
-                Otherwise **Sources**: a card per source (WhatsApp, Mashov, school site → Settings), then Coming up (tests +
-                homework by date, "Probably not yours" fold) · Messages (Mashov + WhatsApp, by teacher) · Subjects (→ subject.html)
+notebook.html   The **Subjects** tab: one page, four views. Subjects (cards → subject.html) · To do (`?tab=coming`: tests +
+                homework by date, "Probably not yours" fold) · Lessons (`?tab=lessons`) · Messages (`?tab=messages`, by teacher)
 homework.html, subjects.html, teachers.html  redirects into the Notebook (old links)
-subject.html    One subject as a course: next test, topic path, practice test, lessons, what the tutor teaches from
+subject.html    One subject, everything about it: next test, homework & other tests, topic path, practice test, lessons, material + messages
 progress.html   **Grades** tab: solved alone vs with help, readiness per test, mistakes that keep coming back, grades
 settings.html   Appearance (Light / Dark / Auto), sources status + class, your groups and teachers (set once), your week
                 (chat, "Plan my week with Claude", import, edit by hand), study minutes, way home, latest time,
@@ -164,7 +163,7 @@ On top of that: `settings.overrides[day]` (from "Change tonight": skip, a later 
 
 **Plan my week with Claude** (owner's idea, v0.3.1): `SH.claudePrompt` builds a prompt with school hours, activities, tests with topic readiness, homework and the next 7 days. `SH.openClaude` copies it and opens claude.ai. Claude interviews the owner, then ends with a ```studyhub JSON block (`{week, studyMins, latest, commuteMins, sessions}`). "Import from Claude" (`SH.importSheet`) takes the pasted text or a file, shows a preview, and saves. This costs nothing from the API budget. The in-app chat (`api/week.js`) is the quick version for small changes.
 
-**In-app guide (v0.6):** `SH.tour(key, steps)` shows a short spotlight walkthrough the first time each page opens (keys `today`, `tutor`, `lessons`, `sources`, `grades`, `record`, `session` in `localStorage sh:tour:<key>`). Steps carry English and Hebrew text and are skipped when their element isn't on screen. Settings → Guide → "Show the guide again" clears them. Off in `?demo` unless `&tour=1`, so the test tools aren't blocked. Keep each step to one or two sentences.
+**In-app guide (v0.6):** `SH.tour(key, steps)` shows a short spotlight walkthrough the first time each page opens (keys `today`, `tutor`, `subjects`, `grades`, `record`, `session` in `localStorage sh:tour:<key>`). Steps carry English and Hebrew text and are skipped when their element isn't on screen. Settings → Guide → "Show the guide again" clears them. Off in `?demo` unless `&tour=1`, so the test tools aren't blocked. Keep each step to one or two sentences.
 
 **Theme:** `localStorage sh:theme` (`light` / `dark` / `auto`, nothing stored = dark) + `settings.theme`; every page's `<head>` sets `html[data-theme]` before paint; Auto = follow the phone.
 
