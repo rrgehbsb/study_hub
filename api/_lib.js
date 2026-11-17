@@ -63,14 +63,16 @@ async function remove(token, path) {
 
 // ---------- AI providers ----------
 const TUTOR_MODEL = () => process.env.TUTOR_MODEL || 'claude-sonnet-5-5';
+// the strongest model, only for studying for the closest test (and only for the first DAILY_BEST_CALLS turns a day)
+const BEST_MODEL = () => process.env.BEST_MODEL || 'claude-opus-5-5';
 
-async function claude({ system, messages, max_tokens }) {
+async function claude({ system, messages, max_tokens, model }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new HttpError(503, 'Setup not finished: ANTHROPIC_API_KEY is not set in Vercel.');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: TUTOR_MODEL(), max_tokens: max_tokens || 1500, system, messages })
+    body: JSON.stringify({ model: model || TUTOR_MODEL(), max_tokens: max_tokens || 1500, system, messages })
   });
   const j = await r.json().catch(() => ({}));
   if (!r.ok) {
@@ -107,6 +109,7 @@ async function checkBudget(token) {
   const limit = Number(process.env.DAILY_TUTOR_CALLS || 120);
   const row = await one(token, 'study_usage?day=eq.' + today() + '&select=calls');
   if (row && row.calls >= limit) throw new HttpError(429, 'Daily limit reached (' + limit + ' AI turns). It resets at midnight.');
+  return row ? row.calls : 0;
 }
 async function bumpUsage(token, input, output) {
   try { await db(token, 'rpc/study_bump_usage', { method: 'POST', body: { p_in: input, p_out: output } }); } catch (e) { console.warn('usage bump failed', e.message); }
@@ -124,4 +127,4 @@ function handler(fn) {
   };
 }
 
-module.exports = { SB_URL, SB_KEY, HttpError, send, body, auth, db, one, patch, download, remove, claude, geminiJSON, checkBudget, bumpUsage, handler, today, TUTOR_MODEL };
+module.exports = { SB_URL, SB_KEY, HttpError, send, body, auth, db, one, patch, download, remove, claude, geminiJSON, checkBudget, bumpUsage, handler, today, TUTOR_MODEL, BEST_MODEL };

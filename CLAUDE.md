@@ -46,7 +46,7 @@ So the app's three jobs, in order of importance:
 | Job | Provider | Env var | Why |
 |---|---|---|---|
 | Lesson audio → text | Groq, `whisper-large-v3`, language `he` | `GROQ_API_KEY` | Free tier: about 8 h audio/day, 25 MB per file. The transcript is the tutor's main source, so quality matters; Phase 2 compares it with ivrit.ai's Hebrew Whisper on a real lesson. |
-| Teaching, checking solutions, reading board photos and old tests | Anthropic Claude (`TUTOR_MODEL`, default `claude-sonnet-5-5`) | `ANTHROPIC_API_KEY` | Mistakes here go straight into the owner's head. Budget: **hard cap of $10/month**, set in the Anthropic console, plus the daily limit in §5. |
+| Teaching, checking solutions, reading board photos and old tests | Anthropic Claude (`TUTOR_MODEL`, default `claude-sonnet-5-5`) | `ANTHROPIC_API_KEY` | Mistakes here go straight into the owner's head. **Closest test (v0.6.5):** sessions for the subject of the nearest open test send `best:true` → `BEST_MODEL` (default `claude-opus-5-5`, ~2× the price) for the first `DAILY_BEST_CALLS` (default 40) turns of the day, then Sonnet. Budget: **hard cap of $10/month**, set in the Anthropic console, plus the daily limit in §5. |
 | Lesson summaries, topic tags, sorting | Google Gemini Flash (`GEMINI_MODEL`, default `gemini-flash-latest`) | `GEMINI_API_KEY` | Free tier, easy jobs, errors are harmless. Optional: without the key, summaries are skipped. |
 
 - Functions verify the caller's Supabase session (`Authorization: Bearer <access token>`) and that their email is in `ALLOWED_EMAILS` (comma-separated). Friends have accounts on the shared Supabase project; they must not be able to spend the owner's AI budget.
@@ -215,5 +215,5 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 | `ANTHROPIC_API_KEY` | tutor, reading photos/PDFs | set during owner setup (with the $10/month cap) |
 | `GEMINI_API_KEY` | summaries (optional) | set 2026-11-16 |
 | `MASHOV_USER`, `MASHOV_PASS` | Mashov import | set by the owner; optional `MASHOV_SCHOOL` (default 570358), `MASHOV_YEAR`, `MASHOV_API_VERSION` |
-| `TUTOR_MODEL`, `GEMINI_MODEL`, `WHISPER_MODEL`, `DAILY_TUTOR_CALLS`, `CONTEXT_CHARS` | overrides | optional |
+| `TUTOR_MODEL`, `BEST_MODEL`, `DAILY_BEST_CALLS`, `GEMINI_MODEL`, `WHISPER_MODEL`, `DAILY_TUTOR_CALLS`, `CONTEXT_CHARS` | overrides | optional |
 | `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY` | optional; the defaults in `api/_lib.js` are the shared project's public values | optional |
