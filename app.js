@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.7.2';
+const VERSION = '0.7.3';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -209,7 +209,7 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-/* v0.7.2: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+/* v0.7.3: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
    the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
    the gear (Settings) sits at the top of every page. */
 /* v0.7 ("Bright", chosen 2026-11-17): bottom bar Today · Subjects · [Record] · Tutor · Grades, the big red Record
@@ -778,15 +778,47 @@ function freeWindows(items, from, to) {
   if (cur < to) out.push([cur, to]);
   return out.filter(w => w[1] - w[0] >= 15);
 }
-function pickTarget(ctx) {
-  const tests = openTests().filter(x => daysUntil(x.testDate) <= 14);
+/* ================= names people can read =================
+   The school calendar writes tests like "מבחן באנגלית י'3, 4" with details like "שכבה י', 3, 4".
+   testName() drops the class part ("English test"); topicsOf() keeps only real topics; lessonName() never says just "Lesson". */
+const CLASS_BITS = /(?:^|[\s,(\-–])(?:ל?שכב[הת]\s*)?(?:ל?כית[הת]\s*)?[ובל]?(?:יא|יב|י|ט)(?:\s*['׳"״]\s*\d{0,2}|\s*\d{1,2})(?:\s*(?:,|ו-?|ו|\+)\s*(?:(?:יא|יב|י|ט)\s*['׳"״]?\s*)?\d{1,2})*(?=$|[\s,)\-–.])/g;
+function stripClass(str) {
+  return String(str || '').replace(/ל?שכב[הת]\s+\S+/g, ' ').replace(CLASS_BITS, ' ').replace(/\s*[,\-–]\s*(?=[,\-–]|$)/g, '').replace(/\s{2,}/g, ' ').replace(/^[\s,\-–.]+|[\s,\-–.]+$/g, '').trim();
+}
+function testName(x) {
+  if (!x) return '';
+  const quiz = x.type === 'Quiz' || /בוחן/.test(x.name || '');
+  const clean = stripClass(x.name);
+  const generic = !clean || /^(?:מבחן|בוחן|בחינה|מבדק)(?:\s+\S+)?$/.test(clean);
+  if (!generic) return clean;
+  if (LANG === 'he') return clean || ((quiz ? 'בוחן ב' : 'מבחן ב') + subjectName(x.subjectId));
+  return subjectName(x.subjectId) + (quiz ? ' quiz' : ' test');
+}
+function topicsOf(x) {
+  const out = [];
+  String((x && x.topics) || '').split(/[,،;\n]/).forEach(raw => {
+    const v = stripClass(raw).replace(/^(?:נושאים?|חומר|topics?)\s*:\s*/i, '').trim();
+    if (v.length < 3 || /^[\d\s'׳".]+$/.test(v) || /^(?:מבחן|בוחן|כל השכבה|כל הכיתה|שכבה|כיתה)$/.test(v)) return;
+    if (out.indexOf(v) < 0) out.push(v);
+  });
+  return out;
+}
+function lessonName(l) {
+  if (l && l.title) return l.title;
+  const sub = subjectName(l && l.subject_id);
+  return LANG === 'he' ? 'שיעור ' + sub : sub + ' lesson';
+}
+function pickTarget(ctx, dk) {
+  // tonight is for tests still ahead: a test that was today is already done
+  const from = dk || todayKey();
+  const tests = openTests().filter(x => x.testDate > from && daysUntil(x.testDate) <= 14);
   for (const x of tests) {
     const tps = (ctx.topicsBySubj && ctx.topicsBySubj[x.subjectId]) || [];
     const todo = tps.filter(p => p.state === 'with_help').concat(tps.filter(p => p.state === 'new'));
     if (todo.length) return { kind: 'topic', test: x, subjectId: x.subjectId, topic: todo[0].name, state: todo[0].state, title: todo[0].name };
     if (tps.length) return { kind: 'practice', test: x, subjectId: x.subjectId, topic: '', title: t('Practice test') };
-    const first = String(x.topics || '').split(/[,،;\n]/)[0].trim();
-    return { kind: 'zero', test: x, subjectId: x.subjectId, topic: first, title: first || t('From zero: {x}', { x: x.name }) };
+    const first = topicsOf(x)[0] || '';
+    return { kind: 'zero', test: x, subjectId: x.subjectId, topic: first, title: first || (LANG === 'he' ? 'חזרה ל' + testName(x) : 'Get ready: ' + testName(x)) };
   }
   const hw = openHomework().find(a => a.dueDate && daysUntil(a.dueDate) <= 2 && daysUntil(a.dueDate) >= 0);
   if (hw) return { kind: 'homework', hw, subjectId: hw.subjectId, topic: hw.title, title: t('Homework: {x}', { x: hw.title }) };
@@ -797,7 +829,7 @@ function pickTarget(ctx) {
 function plan(dk, tt, ctx) {
   const s = settings(), items = dayItems(dk, tt);
   const ov = (s.overrides || {})[dk] || {};
-  const target = pickTarget(ctx || {});
+  const target = pickTarget(ctx || {}, dk);
   const close = target && target.test && daysUntil(target.test.testDate) <= 2;
   const want = ov.mins || ((+s.studyMins || 40) + (close ? 20 : 0));
   const start = Math.max(dk === todayKey() ? nowMin() + 5 : 0, 14 * 60);
@@ -1671,7 +1703,7 @@ window.SH = {
   t, lang, setLang, langToggle, nav, openPlus, errText, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
-  school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest, notMineSubject, setSubjectMine,
+  school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest, testName, topicsOf, lessonName, notMineSubject, setSubjectMine,
   rows, rowsFast, insert, update, setTopicState, upload, api, shrinkImage, renderRich, plotSVG, compile, openAdd, onStudy, emitStudy,
   uploadLessonAudio, uploadMaterial,
   syncAll, lastSync, myClass, setMyClass, subjectFromHe, timetable, currentLesson, plan, dayItems, skipKey, doneKey,

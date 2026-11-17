@@ -73,7 +73,7 @@ function card(m) {
   }
   el.className = 'lesson-card';
   const head = document.createElement('div'); head.className = 'from';
-  const from = test && step !== 'learn' ? (S.lang() === 'he' ? 'בסגנון ' + (test.name || 'המבחן') : 'In the style of ' + (test.name || 'your test')) : (subj ? subj.name : '');
+  const from = test && step !== 'learn' ? (S.lang() === 'he' ? 'בסגנון ' + (S.testName(test)) : 'In the style of ' + (S.testName(test))) : (subj ? subj.name : '');
   head.innerHTML = '<b>' + esc(t(STEP_LABEL[m.step] || 'Learn')) + '</b><span dir="auto">' + esc(from) + '</span>';
   const body = document.createElement('div'); body.className = 'prose'; body.dir = 'auto';
   S.renderRich(body, m.text);
@@ -144,7 +144,7 @@ function dock() {
 
 /* ---------- talking to the tutor ---------- */
 function opening(s) {
-  const he = teachLang === 'he', topic = P.topic || (hw && hw.title) || (test && test.topics) || '';
+  const he = teachLang === 'he', topic = P.topic || (hw && hw.title) || (test && S.topicsOf(test).join(', ')) || '';
   if (s === 'learn') return he ? 'תלמד אותי ' + (topic || 'את החומר') + ' מאפס.' : 'Teach me ' + (topic || 'this') + ' from zero.';
   if (s === 'example') return he ? 'הבנתי. תראה לי דוגמה פתורה מהשיעור.' : 'Got it. Show me a worked example from class.';
   if (s === 'turn') return he ? 'תן לי שאלה ברמת המבחן לפתור לבד' + (topic ? ' על ' + topic : '') + '.' : 'Give me a test-level question to solve alone' + (topic ? ' on ' + topic : '') + '.';
@@ -178,7 +178,7 @@ async function ask() {
   try {
     const r = await S.api('tutor', {
       subjectId: P.subject, subjectName: subj ? subj.name : '', mode: 'session', step, lang: teachLang, topic: P.topic || (hw && hw.title) || '',
-      test: test ? { name: test.name, testDate: test.testDate, topics: test.topics || '' } : null,
+      test: test ? { name: S.testName(test), testDate: test.testDate, topics: S.topicsOf(test).join(', ') } : null,
       extra: hw ? (hw.notes || hw.title) : '', messages: payload
     });
     msgs.push({ role: 'assistant', text: r.text, verdict: r.verdict || null, mistake: r.mistake || null, step });

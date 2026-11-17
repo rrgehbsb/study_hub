@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.2">
+<link rel="stylesheet" href="/app.css?v=0.7.3">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -29,11 +29,11 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.7.2"></script>
+<script src="/app.js?v=0.7.3"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
-  /* The Subjects tab (v0.7.2): one page, four views. Subjects (each one holds everything about it),
+  /* The Subjects tab (v0.7.3): one page, four views. Subjects (each one holds everything about it),
      Homework & tests, Lessons, Messages. Adding anything = the + button. Sources' status lives in Settings. */
   S.nav('subjects');
   S.tour('subjects', [
@@ -61,7 +61,7 @@
 
   /* ---------- coming up: tests + homework by date ---------- */
   function testRow(x) {
-    return '<button class="item" data-test="' + esc(x.id) + '" style="text-align:start;width:100%"><span class="tag test">' + esc(x.type === 'Quiz' ? t('Quiz') : t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + tag(x) + '</span></span>' + when(x.testDate) + '</button>';
+    return '<button class="item" data-test="' + esc(x.id) + '" style="text-align:start;width:100%"><span class="tag test">' + esc(x.type === 'Quiz' ? t('Quiz') : t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.testName(x)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + tag(x) + '</span></span>' + when(x.testDate) + '</button>';
   }
   function hwRow(a) {
     const done = a.status === 'Done';
@@ -90,7 +90,7 @@
     html += groups.length ? groups.map(([name, list]) => '<section class="list"><div class="title-row"><span class="label">' + esc(name) + '</span></div>' + list.map(it => it.k === 'test' ? testRow(it.x) : hwRow(it.x)).join('') + '</section>').join('') : '<p class="card empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>';
     if (others.length && !showDone) html += '<details class="card fold"><summary><span>' + esc(t('Probably not yours')) + ' · ' + others.length + '</span><span class="hint">' + esc(t('Other groups and classes')) + '</span></summary>' +
       '<p class="hint" style="margin:2px 0 6px">' + esc(t('Your groups: {x}', { x: (S.myGroups() || []).join(', ') || '—' })) + ' · <a href="' + S.link('/settings.html') + '#groups">' + esc(t('Change')) + '</a></p>' +
-      others.map(x => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta" dir="auto">' + esc(S.fmtDay(x.testDate)) + ' · ' + esc(S.fitWhy(x)) + '</span></span><button class="btn" data-mine="' + esc(x.id) + '">' + esc(t('Mine')) + '</button></div>').join('') + '</details>';
+      others.map(x => '<div class="item"><span class="body"><span class="ttl" dir="auto">' + esc(S.testName(x)) + '</span><span class="meta" dir="auto">' + esc(S.fmtDay(x.testDate)) + ' · ' + esc(S.fitWhy(x)) + '</span></span><button class="btn" data-mine="' + esc(x.id) + '">' + esc(t('Mine')) + '</button></div>').join('') + '</details>';
     html += '<p class="hint" style="text-align:center">' + esc(t('Ticked here = ticked in your Dashboard too.')) + '</p>';
     $('#view').innerHTML = html;
     const gp = $('#gp'); if (gp) { S.groupsPicker(gp); $('#gp-done').onclick = () => { if (!(S.myGroups() || []).length) return S.toast(t('Tap the groups you’re in')); gpOpen = false; render(); }; }
@@ -104,7 +104,7 @@
     });
     $$('[data-test]').forEach(b => b.onclick = () => {
       const x = tests.find(y => y.id === b.dataset.test); if (!x) return;
-      S.sheet('<h2 dir="auto">' + esc(x.name) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate, true)) + ' · ' + esc(S.rel(x.testDate)) + tag(x) + '</p>' +
+      S.sheet('<h2 dir="auto">' + esc(S.testName(x)) + '</h2><p class="hint" style="margin-bottom:10px">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate, true)) + ' · ' + esc(S.rel(x.testDate)) + tag(x) + '</p>' +
         (x.topics ? '<div class="card" dir="auto" style="white-space:pre-wrap;margin-bottom:12px">' + esc(x.topics) + '</div>' : '') +
         '<div style="display:flex;flex-direction:column;gap:10px"><a class="btn big accent block" href="' + S.link('/subject.html', { id: x.subjectId }) + '">' + esc(t('Study for it')) + '</a>' +
         '<button class="btn block" id="not-mine">' + esc(t('Not my test')) + '</button></div>', s => {
@@ -123,7 +123,7 @@
     $('#view').innerHTML = '<a class="btn big dark block" href="' + S.link('/record.html') + '"><span class="dot" style="background:#D92D20"></span>' + esc(t('Record lesson')) + '</a>' +
       (subs.length > 1 ? '<div class="chips"><button class="chip" data-lf="" aria-pressed="' + !lessonFilter + '">' + esc(t('All')) + '</button>' + subs.map(id => '<button class="chip" data-lf="' + esc(id) + '" aria-pressed="' + (lessonFilter === id) + '" dir="auto">' + esc(S.subjectName(id)) + '</button>').join('') + '</div>' : '') +
       (list.length ? list.map(l => '<a class="card lesson-row" href="' + S.link('/lesson.html', { id: l.id }) + '"><span class="hint" dir="auto">' + esc(S.subjectName(l.subject_id)) + ' · ' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + '</span>' +
-        '<b dir="auto">' + esc(l.title || t('Lesson')) + '</b>' + st(l) + (l.summary ? '<p class="clamp" dir="auto">' + esc(plain(l.summary)) + '</p>' : '') +
+        '<b dir="auto">' + esc(S.lessonName(l)) + '</b>' + st(l) + (l.summary ? '<p class="clamp" dir="auto">' + esc(plain(l.summary)) + '</p>' : '') +
         ((l.topics || []).length ? '<div class="chips">' + l.topics.slice(0, 4).map(x => '<span class="chip small" dir="auto">' + esc(x) + '</span>').join('') + '</div>' : '') + '</a>').join('')
         : '<p class="card empty">' + esc(t('No lessons yet. Record one and it shows up here with a summary and the full transcript.')) + '</p>');
     $$('[data-lf]').forEach(b => b.onclick = () => { lessonFilter = b.dataset.lf; render(); });

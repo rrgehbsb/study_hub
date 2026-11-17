@@ -74,6 +74,8 @@ study:v1:settings               {cls, lang, teachLang, theme:'light'|'dark'|'aut
 
 **Subjects that aren't yours (v0.7.2):** `settings.notMine {subjectId:true}` (owner: "I don't know why I have חשמל, it's another major"). Set from a subject's page ("Not my subject", undo toast) or Settings → Your subjects (tap to cross out / bring back). Such a subject leaves Today's tiles, Subjects and the Tutor, and `testFit` folds its tests into "Probably not yours". Study Hub's own setting only; the shared subjects list is untouched.
 
+**Names (v0.7.3, owner: "what is שכבה י'"):** never show raw calendar text. `SH.testName(x)` drops the class part (`מבחן באנגלית י'3, 4` → "English test" / "מבחן באנגלית"), `SH.topicsOf(x)` keeps only real topics (drops `שכבה י'`, class numbers), `SH.lessonName(l)` = title or "Physics lesson". Tonight never targets a test dated today or earlier.
+
 **Teachers:** a Mashov message's sender is matched (`sameTeacher`, name order ignored) to your one-time list (`settings.teachers`), then Mashov's groups, then the Dashboard's timetable. Unknown senders get one "Who teaches what? (once)" picker in Notebook → Messages and Settings; picking moves all their old messages too.
 
 Imported items keep a `source` (`'calendar'` / `'mashov'`) and stable ids (`cal-<uid>`, `mashov-hw-<id>`), so re-imports and other devices never duplicate them. Calendar tests also carry `calUid`, which is how the main Dashboard hides its own read-only calendar copy.

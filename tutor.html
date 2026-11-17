@@ -22,7 +22,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.2">
+<link rel="stylesheet" href="/app.css?v=0.7.3">
 <title>Tutor · Study</title>
 </head>
 <body>
@@ -44,7 +44,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.2"></script>
+<script src="/app.js?v=0.7.3"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -68,7 +68,7 @@
     }
     const mins = p.block ? p.block.mins : 30, mode = tg.kind === 'practice' ? 'test' : 'learn';
     const base = { subject: tg.subjectId, topic: tg.topic || '', test: tg.test ? tg.test.id : '', hw: tg.hw ? tg.hw.id : '' };
-    $('#now').innerHTML = '<div class="hero"><div class="main"><span class="eyebrow"><span class="pill-accent">' + esc(t('Study now').toUpperCase()) + '</span>' + esc(S.subjectName(tg.subjectId)) + (tg.test ? ' · ' + esc(tg.test.name || '') + ' · ' + esc(S.rel(tg.test.testDate)) : '') + '</span>' +
+    $('#now').innerHTML = '<div class="hero"><div class="main"><span class="eyebrow"><span class="pill-accent">' + esc(t('Study now').toUpperCase()) + '</span>' + esc(S.subjectName(tg.subjectId)) + (tg.test ? ' · ' + esc(S.testName(tg.test)) + ' · ' + esc(S.rel(tg.test.testDate)) : '') + '</span>' +
       '<h2 dir="auto">' + esc(tg.title) + '</h2>' +
       '<p class="line">' + esc(tg.kind === 'topic' && tg.state === 'with_help' ? t('You solved this with help. Now alone.') : tg.kind === 'practice' ? t('All topics solved alone: a full practice test.') : t('From zero, step by step, then a test question alone.')) + '</p>' +
       '<div class="btn-row" style="margin-top:6px"><a class="btn big accent" href="' + go(Object.assign({ mode, mins }, base)) + '">' + ic('play', 'sm') + esc(t('Start · {n} min', { n: mins })) + '</a>' +
@@ -79,8 +79,8 @@
     $('#tests').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Your tests')) + '</h2></div>' + (list.length ? list.map(x => {
       const tps = topicsBy[x.subjectId] || [], n = S.daysUntil(x.testDate);
       const nx = tps.filter(p => p.state === 'with_help').concat(tps.filter(p => p.state === 'new'))[0];
-      const topic = nx ? nx.name : (tps.length ? '' : String(x.topics || '').split(/[,،;\n]/)[0].trim());
-      return '<article class="card tcard"><a class="tcard-top" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="body"><b dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + '</b><span class="hint" dir="auto">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate)) + '</span></span><span class="when" style="color:' + (n <= 3 ? 'var(--accent-ink)' : 'var(--ink-3)') + '">' + esc(S.rel(x.testDate)) + '</span></a>' +
+      const topic = nx ? nx.name : (tps.length ? '' : (S.topicsOf(x)[0] || ''));
+      return '<article class="card tcard"><a class="tcard-top" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="body"><b dir="auto">' + esc(S.testName(x)) + '</b><span class="hint" dir="auto">' + esc(S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate)) + '</span></span><span class="when" style="color:' + (n <= 3 ? 'var(--accent-ink)' : 'var(--ink-3)') + '">' + esc(S.rel(x.testDate)) + '</span></a>' +
         (tps.length ? '<div class="bars">' + tps.map(p => '<span class="' + p.state + '"></span>').join('') + '</div><span class="hint">' + esc(t('{a} of {b} topics solved alone', { a: tps.filter(p => p.state === 'alone').length, b: tps.length })) + (nx ? ' · ' + esc(t('Next: {x}', { x: nx.name })) : '') + '</span>' : '<span class="hint">' + esc(t('No topics yet: they come from your lessons')) + '</span>') +
         '<div class="btn-row"><a class="btn dark" href="' + go({ subject: x.subjectId, topic, test: x.id, mode: 'learn', mins: 40 }) + '">' + esc(t('Teach me')) + '</a><a class="btn" href="' + go({ subject: x.subjectId, topic: nx ? nx.name : '', test: x.id, mode: 'test', mins: 20 }) + '">' + esc(t('Test me')) + '</a></div></article>';
     }).join('') : '<p class="card empty">' + esc(t('No tests in the next month.')) + '</p>');

@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-17: v0.7.3 — clean names: tests without the class part, topics without "שכבה י'", lessons named by subject; tonight skips a test that was today; "New from school" says what came (messages / homework) instead of garbled titles; week card readable.
 - 2026-11-17: v0.7.2 — "Not my subject" (another major, e.g. חשמל): hides it everywhere, folds its tests, undo + Settings → Your subjects.
 - 2026-11-17: v0.7.0 — new design "Bright" (owner picked C from 3 mockups): light, navy + yellow, pastel subject tiles, Plus Jakarta Sans; Record = big red button in the middle of the bottom bar; Today rebuilt (Tonight, Next up, new from school, subject tiles); less text everywhere.
 - 2026-11-17: v0.6.9 — owner lost 3 recordings (old version: Stop vanished after the redraw bug, and each new recording wiped the last one's chunks). Now recordings upload in 5-minute parts while recording, leftovers send themselves when Record opens, nothing is wiped. Navigation simplified to 4 tabs (Home · Tutor · Subjects · Grades) + a + button everywhere + Settings gear on every page.

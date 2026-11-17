@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.2">
+<link rel="stylesheet" href="/app.css?v=0.7.3">
 <title>Today · Study</title>
 </head>
 <body>
@@ -39,7 +39,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.2"></script>
+<script src="/app.js?v=0.7.3"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -74,7 +74,7 @@
       return p;
     }
     const sub = S.subjectName(tg.subjectId);
-    const forLine = tg.test ? t('For your {x}.', { x: (tg.test.name || sub) + ' · ' + S.fmtDay(tg.test.testDate) }) + ' ' + t('Built from your teacher’s lessons and old tests.') : sub;
+    const forLine = tg.test ? t('For your {x}.', { x: (S.testName(tg.test)) + ' · ' + S.fmtDay(tg.test.testDate) }) + ' ' + t('Built from your teacher’s lessons and old tests.') : sub;
     if (done) {
       $('#hero').innerHTML = '<div class="tonight"><div class="tn-top"><span>✓ ' + esc(sub) + '</span></div><h2>' + esc(t('Done for tonight')) + '</h2><p class="tn-goal" dir="auto">' + esc(tg.title) + '</p>' +
         '<div class="tn-btns"><a class="btn big tn-alt" href="' + sessionLink(p, { mode: 'test', mins: 20 }) + '">' + esc(t('One more question')) + '</a></div></div>';
@@ -116,8 +116,8 @@
     $('#next').innerHTML = '<div class="sec-head"><h2>' + esc(t('Next up')) + '</h2>' + (total ? '<a href="' + S.link('/notebook.html', { tab: 'coming' }) + '">' + esc(t('All')) + ' ' + total + '</a>' : '') + '</div>' +
       '<div class="list">' + (items.length ? items.slice(0, 3).map(it => {
         const x = it.x;
-        if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when(x.testDate) + '</a>';
-        if (it.kind === 'lesson') return '<a class="item" href="' + S.link('/lesson.html', { id: x.id }) + '"><span class="tag lesson">' + esc(t('Lesson')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.title || t('Lesson')) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subject_id) + ' · ' + S.rel(x.lesson_date)) + '</span></span><span class="when">' + esc(LST[x.status] || t('Transcribing…')) + '</span></a>';
+        if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.testName(x)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when(x.testDate) + '</a>';
+        if (it.kind === 'lesson') return '<a class="item" href="' + S.link('/lesson.html', { id: x.id }) + '"><span class="tag lesson">' + esc(t('Lesson')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.lessonName(x)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subject_id) + ' · ' + S.rel(x.lesson_date)) + '</span></span><span class="when">' + esc(LST[x.status] || t('Transcribing…')) + '</span></a>';
         return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button><a class="body" href="' + S.link('/session.html', { subject: x.subjectId, hw: x.id, topic: x.title, mode: 'learn', mins: 30 }) + '"><span class="ttl" dir="auto">' + esc(x.title) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></a>' + when(x.dueDate) + '</div>';
       }).join('') : '<p class="empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>') +
       (S.otherTests().length ? '<a class="item" href="' + S.link('/notebook.html', { tab: 'coming' }) + '"><span class="body"><span class="meta">' + esc(t('{n} tests probably not yours (other groups or classes)', { n: S.otherTests().length })) + '</span></span><span class="hint">→</span></a>' : '') + '</div>';
@@ -133,7 +133,11 @@
     if (!list.length) return;
     const he = S.lang() === 'he';
     box.href = S.link('/notebook.html', { tab: came.length ? 'messages' : 'coming' });
-    box.innerHTML = '<span class="came-dot"></span><span dir="auto">' + esc((he ? list.length + ' חדשים מבית הספר' : list.length + ' new from school') + ' · ' + list.slice(0, 2).map(x => x.text).join(', ')) + '</span>';
+    const msgs = came.length, other = list.length - msgs;
+    const bits = [];
+    if (msgs) bits.push(he ? (msgs === 1 ? 'הודעה מהמורה' : msgs + ' הודעות מהמורים') : (msgs === 1 ? '1 teacher message' : msgs + ' teacher messages'));
+    if (other) bits.push(he ? (other === 1 ? 'מטלה או מבחן חדש' : other + ' מטלות ומבחנים חדשים') : (other === 1 ? '1 new homework or test' : other + ' new homework and tests'));
+    box.innerHTML = '<span class="came-dot"></span><span>' + esc((he ? 'חדש מבית הספר: ' : 'New from school: ') + bits.join(he ? ' ו' : ' and ')) + '</span>';
   }
   /* a tile per subject that has something going on; tap = everything about it */
   function tiles() {
@@ -167,7 +171,7 @@
     }
     const wk = $('#week-hint');
     wk.hidden = !(S.school.ready && !(S.settings().week || []).length);
-    if (!wk.hidden) { wk.innerHTML = '<button class="card" id="wk-go" style="display:flex;align-items:center;gap:12px;width:100%;text-align:start"><span style="flex:1">' + esc(t('Your week isn’t set yet: tell Study when you have volleyball, robotics, gym.')) + '</span><span class="btn dark">' + esc(t('Tell me about your week')) + '</span></button>'; $('#wk-go').onclick = () => S.weekChat(tt, render, { topicsBySubj }); }
+    if (!wk.hidden) { wk.innerHTML = '<div class="card" style="display:flex;flex-direction:column;gap:12px"><b>' + esc(S.lang() === 'he' ? 'מתי יש לך אימונים?' : 'When do you have practice?') + '</b><span class="hint">' + esc(S.lang() === 'he' ? 'כדי שהערב יתוכנן סביב כדורעף, רובוטיקה וחדר כושר.' : 'So tonight is planned around volleyball, robotics and gym.') + '</span><button class="btn dark block" id="wk-go">' + esc(t('Tell me about your week')) + '</button></div>'; $('#wk-go').onclick = () => S.weekChat(tt, render, { topicsBySubj }); }
   }
   function render() { setup(); hero(); next(); cameIn(); tiles(); }
 

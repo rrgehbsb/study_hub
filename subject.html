@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.2">
+<link rel="stylesheet" href="/app.css?v=0.7.3">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -46,7 +46,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.2"></script>
+<script src="/app.js?v=0.7.3"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -67,8 +67,8 @@
     $('#sub').textContent = '';
     const oldTests = mats.filter(m => m.kind === 'old_test').length, ready = lessons.filter(l => l.status === 'ready').length;
     if (s && s.color) document.documentElement.style.setProperty('--c', s.color);
-    $('#testcard').innerHTML = test ? '<div class="subj-hero"><span class="label">' + esc(t('Next test')) + '</span><h2 style="font-size:24px;font-weight:800" dir="auto">' + esc(test.name) + '</h2>' +
-      '<span class="hint" dir="auto">' + esc([S.fmtDay(test.testDate, true), test.topics].filter(Boolean).join(' · ')) + '</span>' +
+    $('#testcard').innerHTML = test ? '<div class="subj-hero"><span class="label">' + esc(t('Next test')) + '</span><h2 style="font-size:24px;font-weight:800" dir="auto">' + esc(S.testName(test)) + '</h2>' +
+      '<span class="hint" dir="auto">' + esc([S.fmtDay(test.testDate, true), S.topicsOf(test).join(', ')].filter(Boolean).join(' · ')) + '</span>' +
       '<span class="hint">' + (S.lang() === 'he' ? 'בנוי מ־' + ready + ' שיעורים ו־' + oldTests + ' מבחנים ישנים' : 'Built from ' + ready + (ready === 1 ? ' lesson' : ' lessons') + ' and ' + oldTests + (oldTests === 1 ? ' old test' : ' old tests')) + '</span></div>' : '';
     // the course: topics in order, the next one to do highlighted, a practice test at the end
     const order = { alone: 0, with_help: 1, new: 2 };
@@ -87,7 +87,7 @@
     $('#lessons').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Lessons')) + '</h2><a class="hint" href="' + S.link('/record.html', { subject: id }) + '">' + esc(t('Record lesson')) + ' →</a></div>' +
       (lessons.length ? lessons.map(l => {
         const stt = STATUS[l.status];
-        const inner = '<span class="body"><span class="ttl" dir="auto">' + esc(l.title || t('Lesson')) + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + '</span>' + (l.status === 'error' && l.error ? '<span class="meta" dir="auto">' + esc(S.errText(l.error)) + '</span>' : '') + '</span>' + (stt ? '<span class="tag ' + stt[1] + '">' + esc(t(stt[0])) + '</span>' : ic('chev', 'sm flip'));
+        const inner = '<span class="body"><span class="ttl" dir="auto">' + esc(S.lessonName(l)) + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + '</span>' + (l.status === 'error' && l.error ? '<span class="meta" dir="auto">' + esc(S.errText(l.error)) + '</span>' : '') + '</span>' + (stt ? '<span class="tag ' + stt[1] + '">' + esc(t(stt[0])) + '</span>' : ic('chev', 'sm flip'));
         return l.status === 'ready' ? '<a class="item" href="' + S.link('/lesson.html', { id: l.id }) + '">' + inner + '</a>' : '<button class="item" ' + (l.status === 'error' ? 'data-retry="' + esc(l.id) + '"' : 'disabled') + '>' + inner + '</button>';
       }).join('') : '<p class="empty">' + (S.lang() === 'he' ? 'עוד אין שיעורים. הקלט את השיעור הבא.' : 'No lessons yet. Record the next one.') + '</p>');
     S.$$('[data-retry]').forEach(b => b.onclick = () => { S.toast(t('Transcribing…')); S.api('transcribe', { lessonId: b.dataset.retry, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); }); });
@@ -105,7 +105,7 @@
     const hw = S.openHomework().filter(a => a.subjectId === id), more = S.openTests().filter(x => x.subjectId === id && x !== test);
     $('#todo').hidden = !(hw.length || more.length);
     $('#todo').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Homework & tests')) + '</h2></div>' +
-      more.map(x => '<div class="item"><span class="tag test">' + esc(t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name || t('Test')) + '</span><span class="meta">' + esc(S.fmtDay(x.testDate)) + '</span></span><span class="when">' + esc(S.rel(x.testDate)) + '</span></div>').join('') +
+      more.map(x => '<div class="item"><span class="tag test">' + esc(t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.testName(x)) + '</span><span class="meta">' + esc(S.fmtDay(x.testDate)) + '</span></span><span class="when">' + esc(S.rel(x.testDate)) + '</span></div>').join('') +
       hw.map(a => '<div class="item"><button class="check-hit" data-tog="' + esc(a.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button>' +
         '<a class="body" href="' + sess({ hw: a.id, topic: a.title, mode: 'learn', mins: 30 }) + '"><span class="ttl" dir="auto">' + esc(a.title) + '</span><span class="meta">' + esc(t('Do it with the tutor')) + '</span></a><span class="when">' + esc(a.dueDate ? S.rel(a.dueDate) : '') + '</span></div>').join('');
     S.$$('[data-tog]').forEach(b => b.onclick = () => { S.setHomeworkDone(b.dataset.tog, true); S.toast(t('Done'), () => S.setHomeworkDone(b.dataset.tog, false)); });
