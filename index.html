@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://mtuoqwbrujxutofhyahb.supabase.co" crossorigin>
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'dark';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
@@ -17,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.7">
+<link rel="stylesheet" href="/app.css?v=0.6.8">
 <title>Today · Study</title>
 </head>
 <body>
@@ -42,7 +43,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.7"></script>
+<script src="/app.js?v=0.6.8"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -179,7 +180,7 @@
 
   async function loadStudy() {
     try {
-      const [topics, ls, msgs] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 40), S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 6)]);
+      const [topics, ls, msgs] = await Promise.all([S.rowsFast(S.T.topics), S.rowsFast(S.T.lessons, null, 'lesson_date', 40), S.rowsFast(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 6)]);
       topicsBySubj = {}; topics.forEach(x => (topicsBySubj[x.subject_id] = topicsBySubj[x.subject_id] || []).push(x));
       lessons = ls; came = msgs.filter(m => String(m.taken_at || m.created_at).slice(0, 10) >= S.addDays(dk, -3));
     } catch (e) { S.toast(e.message); }
@@ -188,9 +189,10 @@
   S.school.on(render);
   S.onStudy(loadStudy);
   await S.school.load();
-  tt = await S.timetable();
+  const ls = loadStudy();
+  tt = await S.timetable(); render();
   S.loadGroups().then(render);
-  await loadStudy();
+  await ls;
   S.syncAll().then(n => { if (n) loadStudy(); });
   document.addEventListener('visibilitychange', () => { if (!document.hidden) { S.school.load(); loadStudy(); } });
 })();

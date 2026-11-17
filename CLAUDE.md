@@ -139,7 +139,10 @@ login.html      Email + password (same accounts as the main Dashboard)
 app.css         Command Center design system (dark default) + Coach light, course path, session, record styles
 app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,
                 planner, study tables, uploads, api(), graphs (```plot → SVG, safe formula parser), i18n, nav, demo data
-sw.js           Service worker (network-first), cache name = version
+sw.js           Service worker (v0.6.8): app shell. Install saves every page and file of the version; pages and files are served
+                from the phone (pages ignore ?query); a new version installs in the background and replaces the old cache.
+                Add new pages/files to its PAGES/FILES lists. Speed also: `school.load()`, `timetable()`, `loadGroups()` answer from
+                the saved copy at once and refresh behind; `SH.rowsFast` = rows() from the last copy, redraws via emitStudy if changed
 api/_lib.js     Server helpers: auth check, Supabase REST with the user's token, usage guard, Claude, Gemini
 api/transcribe.js  audio → Groq (verbose_json) → transcript with [m:ss] stamps, marks and board-photo moments → summary
 api/read-file.js   board photo / notes / old test (image or PDF) → Claude → text

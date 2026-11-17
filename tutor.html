@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://mtuoqwbrujxutofhyahb.supabase.co" crossorigin>
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <script>
@@ -21,7 +22,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.7">
+<link rel="stylesheet" href="/app.css?v=0.6.8">
 <title>Tutor · Study</title>
 </head>
 <body>
@@ -44,7 +45,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.7"></script>
+<script src="/app.js?v=0.6.8"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -131,18 +132,19 @@
   function render() { now(); tests(); hw(); any(); from(); hist(); }
   async function load() {
     try {
-      const [tps, ls, ms, cs] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 60), S.rows(S.T.materials, null, 'created_at', 200), S.rows(S.T.chats, null, 'updated_at', 30).catch(() => [])]);
+      const [tps, ls, ms, cs] = await Promise.all([S.rowsFast(S.T.topics), S.rowsFast(S.T.lessons, null, 'lesson_date', 60), S.rowsFast(S.T.materials, null, 'created_at', 200), S.rowsFast(S.T.chats, null, 'updated_at', 30).catch(() => [])]);
       chats = cs;
       topicsBy = {}; tps.forEach(x => (topicsBy[x.subject_id] = topicsBy[x.subject_id] || []).push(x));
       lessons = ls; mats = ms;
     } catch (e) { S.toast(e.message); }
     render();
   }
-  S.school.on(render);
+  S.school.on(render); S.onStudy(load);
   await S.school.load();
   S.loadGroups().then(render);
-  tt = await S.timetable();
-  await load();
+  const lp = load();
+  tt = await S.timetable(); render();
+  await lp;
 })();
 </script>
 </body>

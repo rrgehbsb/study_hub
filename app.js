@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.7';
+const VERSION = '0.6.8';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -329,10 +329,16 @@ const schoolLS = () => 'sh:school:' + uid;
 school.on = f => school.subs.push(f);
 const emit = () => school.subs.forEach(f => { try { f(); } catch (e) { console.error(e); } });
 school.get = k => Array.isArray(school.data[k]) ? school.data[k] : [];
-school.load = async () => {
-  if (DEMO) { school.data = demoSchool(); school.ready = true; emit(); return; }
+/* Speed: with a saved copy, load() returns at once and the cloud copy arrives in the background
+   (emit() redraws the page). Only the very first load waits for the network. */
+school.load = () => {
+  if (DEMO) { school.data = demoSchool(); school.ready = true; emit(); return Promise.resolve(); }
   const cached = readJSON(schoolLS());
   if (isObj(cached)) { school.data = cached; emit(); }
+  const p = school.pull || (school.pull = schoolPull().finally(() => { school.pull = null; }));
+  return isObj(cached) ? Promise.resolve() : p;
+};
+async function schoolPull() {
   try {
     await fresh();
     const res = await sb().from('app_state').select('data').eq('key', uid + ':school').maybeSingle();
@@ -349,7 +355,7 @@ school.load = async () => {
     if (th && th !== theme()) applyTheme(th);
     emit();
   } catch (e) { console.warn('school load failed', e); toast('Offline: showing the last saved copy.'); }
-};
+}
 // save the keys changed here: read the cloud row, merge entry by entry, write back
 school.save = async keys => {
   writeJSON(schoolLS(), school.data); emit();
@@ -571,12 +577,10 @@ async function timetable() {
   if (!cls) return null;
   const LS = 'sh:tt:' + cls, c = readJSON(LS);
   if (c && c.day === todayKey() && Date.now() - c.at < 3 * 3600e3) return c.data;
-  try {
-    const r = await fetch('/api/school?cls=' + encodeURIComponent(cls));
-    const j = await r.json();
-    if (j && j.ok) { writeJSON(LS, { at: Date.now(), day: todayKey(), data: j }); return j; }
-  } catch (e) {}
-  return c ? c.data : null;
+  const get = fetch('/api/school?cls=' + encodeURIComponent(cls)).then(r => r.json())
+    .then(j => { if (j && j.ok) { writeJSON(LS, { at: Date.now(), day: todayKey(), data: j }); return j; } return c ? c.data : null; })
+    .catch(() => c ? c.data : null);
+  return c ? c.data : get; // a saved copy (even yesterday's: the regular week still holds) beats waiting for the school site
 }
 function schoolPeriods(tt, dk) {
   if (!tt) return null;
@@ -626,12 +630,10 @@ async function loadGroups() {
   if (DEMO || !cls) return classGroups();
   const c = readJSON('sh:groups:' + cls);
   if (c && c.list && Date.now() - c.at < 864e5) return c.list;
-  try {
-    const r = await fetch('/api/school?groups=1&cls=' + encodeURIComponent(cls));
-    const j = await r.json();
-    if (j && j.ok && Array.isArray(j.groups)) { writeJSON('sh:groups:' + cls, { at: Date.now(), list: j.groups }); return j.groups; }
-  } catch (e) {}
-  return classGroups();
+  const get = fetch('/api/school?groups=1&cls=' + encodeURIComponent(cls)).then(r => r.json())
+    .then(j => { if (j && j.ok && Array.isArray(j.groups)) { writeJSON('sh:groups:' + cls, { at: Date.now(), list: j.groups }); return j.groups; } return classGroups(); })
+    .catch(() => classGroups());
+  return c && c.list ? c.list : get;
 }
 // the class's groups a piece of text is about ("מבחן באלקטרוניקה" → חשמל ואלקטרוניקה)
 function groupsIn(text) {
@@ -804,6 +806,22 @@ async function rows(table, filter, order, limit, extra) {
   const r = await q;
   if (r.error) { if (/relation .* does not exist|column .* does not exist/i.test(r.error.message || '')) throw new Error('Run the updated supabase/schema.sql in Supabase.'); throw r.error; }
   return r.data || [];
+}
+/* rows() for showing lists: answers at once from this phone's last copy, then checks the cloud in the
+   background and redraws (emitStudy) only if something changed. Long texts are cut in the saved copy. */
+const rowsBusy = {};
+async function rowsFast(table, filter, order, limit, extra) {
+  if (DEMO) return rows(table, filter, order, limit, extra);
+  const key = 'sh:rows:' + uid + ':' + JSON.stringify([table, filter || null, order || null, limit || null, extra || null]);
+  const cut = list => list.map(r => { const o = {}; Object.keys(r).forEach(k => { const v = r[k]; o[k] = typeof v === 'string' && v.length > 3000 ? v.slice(0, 3000) : v; }); return o; });
+  const save = list => { try { localStorage.setItem(key, JSON.stringify(cut(list))); } catch (e) { try { localStorage.removeItem(key); } catch (x) {} } };
+  let cached = null; try { cached = JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) {}
+  if (!Array.isArray(cached)) { const r = await rows(table, filter, order, limit, extra); save(r); return r; }
+  if (!rowsBusy[key]) rowsBusy[key] = rows(table, filter, order, limit, extra).then(r => {
+    const before = localStorage.getItem(key); save(r);
+    if (localStorage.getItem(key) !== before) emitStudy();
+  }).catch(() => {}).finally(() => { setTimeout(() => { delete rowsBusy[key]; }, 4000); });
+  return cached;
 }
 async function insert(table, values) {
   if (DEMO) return Object.assign({ id: uuid(), created_at: stamp() }, values);
@@ -1598,7 +1616,7 @@ window.SH = {
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,
-  rows, insert, update, setTopicState, upload, api, shrinkImage, renderRich, plotSVG, compile, openAdd, onStudy, emitStudy,
+  rows, rowsFast, insert, update, setTopicState, upload, api, shrinkImage, renderRich, plotSVG, compile, openAdd, onStudy, emitStudy,
   uploadLessonAudio, uploadMaterial,
   syncAll, lastSync, myClass, setMyClass, subjectFromHe, timetable, currentLesson, plan, dayItems, skipKey, doneKey,
   theme, setTheme, setTonight, weekChat, tonightSheet, weekSummary, claudePrompt, openClaude, parsePlan, importSheet,

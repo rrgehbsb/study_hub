@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
 <link rel="manifest" href="/manifest.json">
+<link rel="preconnect" href="https://mtuoqwbrujxutofhyahb.supabase.co" crossorigin>
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
 <script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'dark';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
@@ -17,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.7">
+<link rel="stylesheet" href="/app.css?v=0.6.8">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -30,7 +31,7 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.6.7"></script>
+<script src="/app.js?v=0.6.8"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -194,14 +195,14 @@
 
   async function load() {
     try {
-      const [ls, a, b, tps] = await Promise.all([S.rows(S.T.lessons, null, 'lesson_date', 100), S.rows(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 60), S.rows(S.T.materials, { kind: 'teacher_summary' }, 'created_at', 40), S.rows(S.T.topics)]);
+      const [ls, a, b, tps] = await Promise.all([S.rowsFast(S.T.lessons, null, 'lesson_date', 100), S.rowsFast(S.T.materials, { kind: 'teacher_message' }, 'taken_at', 60), S.rowsFast(S.T.materials, { kind: 'teacher_summary' }, 'created_at', 40), S.rowsFast(S.T.topics)]);
       lessons = ls; topicsBy = {}; tps.forEach(x => (topicsBy[x.subject_id] = topicsBy[x.subject_id] || []).push(x));
       msgs = a.concat(b).sort((x, y) => String(y.taken_at || y.created_at).localeCompare(String(x.taken_at || x.created_at)));
       if (!S.DEMO) S.resortMessages(msgs).then(n => { if (n) render(); });
     } catch (e) { S.toast(e.message); }
     render();
   }
-  S.school.on(render);
+  S.school.on(render); S.onStudy(load);
   await S.school.load();
   render();
   S.loadGroups().then(render);

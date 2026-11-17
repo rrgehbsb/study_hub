@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-17: v0.6.8 — speed: the app is saved on the phone (service worker app shell: pages ~1 s → ~0.1 s on 4G, works offline), school data, timetable and lists show the last copy at once and update behind, Supabase preconnect, long cache headers for /vendor /fonts /icons.
 - 2026-11-17: v0.6.7 — tutor history: every session is saved and can be reopened (Tutor → Continue / History); opening the same topic again picks up where you left off, with "Start over". The tutor now also sees the student's recurring mistakes in the subject.
 - 2026-11-17: v0.6.6 — owner switched everything to Opus 5.5 (first 40 AI turns a day; Sonnet after that). $10 console cap still the hard stop.
 - 2026-11-17: v0.6.5 — owner's choice: the strongest model (Opus 5.5) for studying for the closest test only (first 40 turns a day), Sonnet for everything else. The $10 console cap stays the hard stop.
