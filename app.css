@@ -443,3 +443,4 @@ html { text-size-adjust:100%; }
 .plus-opt b { font-size:15px; }
 .plus-opt span { font-size:13px; color:var(--ink-3); line-height:1.3; }
 .item a.body { text-decoration:none; color:inherit; display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; }
+.title-row a.hint { min-width:44px; min-height:44px; display:inline-flex; align-items:center; justify-content:flex-end; }

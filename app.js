@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.9';
+const VERSION = '0.6.10';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -208,7 +208,7 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-/* v0.6.9: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+/* v0.6.10: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
    the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
    the gear (Settings) sits at the top of every page. */
 const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['subjects', '/notebook.html', 'book', 'Subjects'], ['progress', '/progress.html', 'chart', 'Grades']];
@@ -244,6 +244,13 @@ function nav(active, opt) {
     g.innerHTML = ic('gear', 'sm');
     head.appendChild(g);
   }
+}
+// a lesson's error, short and in the app's language
+function errText(m) {
+  m = String(m || '');
+  if (/open this recording|valid media|could not process|invalid file/i.test(m)) return LANG === 'he' ? 'לא הצליח לפתוח את ההקלטה. לחצו כדי לתקן.' : 'Couldn’t open the recording. Tap to fix it.';
+  if (/Nothing was recorded/i.test(m)) return LANG === 'he' ? 'לא הוקלט כלום.' : 'Nothing was recorded.';
+  return m;
 }
 /* everything you can add, in one place */
 function openPlus(subjectId) {
@@ -1652,7 +1659,7 @@ async function demoApi(name, p) {
 
 window.SH = {
   VERSION, DEMO, K, T, $, $$, esc, ic, qs, wait, link, stamp, newId, uuid, readJSON, writeJSON,
-  t, lang, setLang, langToggle, nav, openPlus, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
+  t, lang, setLang, langToggle, nav, openPlus, errText, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
   school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,

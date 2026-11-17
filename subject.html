@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.9">
+<link rel="stylesheet" href="/app.css?v=0.6.10">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -45,7 +45,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.9"></script>
+<script src="/app.js?v=0.6.10"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -85,7 +85,7 @@
     $('#lessons').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Lessons')) + '</h2><a class="hint" href="' + S.link('/record.html', { subject: id }) + '">' + esc(t('Record lesson')) + ' →</a></div>' +
       (lessons.length ? lessons.map(l => {
         const stt = STATUS[l.status];
-        const inner = '<span class="body"><span class="ttl" dir="auto">' + esc(l.title || t('Lesson')) + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + '</span>' + (l.status === 'error' && l.error ? '<span class="meta" dir="auto">' + esc(l.error) + '</span>' : '') + '</span>' + (stt ? '<span class="tag ' + stt[1] + '">' + esc(t(stt[0])) + '</span>' : ic('chev', 'sm flip'));
+        const inner = '<span class="body"><span class="ttl" dir="auto">' + esc(l.title || t('Lesson')) + '</span><span class="meta">' + esc(S.fmtDay(l.lesson_date)) + ((l.marks || []).length ? ' · ⚑ ' + l.marks.length : '') + (l.topics && l.topics.length ? ' · <span dir="auto">' + esc(l.topics.join(', ')) + '</span>' : '') + '</span>' + (l.status === 'error' && l.error ? '<span class="meta" dir="auto">' + esc(S.errText(l.error)) + '</span>' : '') + '</span>' + (stt ? '<span class="tag ' + stt[1] + '">' + esc(t(stt[0])) + '</span>' : ic('chev', 'sm flip'));
         return l.status === 'ready' ? '<a class="item" href="' + S.link('/lesson.html', { id: l.id }) + '">' + inner + '</a>' : '<button class="item" ' + (l.status === 'error' ? 'data-retry="' + esc(l.id) + '"' : 'disabled') + '>' + inner + '</button>';
       }).join('') : '<p class="empty">' + (S.lang() === 'he' ? 'עוד אין שיעורים. הקלט את השיעור הבא.' : 'No lessons yet. Record the next one.') + '</p>');
     S.$$('[data-retry]').forEach(b => b.onclick = () => { S.toast(t('Transcribing…')); S.api('transcribe', { lessonId: b.dataset.retry, subjectName: S.subjectName(id) }).then(load).catch(e => { S.toast(e.message); load(); }); });
