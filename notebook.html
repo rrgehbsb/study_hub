@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.1">
+<link rel="stylesheet" href="/app.css?v=0.7.2">
 <title>Notebook · Study</title>
 </head>
 <body>
@@ -29,11 +29,11 @@
   <div class="seg nb-tabs" role="tablist" id="tabs"></div>
   <section id="view" style="display:flex;flex-direction:column;gap:16px"></section>
 </main>
-<script src="/app.js?v=0.7.1"></script>
+<script src="/app.js?v=0.7.2"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
-  /* The Subjects tab (v0.7.1): one page, four views. Subjects (each one holds everything about it),
+  /* The Subjects tab (v0.7.2): one page, four views. Subjects (each one holds everything about it),
      Homework & tests, Lessons, Messages. Adding anything = the + button. Sources' status lives in Settings. */
   S.nav('subjects');
   S.tour('subjects', [
@@ -158,7 +158,7 @@
     const lessonsBy = {}; lessons.forEach(l => (lessonsBy[l.subject_id] = lessonsBy[l.subject_id] || []).push(l));
     const busy = new Set(Object.keys(topicsBy).concat(Object.keys(lessonsBy)));
     S.openTests().forEach(x => busy.add(x.subjectId)); S.openHomework().forEach(a => busy.add(a.subjectId));
-    const list = S.subjects().filter(s => busy.has(s.id));
+    const list = S.subjects().filter(s => busy.has(s.id) && !S.notMineSubject(s.id));
     $('#view').innerHTML = '<section class="subj-grid">' + (list.map(s => {
       const test = S.openTests().find(x => x.subjectId === s.id), tps = topicsBy[s.id] || [], ls = lessonsBy[s.id] || [];
       return '<a class="subj-card" style="--c:' + esc(s.color || '#6366F1') + '" href="' + S.link('/subject.html', { id: s.id }) + '"><span class="bar" style="background:' + esc(s.color || 'var(--accent)') + '"></span><b style="font-size:20px" dir="auto">' + esc(s.name) + '</b>' +

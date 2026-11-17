@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.7.1';
+const VERSION = '0.7.2';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -209,7 +209,7 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-/* v0.7.1: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+/* v0.7.2: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
    the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
    the gear (Settings) sits at the top of every page. */
 /* v0.7 ("Bright", chosen 2026-11-17): bottom bar Today · Subjects · [Record] · Tutor · Grades, the big red Record
@@ -703,6 +703,7 @@ function testFit(x) {
   const over = (settings().testMine || {})[x.id];
   if (over === true) return 'mine';
   if (over === false) return 'other';
+  if (notMineSubject(x.subjectId)) return 'other'; // a subject you said isn't yours (another major)
   if (x.source !== 'calendar') return 'mine'; // yours: you, Mashov or the main Dashboard added it
   const text = [x.name, x.heSubject, subjectName(x.subjectId)].filter(Boolean).join(' ');
   const cm = classMention(text);
@@ -718,9 +719,19 @@ function testFit(x) {
 function fitWhy(x) {
   const text = [x.name, x.heSubject, subjectName(x.subjectId)].filter(Boolean).join(' ');
   if ((settings().testMine || {})[x.id] === false) return t('You said it’s not yours');
+  if (notMineSubject(x.subjectId)) return LANG === 'he' ? 'מקצוע שלא שלך' : 'A subject you don’t take';
   if (classMention(text) === false) return t('For another class');
   const gs = groupsIn(text);
   return gs.length ? t('Group you don’t take: {x}', { x: gs.map(g => g.name).join(', ') }) : '';
+}
+/* Subjects that aren't yours (another major's group, e.g. חשמל when you take cyber): hidden from Today,
+   Subjects and the Tutor, their tests fold into "Probably not yours". Only Study Hub's own setting:
+   nothing in the shared school row changes, and Settings brings them back. */
+const notMineSubject = id => !!(id && (settings().notMine || {})[id]);
+function setSubjectMine(id, mine) {
+  const all = Object.assign({}, settings().notMine || {});
+  if (mine) delete all[id]; else all[id] = true;
+  return saveSettings({ notMine: all });
 }
 function setTestMine(id, v) {
   const all = Object.assign({}, settings().testMine || {});
@@ -1660,7 +1671,7 @@ window.SH = {
   t, lang, setLang, langToggle, nav, openPlus, errText, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
-  school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest,
+  school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest, notMineSubject, setSubjectMine,
   rows, rowsFast, insert, update, setTopicState, upload, api, shrinkImage, renderRich, plotSVG, compile, openAdd, onStudy, emitStudy,
   uploadLessonAudio, uploadMaterial,
   syncAll, lastSync, myClass, setMyClass, subjectFromHe, timetable, currentLesson, plan, dayItems, skipKey, doneKey,

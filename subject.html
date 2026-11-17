@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.1">
+<link rel="stylesheet" href="/app.css?v=0.7.2">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -42,10 +42,11 @@
     <div class="col-side">
       <section class="list" id="mats"></section>
       <section id="last"></section>
+      <section id="mine"></section>
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.1"></script>
+<script src="/app.js?v=0.7.2"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -108,6 +109,16 @@
       hw.map(a => '<div class="item"><button class="check-hit" data-tog="' + esc(a.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button>' +
         '<a class="body" href="' + sess({ hw: a.id, topic: a.title, mode: 'learn', mins: 30 }) + '"><span class="ttl" dir="auto">' + esc(a.title) + '</span><span class="meta">' + esc(t('Do it with the tutor')) + '</span></a><span class="when">' + esc(a.dueDate ? S.rel(a.dueDate) : '') + '</span></div>').join('');
     S.$$('[data-tog]').forEach(b => b.onclick = () => { S.setHomeworkDone(b.dataset.tog, true); S.toast(t('Done'), () => S.setHomeworkDone(b.dataset.tog, false)); });
+    // another major's subject (e.g. חשמל when you take cyber): one tap hides it everywhere, nothing is deleted
+    const he = S.lang() === 'he', off = S.notMineSubject(id);
+    $('#mine').innerHTML = '<button class="btn ghost block" id="mine-btn">' + esc(off ? (he ? 'זה כן המקצוע שלי' : 'This is my subject after all') : (he ? 'זה לא מקצוע שלי' : 'Not my subject')) + '</button>' +
+      (off ? '' : '<p class="hint" style="text-align:center">' + esc(he ? 'למשל מגמה אחרת. נעלם מהיום, מהמקצועות ומהמורה הפרטי. אפשר להחזיר בהגדרות.' : 'E.g. another major. It disappears from Today, Subjects and the Tutor. Bring it back in Settings.') + '</p>');
+    $('#mine-btn').onclick = async () => {
+      await S.setSubjectMine(id, off);
+      if (off) { S.toast(he ? 'חזר לרשימה' : 'Back in your list'); render(); return; }
+      S.toast(he ? 'הוסתר: ' + S.subjectName(id) : 'Hidden: ' + S.subjectName(id), async () => { await S.setSubjectMine(id, true); render(); });
+      setTimeout(() => { location.href = S.link('/notebook.html'); }, 1600);
+    };
     const last = attempts[0];
     $('#last').innerHTML = last ? '<div class="card" style="display:flex;flex-direction:column;gap:8px"><h2>' + (S.lang() === 'he' ? 'הניסיון האחרון' : 'Your last try') + '</h2><span style="font-size:22px;font-weight:800">' + esc(t({ correct: 'Correct', partial: 'Almost', wrong: 'Not yet ' }[last.verdict] || '')) + '</span>' + (last.mistake ? '<span class="quote">' + (S.lang() === 'he' ? 'איפה זה נשבר: ' : 'Where it broke: ') + esc(last.mistake) + '</span>' : '') + '</div>' : '';
   }

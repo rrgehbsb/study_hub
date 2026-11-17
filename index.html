@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.1">
+<link rel="stylesheet" href="/app.css?v=0.7.2">
 <title>Today · Study</title>
 </head>
 <body>
@@ -39,7 +39,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.1"></script>
+<script src="/app.js?v=0.7.2"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -141,7 +141,7 @@
     lessons.forEach(l => (lessonsBy[l.subject_id] = lessonsBy[l.subject_id] || []).push(l));
     const busy = new Set(Object.keys(topicsBySubj).concat(Object.keys(lessonsBy)));
     S.openTests().forEach(x => busy.add(x.subjectId)); S.openHomework().forEach(a => busy.add(a.subjectId));
-    const list = S.subjects().filter(s => busy.has(s.id) && !s.hidden);
+    const list = S.subjects().filter(s => busy.has(s.id) && !s.hidden && !S.notMineSubject(s.id));
     $('#tiles').innerHTML = '<div class="sec-head"><h2>' + esc(t('Your subjects')) + '</h2><a href="' + S.link('/notebook.html') + '">' + esc(t('All')) + '</a></div>' +
       '<div class="tiles">' + (list.length ? list.map(s => {
         const test = S.openTests().find(x => x.subjectId === s.id), hw = S.openHomework().find(a => a.subjectId === s.id && a.dueDate), ls = (lessonsBy[s.id] || [])[0], tps = topicsBySubj[s.id] || [];

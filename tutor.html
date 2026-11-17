@@ -22,7 +22,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.1">
+<link rel="stylesheet" href="/app.css?v=0.7.2">
 <title>Tutor · Study</title>
 </head>
 <body>
@@ -44,7 +44,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.1"></script>
+<script src="/app.js?v=0.7.2"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -91,7 +91,7 @@
     $('#hw').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Homework with the tutor')) + '</h2></div>' + list.map(a => '<a class="item" href="' + go({ subject: a.subjectId, hw: a.id, topic: a.title, mode: 'learn', mins: 30 }) + '"><span class="body"><span class="ttl" dir="auto">' + esc(a.title) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(a.subjectId)) + '</span></span><span class="when">' + esc(S.rel(a.dueDate)) + '</span></a>').join('');
   }
   function any() {
-    const subs = S.subjects().filter(s => (topicsBy[s.id] || []).length || lessons.some(l => l.subject_id === s.id) || mats.some(m => m.subject_id === s.id) || S.openTests().some(x => x.subjectId === s.id));
+    const subs = S.subjects().filter(s => !S.notMineSubject(s.id)) .filter(s => (topicsBy[s.id] || []).length || lessons.some(l => l.subject_id === s.id) || mats.some(m => m.subject_id === s.id) || S.openTests().some(x => x.subjectId === s.id));
     $('#any').innerHTML = '<h2>' + esc(t('Learn something else')) + '</h2><div class="chips">' + (subs.length ? subs : S.subjects()).map(s => '<a class="chip" dir="auto" href="' + go({ subject: s.id, mode: 'learn', mins: 30 }) + '">' + esc(s.name) + '</a>').join('') + '</div>';
   }
   function from() {

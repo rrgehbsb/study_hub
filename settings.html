@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.1">
+<link rel="stylesheet" href="/app.css?v=0.7.2">
 <title>Settings · Study</title>
 </head>
 <body>
@@ -39,7 +39,7 @@
   <section class="card" id="langs" style="display:flex;flex-direction:column;gap:12px"></section>
   <section class="card" id="account" style="display:flex;flex-direction:column;gap:12px"></section>
 </main>
-<script src="/app.js?v=0.7.1"></script>
+<script src="/app.js?v=0.7.2"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -80,6 +80,13 @@
     const guessed = S.groupsGuessed(), fromMashov = (S.settings().mashovGroups || []).length;
     $('#groups').innerHTML = '<h2>' + esc(t('Groups you’re in')) + '</h2><p class="hint">' + esc(guessed ? (fromMashov ? t('Taken from Mashov. Fix it if something’s wrong.') : t('Guessed from your Dashboard timetable. Fix it if something’s wrong.')) : t('Your class splits for these. Tests of groups you’re not in fold away (never deleted).')) + '</p><div id="gp"></div>';
     S.groupsPicker($('#gp'));
+    // which subjects are yours: tap one you don't take (another major) to hide it everywhere
+    const he = S.lang() === 'he', subs = S.subjects().filter(x => !x.hidden);
+    const box = document.createElement('div'); box.style.cssText = 'display:flex;flex-direction:column;gap:8px;margin-top:6px';
+    box.innerHTML = '<h2>' + esc(he ? 'המקצועות שלך' : 'Your subjects') + '</h2><p class="hint">' + esc(he ? 'לוחצים על מקצוע שאתה לא לומד (למשל מגמה אחרת) והוא נעלם מכל מקום. לוחצים שוב להחזיר.' : 'Tap a subject you don’t take (e.g. another major) and it disappears everywhere. Tap again to bring it back.') + '</p>' +
+      '<div class="chips">' + subs.map(x => '<button type="button" class="chip" data-sm="' + esc(x.id) + '" aria-pressed="' + !S.notMineSubject(x.id) + '"' + (S.notMineSubject(x.id) ? ' style="text-decoration:line-through;opacity:.6"' : '') + ' dir="auto">' + esc(x.name) + '</button>').join('') + '</div>';
+    $('#groups').appendChild(box);
+    S.$$('[data-sm]', box).forEach(b => b.onclick = async () => { await S.setSubjectMine(b.dataset.sm, S.notMineSubject(b.dataset.sm)); groups(); });
   }
   function teachers() {
     const list = S.teacherList();
