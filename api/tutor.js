@@ -3,7 +3,7 @@
 // One tutor turn. The subject's material (old tests, lesson transcripts, board photos,
 // notes, teacher summaries) is loaded here, never sent by the page, and goes in a cached
 // system block so follow-up turns in the same session are cheap.
-const { HttpError, send, body, auth, db, claude, checkBudget, bumpUsage, handler, BEST_MODEL } = require('./_lib');
+const { HttpError, send, body, auth, db, claude, checkBudget, bumpUsage, handler, pickModel } = require('./_lib');
 
 const CONTEXT_CHARS = () => Number(process.env.CONTEXT_CHARS || 90000);
 const enc = encodeURIComponent;
@@ -112,8 +112,6 @@ module.exports = handler(async (req, res) => {
   const msgs = Array.isArray(b.messages) ? b.messages.slice(-30) : [];
   if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw new HttpError(400, 'The last message must be from the student.');
   const callsToday = await checkBudget(token);
-  // best: true = studying for the closest test → the strongest model, for the first DAILY_BEST_CALLS turns of the day
-  const best = !!b.best && callsToday < Number(process.env.DAILY_BEST_CALLS || 40);
 
   const ctx = await buildContext(token, b.subjectId, b.topic);
   const test = b.test && b.test.name ? 'Their next test in this subject: ' + b.test.name + (b.test.testDate ? ' on ' + b.test.testDate : '') + (b.test.topics ? ' — topics: ' + b.test.topics : '') + '.' : '';
@@ -144,12 +142,12 @@ module.exports = handler(async (req, res) => {
   }
   while (messages.length && messages[0].role !== 'user') messages.shift(); // the API wants a user turn first
 
-  const out = await claude({ system, messages, max_tokens: 1500, model: best ? BEST_MODEL() : undefined });
+  const out = await claude({ system, messages, max_tokens: 1500, model: pickModel(callsToday) });
   await bumpUsage(token, out.input, out.output);
   const m = out.text.match(/\[\[VERDICT:(correct|partial|wrong)\]\]/);
   const mk = out.text.match(/\[\[MISTAKE:\s*([^\]]{1,80})\]\]/);
   const text = out.text.replace(/\s*\[\[VERDICT:(correct|partial|wrong)\]\]\s*/g, '\n').replace(/\s*\[\[MISTAKE:[^\]]*\]\]\s*/g, '\n').trim();
-  send(res, 200, { text, verdict: m ? m[1] : null, mistake: mk ? mk[1].trim().toLowerCase() : null, material: ctx.counts, best });
+  send(res, 200, { text, verdict: m ? m[1] : null, mistake: mk ? mk[1].trim().toLowerCase() : null, material: ctx.counts });
 });
 
 module.exports.config = { maxDuration: 60 };

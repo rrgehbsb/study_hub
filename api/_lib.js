@@ -63,8 +63,10 @@ async function remove(token, path) {
 
 // ---------- AI providers ----------
 const TUTOR_MODEL = () => process.env.TUTOR_MODEL || 'claude-sonnet-5-5';
-// the strongest model, only for studying for the closest test (and only for the first DAILY_BEST_CALLS turns a day)
+// the strongest model for everything, for the first DAILY_BEST_CALLS AI turns of the day; after that TUTOR_MODEL
+// (so one heavy day can't use up the month's $10 cap)
 const BEST_MODEL = () => process.env.BEST_MODEL || 'claude-opus-5-5';
+const pickModel = callsToday => callsToday < Number(process.env.DAILY_BEST_CALLS || 40) ? BEST_MODEL() : TUTOR_MODEL();
 
 async function claude({ system, messages, max_tokens, model }) {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -127,4 +129,4 @@ function handler(fn) {
   };
 }
 
-module.exports = { SB_URL, SB_KEY, HttpError, send, body, auth, db, one, patch, download, remove, claude, geminiJSON, checkBudget, bumpUsage, handler, today, TUTOR_MODEL, BEST_MODEL };
+module.exports = { SB_URL, SB_KEY, HttpError, send, body, auth, db, one, patch, download, remove, claude, geminiJSON, checkBudget, bumpUsage, handler, today, TUTOR_MODEL, BEST_MODEL, pickModel };

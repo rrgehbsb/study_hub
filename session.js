@@ -158,8 +158,7 @@ async function ask() {
     const r = await S.api('tutor', {
       subjectId: P.subject, subjectName: subj ? subj.name : '', mode: 'session', step, lang: teachLang, topic: P.topic || (hw && hw.title) || '',
       test: test ? { name: test.name, testDate: test.testDate, topics: test.topics || '' } : null,
-      extra: hw ? (hw.notes || hw.title) : '', messages: payload,
-      best: !!(S.openTests()[0] && S.openTests()[0].subjectId === P.subject) // the closest test gets the strongest model
+      extra: hw ? (hw.notes || hw.title) : '', messages: payload
     });
     msgs.push({ role: 'assistant', text: r.text, verdict: r.verdict || null, mistake: r.mistake || null, step });
     busy = false; render(); scrollDown(); saveChat();

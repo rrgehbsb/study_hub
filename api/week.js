@@ -1,7 +1,7 @@
 // POST {mode:'week'|'tonight', lang, messages:[{role,text}], week, prefs, school, today, tonight}
 // The owner describes his week (or tonight) in his own words, like talking to a person;
 // the AI turns it into the planner's settings and asks one short question when something's missing.
-const { HttpError, send, body, auth, claude, checkBudget, bumpUsage, handler } = require('./_lib');
+const { HttpError, send, body, auth, claude, checkBudget, bumpUsage, handler, pickModel } = require('./_lib');
 
 const WEEK = `You help an Israeli 11th-grade student set up his week for a study planner app. He tells you about his week in his own words (Hebrew or English, maybe messy, maybe by voice dictation).
 Turn it into fixed weekly activities and planner preferences. Days are numbers: 0=Sunday 1=Monday 2=Tuesday 3=Wednesday 4=Thursday 5=Friday 6=Saturday. School is Sunday–Thursday (the app already knows school hours from the timetable; do NOT add school as an activity).
@@ -31,7 +31,7 @@ module.exports = handler(async (req, res) => {
   const b = await body(req);
   const msgs = Array.isArray(b.messages) ? b.messages.slice(-16) : [];
   if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw new HttpError(400, 'Say something first.');
-  await checkBudget(token);
+  const callsToday = await checkBudget(token);
   const tonight = b.mode === 'tonight';
   const ctx = 'Today: ' + String(b.today || '') + '.\n' +
     'School hours from his timetable: ' + JSON.stringify(b.school || {}) + '\n' +
@@ -46,7 +46,7 @@ module.exports = handler(async (req, res) => {
     else messages.push({ role, content: text });
   });
   while (messages.length && messages[0].role !== 'user') messages.shift();
-  const out = await claude({ system: [{ type: 'text', text: tonight ? TONIGHT : WEEK }, { type: 'text', text: ctx }], messages, max_tokens: 900 });
+  const out = await claude({ system: [{ type: 'text', text: tonight ? TONIGHT : WEEK }, { type: 'text', text: ctx }], messages, max_tokens: 900, model: pickModel(callsToday) });
   await bumpUsage(token, out.input, out.output);
   const j = parseJSON(out.text);
   if (!j) return send(res, 200, { reply: out.text.slice(0, 400), unparsed: true });

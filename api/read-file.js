@@ -1,6 +1,6 @@
 // POST {materialId}: a board photo, notes, worksheet or old test (image or PDF) -> Claude
 // reads it -> the text is saved on the material, so the tutor can teach from it.
-const { HttpError, send, body, auth, one, patch, download, claude, checkBudget, bumpUsage, handler } = require('./_lib');
+const { HttpError, send, body, auth, one, patch, download, claude, checkBudget, bumpUsage, handler, pickModel } = require('./_lib');
 
 const WHAT = {
   board: 'a photo of the classroom whiteboard',
@@ -17,7 +17,7 @@ module.exports = handler(async (req, res) => {
   const m = await one(token, 'study_materials?id=eq.' + encodeURIComponent(materialId) + '&select=*');
   if (!m) throw new HttpError(404, 'Not found.');
   if (!m.file_path) throw new HttpError(400, 'Nothing to read.');
-  await checkBudget(token);
+  const callsToday = await checkBudget(token);
   await patch(token, 'study_materials', materialId, { status: 'reading', error: null });
   try {
     const { buf, type } = await download(token, m.file_path);
@@ -36,7 +36,7 @@ module.exports = handler(async (req, res) => {
       '- graphs, drawings and diagrams: a short description in [brackets] with axes, labels and values\n' +
       '- anything unreadable: [unreadable]\n' +
       'No commentary before or after.';
-    const out = await claude({ max_tokens: 4000, system: 'You transcribe school material precisely. You never solve or add anything.', messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }] });
+    const out = await claude({ model: pickModel(callsToday), max_tokens: 4000, system: 'You transcribe school material precisely. You never solve or add anything.', messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }] });
     await bumpUsage(token, out.input, out.output);
     await patch(token, 'study_materials', materialId, { status: 'ready', content: out.text });
     send(res, 200, { material: Object.assign({}, m, { status: 'ready', content: out.text }) });
