@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B0D12" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FAFAF7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0E1A" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
@@ -17,19 +17,18 @@
 // old links (/tutor.html?subject=…) open the study session directly
 (function () { var p = new URLSearchParams(location.search); if (p.get('subject')) { if (p.get('mode') !== 'test') p.set('mode', 'learn'); location.replace('/session.html?' + p.toString()); } })();
 </script>
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'dark';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'light';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.10">
+<link rel="stylesheet" href="/app.css?v=0.7.0">
 <title>Tutor · Study</title>
 </head>
 <body>
 <main class="page" id="page">
   <header class="head">
     <div class="t"><span class="sub" id="sub"></span><h1 id="h1"></h1></div>
-    <span class="only-phone" id="lang-phone"></span>
   </header>
   <div class="cols">
     <div class="col-main">
@@ -45,7 +44,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.10"></script>
+<script src="/app.js?v=0.7.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -56,8 +55,6 @@
     { sel: '#from', en: ['What it teaches from', 'Everything the tutor has for each subject. Old tests matter most: they set the level.'], he: ['ממה הוא מלמד', 'כל מה שיש למורה בכל מקצוע. מבחנים ישנים הכי חשובים: הם קובעים את הרמה.'] }
   ]);
   $('#h1').textContent = t('Tutor');
-  $('#sub').textContent = t('Knows your tests. Teaches at your teacher’s level.');
-  $('#lang-phone').innerHTML = S.langToggle();
   if (!(await S.session())) return;
   let topicsBy = {}, lessons = [], mats = [], tt = null, chats = [];
   const dk = S.todayKey();

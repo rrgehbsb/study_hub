@@ -87,9 +87,9 @@ const PAGES = [
           await page.screenshot({ path: `${DIR}/${tag}-change-tonight.png` });
           await page.click('#cs-ok'); await page.waitForTimeout(500);
           await page.screenshot({ path: `${DIR}/${tag}-tonight-changed.png`, fullPage: true });
-          await page.click('.only-phone [data-lang="he"]'); await page.waitForTimeout(1500);
+          await page.evaluate(() => localStorage.setItem('sh:lang', 'he')); await page.reload(); await page.waitForTimeout(1500);
           await page.screenshot({ path: `${DIR}/${tag}-today-hebrew.png`, fullPage: true });
-          await page.click('.only-phone [data-lang="en"]'); await page.waitForTimeout(800);
+          await page.evaluate(() => localStorage.setItem('sh:lang', 'en'));
         }
         await page.close();
       }

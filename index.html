@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B0D12" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FAFAF7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0E1A" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
@@ -13,54 +13,48 @@
 <link rel="preconnect" href="https://mtuoqwbrujxutofhyahb.supabase.co" crossorigin>
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'dark';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'light';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.10">
+<link rel="stylesheet" href="/app.css?v=0.7.0">
 <title>Today · Study</title>
 </head>
 <body>
 <main class="page" id="page">
   <header class="head">
-    <div class="t"><span class="sub" id="date"></span><h1 id="h1">Tonight</h1></div>
-    <span class="only-phone" id="lang-phone"></span>
-    <a class="icon-btn only-phone" id="gear" aria-label="Settings"></a>
+    <div class="t"><span class="sub" id="date"></span><h1 id="h1">Today</h1></div>
   </header>
   <section id="setup" hidden></section>
   <div class="cols">
     <div class="col-main">
       <section id="hero"></section>
-      <section class="card" id="day"></section>
+      <section id="next" class="next-up"></section>
+      <a id="came" class="came" hidden></a>
       <section id="week-hint" hidden></section>
     </div>
     <div class="col-side">
-      <section id="ready"></section>
-      <section class="list" id="next"></section>
-      <section class="list" id="last" hidden></section>
-      <section class="list" id="came" hidden></section>
+      <section id="tiles"></section>
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.10"></script>
+<script src="/app.js?v=0.7.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
   S.nav('today');
   S.tour('today', [
     { sel: '#hero', en: ['Tonight', 'What to study tonight. It’s picked from your next test and your free time. Tap Start and the tutor opens, already loaded.'], he: ['הערב', 'מה ללמוד הערב. נבחר לפי המבחן הקרוב והזמן הפנוי שלך. לוחצים התחלה והמורה נפתח מוכן.'] },
-    { sel: '#day', en: ['Your day', 'School, the way home, practice and your study block, in order. Set your week once in Settings.'], he: ['היום שלך', 'בית ספר, הדרך הביתה, אימונים וזמן הלמידה, לפי הסדר. מגדירים את השבוע פעם אחת בהגדרות.'] },
+    { sel: '#next', en: ['Next up', 'Your next tests and homework. Tick homework here. All shows everything.'], he: ['הבא בתור', 'המבחנים ושיעורי הבית הבאים. מסמנים שיעורי בית כאן. "הכל" מראה הכל.'] },
     { sel: S.TAB_SEL('tutor'), en: ['Tutor', 'Your private teacher. Every test, with Teach me (from zero) or Test me (questions only).'], he: ['מורה פרטי', 'כל מבחן, עם "למד אותי" (מאפס) או "בחן אותי" (רק שאלות).'] },
     { sel: S.TAB_SEL('notebook'), en: ['Subjects', 'Everything about each subject in one place: tests, homework, lessons, teacher messages.'], he: ['מקצועות', 'הכל על כל מקצוע במקום אחד: מבחנים, שיעורי בית, שיעורים, הודעות מהמורים.'] },
-    { sel: '.fab, .plus-side', en: ['The + button', 'On every page: record a lesson, snap the board, add an old test or a WhatsApp message.'], he: ['כפתור ה-+', 'בכל עמוד: מקליטים שיעור, מצלמים לוח, מוסיפים מבחן ישן או הודעה מוואטסאפ.'] },
+    { sel: '.tab-rec, .topbar .rec-btn', en: ['Record', 'The red button records your lesson. The + at the top adds a board photo, an old test or a WhatsApp message.'], he: ['הקלטה', 'הכפתור האדום מקליט את השיעור. ה-+ למעלה מוסיף צילום לוח, מבחן ישן או הודעה מוואטסאפ.'] },
     { sel: S.TAB_SEL('progress'), en: ['Grades', 'Counts only what you solved alone. That’s your real readiness for the test.'], he: ['ציונים', 'נספר רק מה שפתרת לבד. זו המוכנות האמיתית שלך למבחן.'] },
     { sel: '#gear, .topbar a[href*="settings"]', en: ['Settings', 'Set your week, groups and language once. You can replay this guide from here.'], he: ['הגדרות', 'מגדירים פעם אחת את השבוע, הקבוצות והשפה. מכאן אפשר להציג שוב את המדריך.'] }
   ]);
   $('#date').textContent = S.fmtDay(S.todayKey(), true);
-  $('#h1').textContent = t('Tonight');
-  $('#lang-phone').innerHTML = S.langToggle();
-  $('#gear').href = S.link('/settings.html'); $('#gear').innerHTML = ic('gear', 'sm');
+  $('#h1').textContent = t('Today');
   if (!(await S.session())) return;
 
   let topicsBySubj = {}, lessons = [], tt = null, came = [], gpOpen = false;
@@ -75,87 +69,86 @@
     const skipped = p.skipped, done = S.readJSON(S.doneKey(dk));
     const tg = p.target;
     if (!tg) {
-      $('#hero').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('Nothing planned tonight')) + '</span><h2>' + esc(t('No tests in the next two weeks. Good time to get ahead.')) + '</h2>' +
-        '<div class="btn-row"><a class="btn dark" href="' + S.link('/record.html') + '">' + esc(t('Record lesson')) + '</a><a class="btn" href="' + S.link('/tutor.html') + '">' + esc(t('Tutor')) + '</a></div></div></div>';
+      $('#hero').innerHTML = '<div class="tonight"><div class="tn-top"><span>' + esc(t('Nothing planned tonight')) + '</span></div><h2>' + esc(t('No tests in the next two weeks. Good time to get ahead.')) + '</h2>' +
+        '<div class="tn-btns"><a class="btn big tn-alt" href="' + S.link('/tutor.html') + '">' + esc(t('Tutor')) + '</a></div></div>';
       return p;
     }
     const sub = S.subjectName(tg.subjectId);
     const forLine = tg.test ? t('For your {x}.', { x: (tg.test.name || sub) + ' · ' + S.fmtDay(tg.test.testDate) }) + ' ' + t('Built from your teacher’s lessons and old tests.') : sub;
     if (done) {
-      $('#hero').innerHTML = '<div class="hero"><div class="main"><span class="eyebrow"><span class="pill-accent">✓</span>' + esc(sub) + '</span><h2>' + esc(t('Done for tonight')) + '</h2><p class="line" dir="auto">' + esc(tg.title) + '</p>' +
-        '<div class="btn-row"><a class="btn on-hero" href="' + sessionLink(p, { mode: 'test', mins: 20 }) + '">' + esc(t('One more question')) + '</a></div></div></div>';
+      $('#hero').innerHTML = '<div class="tonight"><div class="tn-top"><span>✓ ' + esc(sub) + '</span></div><h2>' + esc(t('Done for tonight')) + '</h2><p class="tn-goal" dir="auto">' + esc(tg.title) + '</p>' +
+        '<div class="tn-btns"><a class="btn big tn-alt" href="' + sessionLink(p, { mode: 'test', mins: 20 }) + '">' + esc(t('One more question')) + '</a></div></div>';
       return p;
     }
     if (skipped) {
       const tp = S.plan(S.addDays(dk, 1), tt, { topicsBySubj, lessons });
-      $('#hero').innerHTML = '<div class="hero calm"><div class="main"><span class="eyebrow">' + esc(t('Moved to tomorrow')) + '</span><h2>' + esc(t('Tonight is off')) + '</h2>' +
-        (tp.block ? '<p class="line" dir="auto">' + esc(t('tomorrow')) + ' ' + S.hm(tp.block.start) + ' · ' + esc(tp.target.title) + '</p>' : '') +
-        '<div class="btn-row"><button class="btn" id="unskip">' + esc(t('Undo')) + '</button></div></div></div>';
+      $('#hero').innerHTML = '<div class="tonight"><div class="tn-top"><span>' + esc(t('Moved to tomorrow')) + '</span></div><h2>' + esc(t('Tonight is off')) + '</h2>' +
+        (tp.block ? '<p class="tn-goal" dir="auto">' + esc(t('tomorrow')) + ' ' + S.hm(tp.block.start) + ' · ' + esc(tp.target.title) + '</p>' : '') +
+        '<div class="tn-btns"><button class="btn big tn-alt" id="unskip">' + esc(t('Undo')) + '</button></div></div>';
       $('#unskip').onclick = async () => { await S.setTonight(dk, null); render(); };
       return p;
     }
     const b = p.block, mins = b ? b.mins : 20;
-    const parts = [[t('Learn the idea'), Math.round(mins * 0.2)], [t('Example from class'), Math.round(mins * 0.17)], [t('{n} questions alone', { n: 2 }), Math.round(mins * 0.5)], [t('Check + fix'), mins - Math.round(mins * 0.2) - Math.round(mins * 0.17) - Math.round(mins * 0.5)]];
-    $('#hero').innerHTML = '<div class="hero"><div class="main">' +
-      '<span class="eyebrow"><span class="pill-accent">' + esc(t('Next').toUpperCase()) + '</span>' + (b ? '<span dir="ltr">' + S.hm(b.start) + ' – ' + S.hm(b.end) + '</span>' : esc(t('No free time today'))) + ' · ' + esc(sub) + '</span>' +
+    const n = tg.test ? S.daysUntil(tg.test.testDate) : null;
+    const due = tg.test ? (sub + ' ' + (S.lang() === 'he' ? 'מבחן' : 'test') + ' · ' + (n === 0 ? t('today') : n === 1 ? t('tomorrow') : S.lang() === 'he' ? 'בעוד ' + n + ' ימים' : n + ' days')) : sub;
+    $('#hero').innerHTML = '<div class="tonight">' +
+      '<div class="tn-top"><span>' + esc(t('Tonight').toUpperCase()) + (b ? ' <span dir="ltr">' + S.hm(b.start) + '</span>' : '') + '</span><span class="tn-due" dir="auto">' + esc(due) + '</span></div>' +
       '<h2 dir="auto">' + esc(tg.title) + '</h2>' +
-      (tg.goal ? '<p class="line" dir="auto" style="color:var(--on-hero)">' + esc(tg.goal) + '</p>' : '') +
-      '<p class="line">' + esc(forLine) + '</p>' +
-      '<div class="btn-row" style="margin-top:6px"><a class="btn big accent" href="' + sessionLink(p) + '">' + ic('play', 'sm') + esc(t('Start · {n} min', { n: mins })) + '</a>' +
-      '<button class="btn on-hero" id="skip">' + esc(t('Change tonight')) + '</button></div></div>' +
-      '<div class="side only-desk" style="flex-direction:column"><span class="label" style="color:var(--hero-2)">' + esc(t('In this session')) + '</span>' +
-      parts.map((x, i) => '<div class="row"><span>' + (i + 1) + ' · ' + esc(x[0]) + '</span><span>' + esc(t('{n} min', { n: x[1] })) + '</span></div>').join('') + '</div></div>';
+      (tg.goal ? '<p class="tn-goal" dir="auto">' + esc(tg.goal) + '</p>' : '') +
+      '<div class="tn-btns"><a class="btn big tn-go" href="' + sessionLink(p) + '">' + esc(t('Start · {n} min', { n: mins })) + '</a>' +
+      (tg.kind !== 'practice' ? '<a class="btn big tn-alt" href="' + sessionLink(p, { mode: 'test', mins: 20 }) + '">' + esc(t('Test me')) + '</a>' : '') + '</div>' +
+      '<button class="tn-change" id="skip">' + esc(t('Change tonight')) + '</button></div>';
     const sk = $('#skip'); if (sk) sk.onclick = () => S.tonightSheet(dk, p, render);
     return p;
   }
-  function day(p) {
-    const items = p.items;
-    const lineTotal = Math.max(1, (items.length ? items[items.length - 1].end : 1320) - (items.length ? items[0].start : 480));
-    $('#day').innerHTML = '<div class="title-row" style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px"><h2>' + esc(t('Your day')) + '</h2><button class="hint" id="wk-edit" style="min-height:36px;text-decoration:underline">' + esc(t('Your week (for the planner)').split(' (')[0]) + '</button></div>' +
-      '<div class="dayline only-desk">' + items.map((it, i) => { const prev = i ? items[i - 1].end : it.start, gap = Math.max(0, it.start - prev); return (gap > 10 ? '<div class="gap" style="flex:' + gap + ' 1 0"></div>' : '') + '<div class="' + (it.kind === 'study' ? 'study' : it.kind === 'free' ? 'free' : it.kind === 'act' ? 'act' : '') + '" style="flex:' + Math.max(20, it.end - it.start) + ' 1 0" title="' + esc(it.label) + '" dir="auto">' + esc(it.label) + '</div>'; }).join('') + '</div>' +
-      '<div class="day only-phone">' + items.map(it => '<div class="slot ' + it.kind + '"><span class="tm">' + S.hm(it.start) + '</span><span dir="auto">' + (it.kind === 'school' ? esc(t('School')) + ' · <span dir="ltr">' + S.hm(it.start) + '–' + S.hm(it.end) + '</span>' : esc(it.label)) + '</span></div>').join('') + '</div>';
-  }
-  function wireDay() { const b = $('#wk-edit'); if (b) b.onclick = () => S.weekChat(tt, render, { topicsBySubj }); }
-  function ready() {
-    const x = S.openTests()[0];
-    if (!x) { $('#ready').innerHTML = ''; return; }
-    const tps = topicsBySubj[x.subjectId] || [];
-    const n = S.daysUntil(x.testDate);
-    $('#ready').innerHTML = '<a class="card" style="display:flex;flex-direction:column;gap:10px;text-decoration:none" href="' + S.link('/subject.html', { id: x.subjectId }) + '">' +
-      '<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><span class="h2" dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + ' · ' + esc(S.fmtDay(x.testDate)) + '</span><span class="when ' + (n <= 3 ? 'soon' : '') + '" style="font-weight:700;color:' + (n <= 3 ? 'var(--accent-ink)' : 'var(--ink-3)') + '">' + esc(S.rel(x.testDate)) + '</span></div>' +
-      (tps.length ? '<div class="bars">' + tps.map(p => '<span class="' + p.state + '"></span>').join('') + '</div><span class="hint">' + esc(t('{a} of {b} topics solved alone', { a: tps.filter(p => p.state === 'alone').length, b: tps.length })) + '</span>' : '<span class="hint">' + esc(t('No topics yet: they come from your lessons')) + '</span>') + '</a>';
-  }
+  /* Next up: the next 3 things (tests, homework you can tick here, a lesson that's ready); All → the full list */
   function next() {
     const items = [];
     S.openTests().filter(x => S.daysUntil(x.testDate) <= 14).forEach(x => items.push({ kind: 'test', date: x.testDate, x }));
     S.openHomework().filter(a => a.dueDate ? (S.daysUntil(a.dueDate) >= -7 && S.daysUntil(a.dueDate) <= 7) : S.daysUntil(String(a.givenDate || a.createdAt || '').slice(0, 10) || dk) >= -14).forEach(a => items.push({ kind: 'hw', date: a.dueDate || '9999', x: a }));
     items.sort((a, b) => a.date.localeCompare(b.date));
-    const tagFor = x => x.source === 'mashov' ? '<span class="tag mashov">Mashov</span>' : x.source === 'calendar' ? '<span class="tag calendar">' + esc(t('School site')) + '</span>' : x.source === 'ofek' ? '<span class="tag ofek">Ofek</span>' : '';
-    $('#next').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Coming up')) + '</h2><a class="hint" href="' + S.link('/notebook.html', { tab: 'coming' }) + '">' + esc(t('All')) + ' →</a></div>' +
-      (items.length ? items.slice(0, 7).map(it => {
-        const x = it.x, n = S.daysUntil(x.testDate || x.dueDate), when = '<span class="when' + (n != null && n < 0 ? ' late' : n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(x.testDate || x.dueDate) || '') + '</span>';
-        if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(x.type === 'Quiz' ? 'Quiz' : 'Test') + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when + '</a>';
-        return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button><span class="body"><span class="ttl" dir="auto">' + esc(x.title) + '</span><span class="meta">' + esc(S.subjectName(x.subjectId)) + ' ' + tagFor(x) + '</span></span>' + when + '</div>';
+    // a lesson from today or yesterday takes a free spot (or the last one), so a new transcript isn't missed
+    const fresh = lessons.filter(l => S.daysUntil(l.lesson_date) >= -1).sort((a, b) => String(b.lesson_date).localeCompare(String(a.lesson_date)))[0];
+    if (fresh) items.splice(Math.min(2, items.length), 0, { kind: 'lesson', x: fresh });
+    const total = items.filter(i => i.kind !== 'lesson').length;
+    const when = d => { const n = S.daysUntil(d); return '<span class="when' + (n != null && n < 0 ? ' late' : n != null && n <= 1 ? ' soon' : '') + '">' + esc(S.rel(d) || '') + '</span>'; };
+    const LST = { ready: S.lang() === 'he' ? 'מוכן' : 'Ready', error: S.lang() === 'he' ? 'לתקן' : 'Fix it' };
+    $('#next').innerHTML = '<div class="sec-head"><h2>' + esc(t('Next up')) + '</h2>' + (total ? '<a href="' + S.link('/notebook.html', { tab: 'coming' }) + '">' + esc(t('All')) + ' ' + total + '</a>' : '') + '</div>' +
+      '<div class="list">' + (items.length ? items.slice(0, 3).map(it => {
+        const x = it.x;
+        if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.name || S.subjectName(x.subjectId)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when(x.testDate) + '</a>';
+        if (it.kind === 'lesson') return '<a class="item" href="' + S.link('/lesson.html', { id: x.id }) + '"><span class="tag lesson">' + esc(t('Lesson')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.title || t('Lesson')) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subject_id) + ' · ' + S.rel(x.lesson_date)) + '</span></span><span class="when">' + esc(LST[x.status] || t('Transcribing…')) + '</span></a>';
+        return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button><a class="body" href="' + S.link('/session.html', { subject: x.subjectId, hw: x.id, topic: x.title, mode: 'learn', mins: 30 }) + '"><span class="ttl" dir="auto">' + esc(x.title) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></a>' + when(x.dueDate) + '</div>';
       }).join('') : '<p class="empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>') +
-      (S.otherTests().length ? '<a class="item" href="' + S.link('/notebook.html', { tab: 'coming' }) + '"><span class="body"><span class="meta">' + esc(t('{n} tests probably not yours (other groups or classes)', { n: S.otherTests().length })) + '</span></span><span class="hint">→</span></a>' : '');
+      (S.otherTests().length ? '<a class="item" href="' + S.link('/notebook.html', { tab: 'coming' }) + '"><span class="body"><span class="meta">' + esc(t('{n} tests probably not yours (other groups or classes)', { n: S.otherTests().length })) + '</span></span><span class="hint">→</span></a>' : '') + '</div>';
     S.$$('[data-done]', $('#next')).forEach(b => b.onclick = () => { const id = b.dataset.done; b.querySelector('.check').classList.add('on'); setTimeout(() => { S.setHomeworkDone(id, true); S.toast(t('Done'), () => S.setHomeworkDone(id, false)); }, 180); });
   }
+  /* what came in by itself in the last 3 days, as one line */
   function cameIn() {
-    const since = S.addDays(dk, -3);
-    const list = [];
-    S.school.get(S.K.as).concat(S.openTests()).forEach(x => { if (x && x.source && String(x.createdAt || x.givenDate || '').slice(0, 10) >= since) list.push({ src: x.source, text: (x.title || x.name), sub: S.subjectName(x.subjectId), href: x.testDate ? S.link('/subject.html', { id: x.subjectId }) : S.link('/notebook.html', { tab: 'coming' }) }); });
-    came.forEach(m => list.push({ src: 'mashov', text: m.title || '', sub: S.subjectName(m.subject_id), href: S.link('/notebook.html', { tab: 'messages' }) }));
+    const since = S.addDays(dk, -3), list = [];
+    S.school.get(S.K.as).concat(S.openTests()).forEach(x => { if (x && x.source && String(x.createdAt || x.givenDate || '').slice(0, 10) >= since) list.push({ src: x.source, text: x.title || x.name }); });
+    came.forEach(m => list.push({ src: 'mashov', text: m.title || '' }));
     const box = $('#came');
     box.hidden = !list.length;
-    const lab = { mashov: 'Mashov', calendar: t('School site'), ofek: 'Ofek', whatsapp: 'WhatsApp' };
-    box.innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Came in by itself')) + '</h2></div>' + list.slice(0, 5).map(x => '<a class="item" href="' + x.href + '"><span class="tag ' + esc(x.src) + '">' + esc(lab[x.src] || x.src) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(x.text) + '</span><span class="meta">' + esc(x.sub) + '</span></span></a>').join('');
+    if (!list.length) return;
+    const he = S.lang() === 'he';
+    box.href = S.link('/notebook.html', { tab: came.length ? 'messages' : 'coming' });
+    box.innerHTML = '<span class="came-dot"></span><span dir="auto">' + esc((he ? list.length + ' חדשים מבית הספר' : list.length + ' new from school') + ' · ' + list.slice(0, 2).map(x => x.text).join(', ')) + '</span>';
   }
-  function lastLesson() {
-    const l = lessons.slice().sort((a, b) => String(b.lesson_date).localeCompare(String(a.lesson_date)))[0];
-    $('#last').hidden = !l;
-    if (!l) return;
-    $('#last').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(t('Last lesson')) + '</h2><a class="hint" href="' + S.link('/notebook.html', { tab: 'lessons' }) + '">' + esc(t('All lessons')) + ' →</a></div>' +
-      '<a class="item" href="' + S.link('/lesson.html', { id: l.id }) + '"><span class="body"><span class="ttl" dir="auto">' + esc(l.title || S.subjectName(l.subject_id)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(l.subject_id)) + ' · ' + esc(S.fmtDay(l.lesson_date)) + ' · ' + esc(l.status === 'ready' ? (l.summary ? t('Summary ready') : t('Transcript ready')) : t('Transcribing…')) + '</span></span><span class="hint">→</span></a>';
+  /* a tile per subject that has something going on; tap = everything about it */
+  function tiles() {
+    const he = S.lang() === 'he', lessonsBy = {};
+    lessons.forEach(l => (lessonsBy[l.subject_id] = lessonsBy[l.subject_id] || []).push(l));
+    const busy = new Set(Object.keys(topicsBySubj).concat(Object.keys(lessonsBy)));
+    S.openTests().forEach(x => busy.add(x.subjectId)); S.openHomework().forEach(a => busy.add(a.subjectId));
+    const list = S.subjects().filter(s => busy.has(s.id) && !s.hidden);
+    $('#tiles').innerHTML = '<div class="sec-head"><h2>' + esc(t('Your subjects')) + '</h2><a href="' + S.link('/notebook.html') + '">' + esc(t('All')) + '</a></div>' +
+      '<div class="tiles">' + (list.length ? list.map(s => {
+        const test = S.openTests().find(x => x.subjectId === s.id), hw = S.openHomework().find(a => a.subjectId === s.id && a.dueDate), ls = (lessonsBy[s.id] || [])[0], tps = topicsBySubj[s.id] || [];
+        const line = test ? (he ? 'מבחן ' : 'Test ') + S.rel(test.testDate) : hw ? (he ? 'שיעורי בית ' : 'Homework ') + S.rel(hw.dueDate) : ls && S.daysUntil(ls.lesson_date) >= -1 ? (he ? 'שיעור חדש' : 'New lesson') : ls ? (he ? 'שיעור ' : 'Lesson ') + S.rel(ls.lesson_date) : '';
+        return '<a class="tile" style="--c:' + esc(s.color || '#6366F1') + '" href="' + S.link('/subject.html', { id: s.id }) + '"><b dir="auto">' + esc(s.name) + '</b><span class="tile-line">' + esc(line) + '</span>' +
+          (test && tps.length ? '<span class="tile-bars">' + tps.map(p => '<i class="' + p.state + '"></i>').join('') + '</span>' : '') + '</a>';
+      }).join('') : '<p class="empty">' + esc(t('Subjects show up here once they have a lesson, a test or homework.')) + '</p>') + '</div>';
   }
   function setup() {
     const need = S.school.ready && !S.myClass() && !S.DEMO;
@@ -176,7 +169,7 @@
     wk.hidden = !(S.school.ready && !(S.settings().week || []).length);
     if (!wk.hidden) { wk.innerHTML = '<button class="card" id="wk-go" style="display:flex;align-items:center;gap:12px;width:100%;text-align:start"><span style="flex:1">' + esc(t('Your week isn’t set yet: tell Study when you have volleyball, robotics, gym.')) + '</span><span class="btn dark">' + esc(t('Tell me about your week')) + '</span></button>'; $('#wk-go').onclick = () => S.weekChat(tt, render, { topicsBySubj }); }
   }
-  function render() { setup(); const p = hero(); day(p); wireDay(); ready(); next(); lastLesson(); cameIn(); }
+  function render() { setup(); hero(); next(); cameIn(); tiles(); }
 
   async function loadStudy() {
     try {

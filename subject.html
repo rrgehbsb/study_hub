@@ -4,8 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#F6F4EF" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0B0D12" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#FAFAF7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F0E1A" media="(prefers-color-scheme: dark)">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Study">
@@ -13,12 +13,12 @@
 <link rel="preconnect" href="https://mtuoqwbrujxutofhyahb.supabase.co" crossorigin>
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
 <link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
-<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'dark';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
+<script>try{if(localStorage.getItem('sh:lang')==='he'){document.documentElement.lang='he';document.documentElement.dir='rtl';}var th=localStorage.getItem('sh:theme')||'light';if(th==='light'||th==='dark')document.documentElement.setAttribute('data-theme',th);}catch(e){}</script>
 <script src="/vendor/supabase-2.116.0.js"></script>
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
-<link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.10">
+<link rel="stylesheet" href="/app.css?v=0.7.0">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -34,9 +34,9 @@
   <div class="cols">
     <div class="col-main">
       <section id="testcard"></section>
+      <section class="grid2" id="modes"></section>
       <section class="list" id="todo" hidden></section>
       <section class="path" id="path"></section>
-      <section class="grid2" id="modes"></section>
       <section class="list" id="lessons"></section>
     </div>
     <div class="col-side">
@@ -45,7 +45,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.10"></script>
+<script src="/app.js?v=0.7.0"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -63,9 +63,10 @@
     const s = S.subject(id), test = S.openTests().find(x => x.subjectId === id);
     $('#name').textContent = s ? s.name : '';
     document.title = (s ? s.name : '') + ' · Study';
-    $('#sub').textContent = test ? (test.name || '') + ' · ' + S.fmtDay(test.testDate) + ' · ' + S.rel(test.testDate) : '';
+    $('#sub').textContent = '';
     const oldTests = mats.filter(m => m.kind === 'old_test').length, ready = lessons.filter(l => l.status === 'ready').length;
-    $('#testcard').innerHTML = test ? '<div class="card" style="display:flex;flex-direction:column;gap:4px"><span class="label">' + esc(t('Next test')) + '</span><h2 style="font-size:24px;font-weight:800" dir="auto">' + esc(test.name) + '</h2>' +
+    if (s && s.color) document.documentElement.style.setProperty('--c', s.color);
+    $('#testcard').innerHTML = test ? '<div class="subj-hero"><span class="label">' + esc(t('Next test')) + '</span><h2 style="font-size:24px;font-weight:800" dir="auto">' + esc(test.name) + '</h2>' +
       '<span class="hint" dir="auto">' + esc([S.fmtDay(test.testDate, true), test.topics].filter(Boolean).join(' · ')) + '</span>' +
       '<span class="hint">' + (S.lang() === 'he' ? 'בנוי מ־' + ready + ' שיעורים ו־' + oldTests + ' מבחנים ישנים' : 'Built from ' + ready + (ready === 1 ? ' lesson' : ' lessons') + ' and ' + oldTests + (oldTests === 1 ? ' old test' : ' old tests')) + '</span></div>' : '';
     // the course: topics in order, the next one to do highlighted, a practice test at the end

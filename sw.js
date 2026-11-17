@@ -2,14 +2,14 @@
 // from the phone at once (no waiting for the network). A new version (CACHE changes with VERSION in
 // app.js) installs in the background and takes over on the next page; the old copy is deleted.
 // CACHE must match VERSION in app.js (bump both on every change).
-const CACHE = 'study-v0.6.10';
+const CACHE = 'study-v0.7.0';
 const V = '?v=' + CACHE.replace('study-v', '');
 const PAGES = ['/', '/index.html', '/tutor.html', '/session.html', '/record.html', '/notebook.html', '/subject.html', '/progress.html',
   '/settings.html', '/lesson.html', '/login.html', '/homework.html', '/subjects.html', '/teachers.html'];
 const FILES = ['/app.css' + V, '/app.js' + V, '/session.js' + V, '/manifest.json',
   '/vendor/supabase-2.116.0.js', '/vendor/marked.min.js', '/vendor/lame-1.2.1.min.js',
   '/vendor/katex/katex.min.css', '/vendor/katex/katex.min.js', '/vendor/katex/auto-render.min.js',
-  '/fonts/rubik-hebrew-wght-normal.woff2', '/fonts/space-grotesk-latin-wght-normal.woff2', '/fonts/rubik-latin-wght-normal.woff2',
+  '/fonts/rubik-hebrew-wght-normal.woff2', '/fonts/plus-jakarta-sans-latin-wght-normal.woff2', '/fonts/rubik-latin-wght-normal.woff2',
   '/icons/icon.svg', '/icons/apple-touch-icon.png'];
 
 self.addEventListener('install', e => {

@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.10';
+const VERSION = '0.7.0';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -72,6 +72,7 @@ const HE = {
   'Another question': 'עוד שאלה', 'Finish': 'סיום', 'Thinking…': 'חושב…', 'Checking…': 'בודק…', 'Try again': 'לנסות שוב', '{n} min left': 'נשארו {n} דק׳',
   'Your answer': 'התשובה שלך', 'Photo attached': 'תמונה צורפה', 'Remove photo': 'להסיר תמונה', 'Teaching language': 'שפת הלימוד',
   'Homework & tests': 'שיעורי בית ומבחנים',
+  'Next up': 'הבא בתור', 'Your subjects': 'המקצועות שלך',
   'To do': 'לעשות', 'Done': 'בוצע', 'Overdue': 'באיחור', 'This week': 'השבוע', 'Later': 'אחר כך', 'No date': 'בלי תאריך', 'Do it with the tutor': 'לעשות עם המורה הפרטי',
   'Ticked here = ticked in your Dashboard too.': 'מה שמסומן כאן מסומן גם בדשבורד.', 'Add homework': 'הוספת שיעורי בית', 'Mark done': 'לסמן כבוצע',
   'Paste from WhatsApp': 'הדבקה מוואטסאפ', 'Pick a subject': 'בחר מקצוע', 'The tutor uses this': 'המורה הפרטי משתמש בזה',
@@ -134,7 +135,7 @@ const langToggle = () => '<div class="seg" role="group" aria-label="Language"><b
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-lang]'); if (b && b.dataset.lang !== LANG) setLang(b.dataset.lang); });
 
 /* light / dark / auto (follows the phone) */
-const theme = () => { try { const v = localStorage.getItem('sh:theme'); return v === 'light' || v === 'dark' || v === 'auto' ? v : 'dark'; } catch (e) { return 'dark'; } };
+const theme = () => { try { const v = localStorage.getItem('sh:theme'); return v === 'light' || v === 'dark' || v === 'auto' ? v : 'light'; } catch (e) { return 'light'; } };
 function applyTheme(v) {
   if (v === 'light' || v === 'dark') document.documentElement.setAttribute('data-theme', v); else document.documentElement.removeAttribute('data-theme');
   try { localStorage.setItem('sh:theme', v === 'light' || v === 'dark' ? v : 'auto'); } catch (e) {}
@@ -208,42 +209,39 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-/* v0.6.10: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+/* v0.7.0: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
    the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
    the gear (Settings) sits at the top of every page. */
-const TABS = [['today', '/', 'today', 'Home'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['subjects', '/notebook.html', 'book', 'Subjects'], ['progress', '/progress.html', 'chart', 'Grades']];
-const PLUS_ON = ['today', 'tutor', 'subjects', 'progress'];
+/* v0.7 ("Bright", chosen 2026-11-17): bottom bar Today · Subjects · [Record] · Tutor · Grades, the big red Record
+   in the middle; + (add anything) and the gear sit at the top of the main pages. Computer: the same in a sidebar. */
+const TABS = [['today', '/', 'today', 'Today'], ['subjects', '/notebook.html', 'book', 'Subjects'], ['record', '/record.html', 'mic', 'Record'], ['tutor', '/tutor.html', 'cap', 'Tutor'], ['progress', '/progress.html', 'chart', 'Grades']];
+const PLUS_ON = ['today', 'subjects', 'subject', 'tutor'];
 function nav(active, opt) {
-  const cur = ['record', 'notebook', 'lessons', 'sources', 'subject'].indexOf(active) >= 0 ? 'subjects' : active;
+  const cur = ['notebook', 'lessons', 'sources', 'subject'].indexOf(active) >= 0 ? 'subjects' : active;
   const href = x => link(x[1], x[4]);
   const top = document.createElement('header');
   top.className = 'topbar';
   top.innerHTML = '<a class="brand" href="' + link('/') + '">Study<span>Hub</span></a><nav aria-label="Main">' +
-    TABS.map(x => '<a href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '>' + ic(x[2], 'sm') + esc(t(x[3])) + '</a>').join('') + '</nav>' +
-    '<div class="topbar-foot"><a class="btn rec-btn" href="' + link('/record.html') + '"' + (active === 'record' ? ' aria-current="page"' : '') + '><span class="dot" style="background:#FF4D4D"></span>' + esc(t('Record lesson')) + '</a>' +
+    TABS.filter(x => x[0] !== 'record').map(x => '<a href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '>' + ic(x[2], 'sm') + esc(t(x[3])) + '</a>').join('') + '</nav>' +
+    '<div class="topbar-foot"><a class="btn rec-btn" href="' + link('/record.html') + '"' + (active === 'record' ? ' aria-current="page"' : '') + '>' + ic('mic', 'sm') + esc(t('Record lesson')) + '</a>' +
     '<button class="btn plus-side" type="button" data-plus>' + ic('plus', 'sm') + esc(t('Add')) + '</button>' +
     '<div class="topbar-row">' + langToggle() + '<a class="icon-btn" href="' + link('/settings.html') + '" aria-label="' + esc(t('Settings')) + '">' + ic('gear', 'sm') + '</a></div></div>';
   document.body.prepend(top);
   const tabs = document.createElement('nav');
   tabs.className = 'tabs'; tabs.setAttribute('aria-label', 'Main');
-  tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => '<a class="tab" href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '><span class="tab-ic">' + ic(x[2]) + '</span>' + esc(t(x[3])) + '</a>').join('') + '</div>';
+  tabs.innerHTML = '<div class="tabs-in">' + TABS.map(x => x[0] === 'record'
+    ? '<a class="tab tab-rec" href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '><span class="rec-ic">' + ic('mic') + '</span>' + esc(t(x[3])) + '</a>'
+    : '<a class="tab" href="' + href(x) + '"' + (x[0] === cur ? ' aria-current="page"' : '') + '>' + ic(x[2]) + '<span>' + esc(t(x[3])) + '</span></a>').join('') + '</div>';
   document.body.appendChild(tabs);
-  // the + button (phone: floating above the tabs) on the main pages
-  if (PLUS_ON.indexOf(active) >= 0 || active === 'subject') {
-    const fab = document.createElement('button');
-    fab.type = 'button'; fab.className = 'fab'; fab.setAttribute('data-plus', ''); fab.setAttribute('aria-label', t('Add'));
-    fab.innerHTML = ic('plus');
-    document.body.appendChild(fab);
+  // top of the page on a phone: + (on the main pages) and Settings
+  const head = document.querySelector('.head');
+  if (head && active !== 'settings') {
+    const box = document.createElement('div'); box.className = 'head-btns only-phone';
+    if (PLUS_ON.indexOf(active) >= 0) box.innerHTML += '<button type="button" class="icon-btn" data-plus aria-label="' + esc(t('Add')) + '">' + ic('plus', 'sm') + '</button>';
+    if (!head.querySelector('a[href*="settings"]')) box.innerHTML += '<a class="icon-btn" href="' + link('/settings.html') + '" aria-label="' + esc(t('Settings')) + '">' + ic('gear', 'sm') + '</a>';
+    if (box.innerHTML) head.appendChild(box);
   }
   document.querySelectorAll('[data-plus]').forEach(b => b.onclick = () => openPlus(opt && opt.subject));
-  // Settings at the top of every page on a phone (the sidebar has it on a computer)
-  const head = document.querySelector('.head');
-  if (head && !head.querySelector('a[href*="settings"]') && active !== 'settings') {
-    const g = document.createElement('a');
-    g.className = 'icon-btn only-phone head-gear'; g.href = link('/settings.html'); g.setAttribute('aria-label', t('Settings'));
-    g.innerHTML = ic('gear', 'sm');
-    head.appendChild(g);
-  }
 }
 // a lesson's error, short and in the app's language
 function errText(m) {

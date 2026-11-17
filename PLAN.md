@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-17: v0.7.0 — new design "Bright" (owner picked C from 3 mockups): light, navy + yellow, pastel subject tiles, Plus Jakarta Sans; Record = big red button in the middle of the bottom bar; Today rebuilt (Tonight, Next up, new from school, subject tiles); less text everywhere.
 - 2026-11-17: v0.6.9 — owner lost 3 recordings (old version: Stop vanished after the redraw bug, and each new recording wiped the last one's chunks). Now recordings upload in 5-minute parts while recording, leftovers send themselves when Record opens, nothing is wiped. Navigation simplified to 4 tabs (Home · Tutor · Subjects · Grades) + a + button everywhere + Settings gear on every page.
 - 2026-11-17: v0.6.8 — speed: the app is saved on the phone (service worker app shell: pages ~1 s → ~0.1 s on 4G, works offline), school data, timetable and lists show the last copy at once and update behind, Supabase preconnect, long cache headers for /vendor /fonts /icons.
 - 2026-11-17: v0.6.7 — tutor history: every session is saved and can be reopened (Tutor → Continue / History); opening the same topic again picks up where you left off, with "Start over". The tutor now also sees the student's recurring mistakes in the subject.
