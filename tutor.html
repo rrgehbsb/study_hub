@@ -21,7 +21,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/space-grotesk-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.6.6">
+<link rel="stylesheet" href="/app.css?v=0.6.7">
 <title>Tutor · Study</title>
 </head>
 <body>
@@ -32,6 +32,7 @@
   </header>
   <div class="cols">
     <div class="col-main">
+      <section id="cont" hidden></section>
       <section id="now"></section>
       <section id="tests" style="display:flex;flex-direction:column;gap:12px"></section>
     </div>
@@ -39,10 +40,11 @@
       <section class="list" id="hw" hidden></section>
       <section class="card" id="any" style="display:flex;flex-direction:column;gap:10px"></section>
       <section class="card" id="from" style="display:flex;flex-direction:column;gap:6px"></section>
+      <section class="list" id="hist" hidden></section>
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.6.6"></script>
+<script src="/app.js?v=0.6.7"></script>
 <script>
 (async function () {
   const S = window.SH, { $, $$, esc, ic, t } = S;
@@ -56,7 +58,7 @@
   $('#sub').textContent = t('Knows your tests. Teaches at your teacher’s level.');
   $('#lang-phone').innerHTML = S.langToggle();
   if (!(await S.session())) return;
-  let topicsBy = {}, lessons = [], mats = [], tt = null;
+  let topicsBy = {}, lessons = [], mats = [], tt = null, chats = [];
   const dk = S.todayKey();
   const go = (p) => S.link('/session.html', p);
 
@@ -101,10 +103,36 @@
       (old ? '' : '<p style="font-size:15px">' + esc(t('Add your teacher’s old tests: they set the level of every question.')) + '</p><button class="btn" id="add-old">' + esc(t('Add an old test')) + '</button>');
     const b = $('#add-old'); if (b) b.onclick = () => S.openAdd(null, load, ['old_test']);
   }
-  function render() { now(); tests(); hw(); any(); from(); }
+  /* History: every saved session; tap one to open it where you left off */
+  const metaOf = c => (c.messages || []).find(m => m && m.meta) || {};
+  const STEP = { learn: 'Learn', example: 'Example', turn: 'Your turn', check: 'Check' };
+  function chatLine(c) {
+    const m = metaOf(c), body = (c.messages || []).filter(x => x && !x.meta), last = body[body.length - 1] || {};
+    const solved = body.filter(x => x.rated === 'alone' && x.verdict === 'correct').length;
+    const bits = [S.subjectName(c.subject_id), t(STEP[last.step] || 'Learn')];
+    if (solved) bits.push(S.lang() === 'he' ? solved + ' נפתרו לבד' : solved + ' solved alone');
+    return { m, title: c.topic || (m.mode === 'test' ? t('Test me') : S.subjectName(c.subject_id)), meta: bits.join(' · '), when: S.rel(String(c.updated_at || c.created_at || '').slice(0, 10)) };
+  }
+  function hist() {
+    const he = S.lang() === 'he';
+    const live = chats.filter(c => (c.messages || []).some(x => x && !x.meta));
+    const open = live.find(c => !metaOf(c).done && Date.now() - Date.parse(c.updated_at || c.created_at || 0) < 3 * 864e5);
+    $('#cont').hidden = !open;
+    if (open) {
+      const L = chatLine(open);
+      $('#cont').innerHTML = '<a class="card cont-card" href="' + S.link('/session.html', { chat: open.id }) + '"><span class="body"><span class="eyebrow">' + esc(he ? 'להמשיך מאיפה שעצרת' : 'Continue where you left off') + '</span><b dir="auto">' + esc(L.title) + '</b><span class="hint" dir="auto">' + esc(L.meta) + ' · ' + esc(L.when) + '</span></span>' + ic('play', 'sm') + '</a>';
+    }
+    $('#hist').hidden = !live.length;
+    $('#hist').innerHTML = '<div class="title-row"><h2 class="h2">' + esc(he ? 'היסטוריה' : 'History') + '</h2></div>' + live.slice(0, 12).map(c => {
+      const L = chatLine(c);
+      return '<a class="item" href="' + S.link('/session.html', { chat: c.id }) + '"><span class="body"><span class="ttl" dir="auto">' + esc(L.title) + '</span><span class="meta" dir="auto">' + esc(L.meta) + '</span></span><span class="when">' + esc(L.m.done ? L.when : (he ? 'לא הסתיים · ' : 'unfinished · ') + L.when) + '</span></a>';
+    }).join('');
+  }
+  function render() { now(); tests(); hw(); any(); from(); hist(); }
   async function load() {
     try {
-      const [tps, ls, ms] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 60), S.rows(S.T.materials, null, 'created_at', 200)]);
+      const [tps, ls, ms, cs] = await Promise.all([S.rows(S.T.topics), S.rows(S.T.lessons, null, 'lesson_date', 60), S.rows(S.T.materials, null, 'created_at', 200), S.rows(S.T.chats, null, 'updated_at', 30).catch(() => [])]);
+      chats = cs;
       topicsBy = {}; tps.forEach(x => (topicsBy[x.subject_id] = topicsBy[x.subject_id] || []).push(x));
       lessons = ls; mats = ms;
     } catch (e) { S.toast(e.message); }

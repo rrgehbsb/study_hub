@@ -113,10 +113,19 @@ module.exports = handler(async (req, res) => {
   if (!msgs.length || msgs[msgs.length - 1].role !== 'user') throw new HttpError(400, 'The last message must be from the student.');
   const callsToday = await checkBudget(token);
 
-  const ctx = await buildContext(token, b.subjectId, b.topic);
+  const [ctx, past] = await Promise.all([
+    buildContext(token, b.subjectId, b.topic),
+    // what went wrong before in this subject, so the tutor aims at it (cheap: a few short lines)
+    db(token, 'study_attempts?subject_id=eq.' + enc(b.subjectId) + '&verdict=neq.correct&select=topic,mistake,created_at&order=created_at.desc&limit=30').catch(() => [])
+  ]);
+  const seen = {};
+  (past || []).forEach(a => { const k = String(a.mistake || '').trim().toLowerCase(); if (k) { seen[k] = seen[k] || { n: 0, topic: a.topic }; seen[k].n++; } });
+  const mistakes = Object.keys(seen).sort((x, y) => seen[y].n - seen[x].n).slice(0, 8)
+    .map(k => '- ' + k + (seen[k].n > 1 ? ' (' + seen[k].n + ' times)' : '') + (seen[k].topic ? ' [topic: ' + seen[k].topic + ']' : ''));
   const test = b.test && b.test.name ? 'Their next test in this subject: ' + b.test.name + (b.test.testDate ? ' on ' + b.test.testDate : '') + (b.test.topics ? ' — topics: ' + b.test.topics : '') + '.' : '';
   const extra = b.extra ? ' The student is working on this homework: ' + String(b.extra).slice(0, 2000) : '';
-  const head = 'Subject: ' + (b.subjectName || b.subjectId) + '. ' + (b.topic ? 'Topic for this session: ' + b.topic + '. ' : '') + test + extra + (step ? '\n\n' + STEPS[step] : '');
+  const head = 'Subject: ' + (b.subjectName || b.subjectId) + '. ' + (b.topic ? 'Topic for this session: ' + b.topic + '. ' : '') + test + extra + (step ? '\n\n' + STEPS[step] : '') +
+    (mistakes.length ? '\n\nMISTAKES THIS STUDENT MADE BEFORE in this subject (most common first). When it fits the topic, build questions that test exactly these, and when checking, look for them first. Don\'t list them to the student unless asked:\n' + mistakes.join('\n') : '');
   const material = ctx.text
     ? 'THE TEACHER\'S MATERIAL (' + ctx.counts.oldTests + ' old tests, ' + ctx.counts.lessons + ' lessons, ' + ctx.counts.other + ' other items):\n\n' + ctx.text
     : 'There is NO material from the teacher yet. Tell the student once, briefly, that you are teaching from general knowledge until they upload lessons and old tests, and mark it "(לא מהחומר של המורה)".';

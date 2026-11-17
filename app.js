@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.6.6';
+const VERSION = '0.6.7';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -1559,7 +1559,22 @@ const DEMO_ROWS = {
     { id: 'at5', subject_id: 'phys', verdict: 'wrong', alone: true, mistake: 'km/h to m/s', created_at: addDays(todayKey(), -4) },
     { id: 'at6', subject_id: 'math', verdict: 'correct', alone: true, created_at: addDays(todayKey(), -2) }
   ],
-  study_chats: []
+  study_chats: [
+    { id: 'c1', subject_id: 'phys', mode: 'session', topic: 'נפילה חופשית', updated_at: new Date(Date.now() - 3 * 3600e3).toISOString(), messages: [
+      { meta: 1, mode: 'learn', test: '', hw: '', lang: 'he', mins: 40, done: false },
+      { role: 'user', text: 'תלמד אותי נפילה חופשית מאפס.', hidden: true, step: 'learn' },
+      { role: 'assistant', text: 'בנפילה חופשית הגוף נע רק בהשפעת כוח הכובד: $a = -g$ כשהציר כלפי מעלה.\n\n**שאלה קטנה:** מה התאוצה של כדור שנזרק כלפי מעלה, ברגע שהוא בשיא?', step: 'learn' },
+      { role: 'user', text: 'אפס?', step: 'learn' },
+      { role: 'assistant', text: 'לא בדיוק: **המהירות** בשיא היא 0, אבל התאוצה עדיין $-g$. הכובד לא נעלם לרגע.', step: 'learn' }
+    ] },
+    { id: 'c2', subject_id: 'math', mode: 'session', topic: 'משיק', updated_at: new Date(Date.now() - 2 * 864e5).toISOString(), messages: [
+      { meta: 1, mode: 'test', test: '', hw: '', lang: 'he', mins: 20, done: true },
+      { role: 'user', text: 'תן לי שאלה ברמת המבחן לפתור לבד על משיק.', hidden: true, step: 'turn' },
+      { role: 'assistant', text: 'מצא את משוואת המשיק ל־$f(x)=x^3-3x$ בנקודה $x=2$.', step: 'turn' },
+      { role: 'user', text: 'y = 9x - 16', step: 'check' },
+      { role: 'assistant', text: 'נכון! $f\'(2)=9$, $f(2)=2$, ולכן $y=9x-16$.', verdict: 'correct', rated: 'alone', step: 'check' }
+    ] }
+  ]
 };
 function demoRows(table, filter) {
   return (DEMO_ROWS[table] || []).filter(r => Object.keys(filter || {}).every(k => Array.isArray(filter[k]) ? filter[k].indexOf(r[k]) >= 0 : r[k] === filter[k]));

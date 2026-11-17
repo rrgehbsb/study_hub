@@ -422,3 +422,11 @@ html { text-size-adjust:100%; }
 .blackout-hit { width:180px; height:180px; border-radius:50%; background:transparent; border:0; -webkit-tap-highlight-color:transparent; -webkit-touch-callout:none; }
 .blackout-hit:focus-visible { outline:none; }
 .rec .btn.blackout-btn { background:#111827; color:#F9FAFB; box-shadow:none; }
+/* history (v0.6.7): pick up a session where you left off */
+.resume-bar { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; background:var(--surface-2, var(--surface)); border:1px solid var(--line); border-radius:14px; padding:6px 6px 6px 14px; font-size:14px; color:var(--ink-2); }
+[dir="rtl"] .resume-bar { padding:6px 14px 6px 6px; }
+.resume-bar .btn { min-height:44px; }
+.cont-card { display:flex; align-items:center; gap:12px; text-decoration:none; color:inherit; border-inline-start:3px solid var(--tutor, #8B5CF6); }
+.cont-card .body { display:flex; flex-direction:column; gap:3px; flex:1; min-width:0; }
+.cont-card .eyebrow { font-size:12px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-3); }
+.cont-card b { font-size:17px; }

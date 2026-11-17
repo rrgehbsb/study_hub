@@ -4,7 +4,7 @@
 (async function () {
 'use strict';
 const S = window.SH, { $, esc, ic, t } = S;
-const P = { subject: S.qs('subject'), topic: S.qs('topic') || '', test: S.qs('test'), hw: S.qs('hw'), mode: S.qs('mode') === 'test' ? 'test' : 'learn', mins: +S.qs('mins') || 40 };
+const P = { subject: S.qs('subject'), topic: S.qs('topic') || '', test: S.qs('test'), hw: S.qs('hw'), mode: S.qs('mode') === 'test' ? 'test' : 'learn', mins: +S.qs('mins') || 40, chat: S.qs('chat'), fresh: S.qs('fresh') };
 const STEPS = ['learn', 'example', 'turn', 'check'];
 const STEP_LABEL = { learn: 'Learn', example: 'Example', turn: 'Your turn', check: 'Check' };
 let step = P.mode === 'test' ? 'turn' : 'learn';
@@ -20,12 +20,32 @@ S.tour('session', [
   { sel: '#dock', en: ['Your buttons', 'Move on, ask for another explanation, or ask your own question. In Check, answer honestly: alone or with help.'], he: ['הכפתורים שלך', 'ממשיכים, מבקשים הסבר אחר, או שואלים. בבדיקה עונים בכנות: לבד או עם עזרה.'] }
 ]);
 await S.school.load();
+/* History: ?chat=<id> reopens a saved session. Opening the same session again within 3 days (same subject,
+   topic, test, homework and mode) picks up where you left off, unless it was finished or ?fresh=1. */
+const metaOf = c => ((c && c.messages) || []).find(m => m && m.meta) || {};
+let resumed = null;
+try {
+  if (P.chat) resumed = (await S.rows(S.T.chats, { id: P.chat }))[0] || null;
+  else if (!P.fresh && P.subject) {
+    const recent = await S.rows(S.T.chats, { subject_id: P.subject }, 'updated_at', 10);
+    resumed = recent.find(c => {
+      const m = metaOf(c), at = Date.parse(c.updated_at || c.created_at || 0);
+      return m.meta && !m.done && (c.topic || '') === P.topic && (m.test || '') === (P.test || '') && (m.hw || '') === (P.hw || '') && (m.mode || 'learn') === P.mode && Date.now() - at < 3 * 864e5;
+    }) || null;
+  }
+} catch (e) { console.warn('history', e); }
+const rmeta = metaOf(resumed);
+if (resumed) {
+  P.subject = resumed.subject_id; P.topic = resumed.topic || '';
+  if (rmeta.test) P.test = rmeta.test; if (rmeta.hw) P.hw = rmeta.hw; if (rmeta.mode) P.mode = rmeta.mode;
+  if (rmeta.mins) P.mins = rmeta.mins;
+}
 const subj = S.subject(P.subject);
 const test = P.test ? S.school.get(S.K.te).find(x => x.id === P.test) : S.openTests().find(x => x.subjectId === P.subject);
 const hw = P.hw ? S.school.get(S.K.as).find(a => a.id === P.hw) : null;
 const isEnglishSubject = /english|אנגלית/i.test(subj ? subj.name : '');
 const st = S.settings();
-let teachLang = st.teachLang === 'en' || st.teachLang === 'he' ? st.teachLang : (isEnglishSubject ? 'en' : 'he');
+let teachLang = rmeta.lang || (st.teachLang === 'en' || st.teachLang === 'he' ? st.teachLang : (isEnglishSubject ? 'en' : 'he'));
 $('#back').href = P.subject ? S.link('/subject.html', { id: P.subject }) : S.link('/');
 $('#name').textContent = P.topic || (hw && hw.title) || (subj ? subj.name : '');
 document.title = ($('#name').textContent || 'Study') + ' · Study';
@@ -147,6 +167,7 @@ function submitAttempt(text) {
   ask();
 }
 async function ask() {
+  finished = false;
   busy = true; render(); scrollDown();
   let photos = 0;
   const payload = msgs.slice(-30).slice().reverse().map(m => {
@@ -182,19 +203,36 @@ async function rate(m, how) {
   } catch (e) { S.toast(e.message); }
   saveChat();
 }
-function finish() {
+let finished = false;
+async function finish() {
   // tonight counts as done only if you actually tried a question (reading isn't studying)
   if (msgs.some(m => m.rated)) S.writeJSON(S.doneKey(S.todayKey()), 1);
+  finished = true; await saveChat();
   location.href = S.link('/');
 }
 async function saveChat() {
-  const stored = msgs.map(m => { const o = Object.assign({}, m); if (o.image) { delete o.image; o.hadImage = true; } return o; });
+  const meta = { meta: 1, mode: P.mode, test: P.test || '', hw: P.hw || '', lang: teachLang, mins: P.mins, done: finished };
+  const stored = [meta].concat(msgs.map(m => { const o = Object.assign({}, m); if (o.image) { delete o.image; o.hadImage = true; } return o; }));
   try {
     if (!chatId) chatId = (await S.insert(S.T.chats, { subject_id: P.subject, mode: 'session', topic: P.topic || null, messages: stored })).id;
     else await S.update(S.T.chats, chatId, { messages: stored });
   } catch (e) { console.warn('chat save failed', e); }
 }
 
-msgs.push({ role: 'user', text: opening(step), hidden: true, step });
-ask();
+if (resumed && (resumed.messages || []).some(m => m && !m.meta)) {
+  msgs = resumed.messages.filter(m => m && !m.meta);
+  chatId = resumed.id; finished = !!rmeta.done;
+  const last = msgs[msgs.length - 1];
+  step = (last && last.step) || step;
+  const he = S.lang() === 'he', when = S.rel(String(resumed.updated_at || resumed.created_at || '').slice(0, 10));
+  const bar = document.createElement('div'); bar.className = 'note resume-bar';
+  bar.innerHTML = '<span>' + esc(he ? 'ממשיך מאיפה שעצרת' : 'Picking up where you left off') + (when ? ' · ' + esc(when) : '') + '</span>' +
+    '<a class="btn ghost" href="' + S.link('/session.html', { subject: P.subject, topic: P.topic, test: P.test || '', hw: P.hw || '', mode: P.mode, mins: P.mins, fresh: 1 }) + '">' + esc(he ? 'להתחיל מחדש' : 'Start over') + '</a>';
+  $('#steps').after(bar);
+  if (last && last.role === 'user') ask(); // left while the tutor was answering
+  else { render(); scrollDown(); }
+} else {
+  msgs.push({ role: 'user', text: opening(step), hidden: true, step });
+  ask();
+}
 })();

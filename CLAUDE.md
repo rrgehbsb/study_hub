@@ -115,9 +115,11 @@ Storage bucket **`study`** (private). Paths are always `<uid>/<kind>/<id>.<ext>`
 
 ```
 index.html      Home: tonight's block (planner), your day, next test readiness, coming up, last lesson, came in by itself
-tutor.html      Tutor: "study now" (the planner's pick), your tests with topic progress + Teach me / Test me, homework with
+tutor.html      Tutor: "Continue where you left off" (latest unfinished session, ≤3 days) + History (saved sessions), "study now" (the planner's pick), your tests with topic progress + Teach me / Test me, homework with
                 the tutor, learn something else, what the tutor teaches from. Old ?subject= links go straight to a session.
-session.html/.js  Study session in 4 steps: Learn → Example → Your turn → Check ("Test me" starts at Your turn)
+session.html/.js  Study session in 4 steps: Learn → Example → Your turn → Check ("Test me" starts at Your turn). Saved to
+                `study_chats` after every turn; `messages[0]` is a meta object `{meta:1, mode, test, hw, lang, mins, done}`.
+                `?chat=<id>` reopens one; opening the same subject+topic+test+hw+mode within 3 days resumes it ("Start over" = `&fresh=1`)
 record.html     Record tab (red, middle): picks the lesson from today's class timetable (your group when the class splits),
                 today's lessons to tap, wake lock, board photos and "On the test!" marks tied to the moment, chunks in
                 IndexedDB so a crash doesn't lose the lesson, auto-stop at the period's end; tabs hide while recording;
@@ -178,6 +180,7 @@ The material goes in a cached system block (`cache_control: ephemeral`) so follo
 - After a verdict, the page asks "Did you solve it alone?" and saves an attempt. A topic becomes `alone` only after a correct attempt marked alone.
 - If the material doesn't cover something, say so, and teach it from general knowledge, flagged as "not from your teacher's material".
 - Never invent what the teacher said.
+- **Past mistakes (v0.6.7):** each turn also gets the student's most common recent mistakes in the subject (from `study_attempts`, not correct, by `mistake` label), so questions aim at them.
 
 **Spend guard:** `DAILY_TUTOR_CALLS` (default 120) and `max_tokens` 1500 per turn. Over the limit → a friendly "daily limit reached" message. The real hard stop is the $10/month cap in the Anthropic console.
 

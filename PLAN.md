@@ -117,6 +117,7 @@ Known limits to handle in this phase if they bite:
 
 ## Log
 
+- 2026-11-17: v0.6.7 — tutor history: every session is saved and can be reopened (Tutor → Continue / History); opening the same topic again picks up where you left off, with "Start over". The tutor now also sees the student's recurring mistakes in the subject.
 - 2026-11-17: v0.6.6 — owner switched everything to Opus 5.5 (first 40 AI turns a day; Sonnet after that). $10 console cap still the hard stop.
 - 2026-11-17: v0.6.5 — owner's choice: the strongest model (Opus 5.5) for studying for the closest test only (first 40 turns a day), Sonnet for everything else. The $10 console cap stays the hard stop.
 - 2026-11-17: v0.6.4 — two bugs from the owner's phone. (1) Record crashed with "null … $('#time')": a late screen refresh (or a double tap on Start, which also started a second recorder whose chunks got mixed into the file) drew over the recording. Now one state at a time, Start ignores repeats, and the recording screen redraws itself. (2) Groq refused the iPhone's MP4 ("could not process file"). Recording is now MP3 made in the page (Web Audio + lamejs, 16 kHz mono, ~14 MB/hour), with MediaRecorder as a fallback. A failed lesson gets "Fix and transcribe again" (converts to MP3 on the phone) and "Download the recording". New `tools/rec-test.js` (fake mic, ffprobe checks). Tested: 40-min split MP4 → MP3 in 40 s in Chromium. Still to check on the real iPhone.
