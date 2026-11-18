@@ -9,7 +9,7 @@
 (function () {
 'use strict';
 
-const VERSION = '0.7.3';
+const VERSION = '0.7.4';
 const SB_URL = 'https://mtuoqwbrujxutofhyahb.supabase.co';
 const SB_KEY = 'sb_publishable_tYgBycEksvhfB-2sBenWHA_dLTeVO9F';
 const DEMO = /[?&]demo\b/.test(location.search);
@@ -209,7 +209,7 @@ function errorBanner() {
 }
 
 /* navigation: bottom tabs on a phone, a top bar on a computer */
-/* v0.7.3: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
+/* v0.7.4: four tabs. Subjects holds everything about each subject (and the homework, lessons and messages lists);
    the + button on every main page adds anything (record, board photo, old test, WhatsApp text, homework, test date);
    the gear (Settings) sits at the top of every page. */
 /* v0.7 ("Bright", chosen 2026-11-17): bottom bar Today · Subjects · [Record] · Tutor · Grades, the big red Record
@@ -242,6 +242,23 @@ function nav(active, opt) {
     if (box.innerHTML) head.appendChild(box);
   }
   document.querySelectorAll('[data-plus]').forEach(b => b.onclick = () => openPlus(opt && opt.subject));
+}
+/* where a lesson stands, in plain words; a recording that never finished (the app closed, an old version)
+   is "didn't arrive" once it's a few hours old */
+function lessonState(l) {
+  const he = LANG === 'he', old = Date.now() - Date.parse(l.started_at || l.created_at || l.lesson_date || 0) > 3 * 3600e3;
+  if (l.status === 'ready') return null;
+  if (l.status === 'error') return he ? 'נכשל · לחצו לתקן' : 'Failed · tap to fix';
+  if (l.status === 'recording' && old) return l.audio_path ? (he ? 'לא הסתיים · לחצו' : 'Not finished · tap') : (he ? 'לא הגיע' : 'Didn’t arrive');
+  if (l.status === 'recording') return he ? 'מקליט' : 'Recording';
+  return he ? 'מתמלל…' : 'Transcribing…';
+}
+async function removeLesson(id, paths) {
+  if (DEMO) return;
+  await fresh();
+  if (paths && paths.length) await sb().storage.from(BUCKET).remove(paths).catch(() => {}); // its audio goes too
+  const r = await sb().from(T.lessons).delete().eq('id', id);
+  if (r.error) throw r.error;
 }
 // a lesson's error, short and in the app's language
 function errText(m) {
@@ -1703,7 +1720,7 @@ window.SH = {
   t, lang, setLang, langToggle, nav, openPlus, errText, tour, tourReset, TAB_SEL, audioParts, splitMp3, loadLame, mp3Recorder, audioToMp3, repairLessonAudio, audioUrl, MP3_MIME,
   todayKey, nowMin, daysUntil, dow, fmtDay, rel, addDays, toMin, hm, DOWS, toast, sheet, closeSheet, errorBanner,
   sb, session, token, signOut, user: () => user, uid: () => uid,
-  school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest, testName, topicsOf, lessonName, notMineSubject, setSubjectMine,
+  school, mergeById, settings, saveSettings, subjects, subject, subjectName, ensureSubject, openTests, openHomework, setHomeworkDone, addHomework, addTest, testName, topicsOf, lessonName, lessonState, removeLesson, notMineSubject, setSubjectMine,
   rows, rowsFast, insert, update, setTopicState, upload, api, shrinkImage, renderRich, plotSVG, compile, openAdd, onStudy, emitStudy,
   uploadLessonAudio, uploadMaterial,
   syncAll, lastSync, myClass, setMyClass, subjectFromHe, timetable, currentLesson, plan, dayItems, skipKey, doneKey,

@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.3">
+<link rel="stylesheet" href="/app.css?v=0.7.4">
 <title>Today · Study</title>
 </head>
 <body>
@@ -39,7 +39,7 @@
     </div>
   </div>
 </main>
-<script src="/app.js?v=0.7.3"></script>
+<script src="/app.js?v=0.7.4"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -117,7 +117,7 @@
       '<div class="list">' + (items.length ? items.slice(0, 3).map(it => {
         const x = it.x;
         if (it.kind === 'test') return '<a class="item" href="' + S.link('/subject.html', { id: x.subjectId }) + '"><span class="tag test">' + esc(t('Test')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.testName(x)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></span>' + when(x.testDate) + '</a>';
-        if (it.kind === 'lesson') return '<a class="item" href="' + S.link('/lesson.html', { id: x.id }) + '"><span class="tag lesson">' + esc(t('Lesson')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.lessonName(x)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subject_id) + ' · ' + S.rel(x.lesson_date)) + '</span></span><span class="when">' + esc(LST[x.status] || t('Transcribing…')) + '</span></a>';
+        if (it.kind === 'lesson') return '<a class="item" href="' + S.link('/lesson.html', { id: x.id }) + '"><span class="tag lesson">' + esc(t('Lesson')) + '</span><span class="body"><span class="ttl" dir="auto">' + esc(S.lessonName(x)) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subject_id) + ' · ' + S.rel(x.lesson_date)) + '</span></span><span class="when">' + esc(S.lessonState(x) || LST.ready) + '</span></a>';
         return '<div class="item"><button class="check-hit" data-done="' + esc(x.id) + '" aria-label="' + esc(t('Mark done')) + '"><span class="check">' + ic('check', 'sm') + '</span></button><a class="body" href="' + S.link('/session.html', { subject: x.subjectId, hw: x.id, topic: x.title, mode: 'learn', mins: 30 }) + '"><span class="ttl" dir="auto">' + esc(x.title) + '</span><span class="meta" dir="auto">' + esc(S.subjectName(x.subjectId)) + '</span></a>' + when(x.dueDate) + '</div>';
       }).join('') : '<p class="empty">' + esc(t('Nothing due in the next two weeks.')) + '</p>') +
       (S.otherTests().length ? '<a class="item" href="' + S.link('/notebook.html', { tab: 'coming' }) + '"><span class="body"><span class="meta">' + esc(t('{n} tests probably not yours (other groups or classes)', { n: S.otherTests().length })) + '</span></span><span class="hint">→</span></a>' : '') + '</div>';

@@ -140,7 +140,7 @@ settings.html   Appearance (Light / Dark / Auto), sources status + class, your g
                 (chat, "Plan my week with Claude", import, edit by hand), study minutes, way home, latest time,
                 app and teaching language, AI turns, sign out
 lesson.html     One lesson: summary, full transcript (marks and photo moments shown); a failed lesson shows its error and
-                "Fix and transcribe again" (converts to MP3 first) + "Download the recording"; a lesson without a summary gets "Make a summary"
+                "Fix and transcribe again" (converts to MP3 first) + "Download the recording" + "Remove this lesson" (two taps); a lesson without a summary gets "Make a summary". Every lesson row everywhere links here; `SH.lessonState(l)` gives its status in plain words
 login.html      Email + password (same accounts as the main Dashboard)
 app.css         "Bright" design system (light default, navy-black dark), tiles, Today, course path, session, record styles
 app.js          window.SH: Supabase, session, school row (merge-safe), imports (school site, Mashov), timetable,

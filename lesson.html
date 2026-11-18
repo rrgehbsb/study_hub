@@ -18,7 +18,7 @@
 <script>(function(){var s=window.supabase;if(s&&s.createClient&&!s.__oneClient){s.__oneClient=true;var o=s.createClient.bind(s),c={};s.createClient=function(u,k,op){var q=String(u)+"|"+String(k);return c[q]||(c[q]=o(u,k,op));};}})();</script>
 <link rel="preload" href="/fonts/plus-jakarta-sans-latin-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/rubik-hebrew-wght-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/app.css?v=0.7.3">
+<link rel="stylesheet" href="/app.css?v=0.7.4">
 <link rel="stylesheet" href="/vendor/katex/katex.min.css">
 <script src="/vendor/katex/katex.min.js"></script>
 <script src="/vendor/katex/auto-render.min.js"></script>
@@ -37,7 +37,7 @@
   <section class="card"><h2 id="h-sum" style="margin-bottom:8px"></h2><div class="prose" dir="auto" id="summary"></div></section>
   <details class="card"><summary><span id="h-tx"></span><span class="hint" id="tx-len"></span></summary><div class="transcript" dir="auto" id="transcript"></div></details>
 </main>
-<script src="/app.js?v=0.7.3"></script>
+<script src="/app.js?v=0.7.4"></script>
 <script>
 (async function () {
   const S = window.SH, { $, esc, ic, t } = S;
@@ -63,6 +63,18 @@
     try { await S.api('transcribe', Object.assign({ lessonId: l.id, subjectName: S.subjectName(l.subject_id) }, payload)); location.reload(); }
     catch (e) { btn.disabled = false; btn.textContent = he ? 'לנסות שוב' : 'Try again'; S.toast(e.message); }
   }
+  /* a lesson that can't be saved (it never arrived, or the file is damaged): remove it so it stops cluttering.
+     Two taps, no pop-up (phones block those). */
+  function rmBtn() { return '<button class="btn ghost" id="rm" style="margin-top:6px">' + (he ? 'למחוק את השיעור הזה' : 'Remove this lesson') + '</button>'; }
+  function wireRm() {
+    const b = $('#rm'); if (!b) return; let armed = false;
+    b.onclick = async () => {
+      if (!armed) { armed = true; b.textContent = he ? 'ללחוץ שוב כדי למחוק לתמיד' : 'Tap again to remove it for good'; b.style.color = 'var(--bad-ink)'; return; }
+      b.disabled = true;
+      try { await S.removeLesson(l.id, String(l.audio_path || '').split('|').filter(Boolean)); S.toast(he ? 'השיעור נמחק' : 'Lesson removed'); location.href = S.link('/subject.html', { id: l.subject_id }); }
+      catch (e) { b.disabled = false; S.toast(e.message); }
+    };
+  }
   if (l.status !== 'ready') {
     const box = $('#state'); box.hidden = false;
     if (l.audio_path) {
@@ -70,7 +82,7 @@
         (l.error ? '<p class="hint" dir="auto">' + esc(/open this recording|valid media|could not process|invalid file/i.test(l.error) ? (he ? 'המתמלל לא הצליח לפתוח את קובץ ההקלטה. לחיצה על "לתקן ולתמלל שוב" ממירה אותו ל-MP3 בטלפון ושולחת שוב.' : 'The transcriber couldn’t open the recording file. "Fix and transcribe again" converts it to MP3 on this phone and sends it again.') : l.error) + '</p>' : '') +
         '<p class="hint">' + (he ? 'ההקלטה שמורה. אפשר לנסות שוב.' : 'The recording is saved. You can try again.') + '</p>' +
         '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center"><button class="btn accent" id="retry">' + (he ? 'לתקן ולתמלל שוב' : 'Fix and transcribe again') + '</button>' +
-        '<button class="btn ghost" id="dl">' + (he ? 'להוריד את ההקלטה' : 'Download the recording') + '</button></div>';
+        '<button class="btn ghost" id="dl">' + (he ? 'להוריד את ההקלטה' : 'Download the recording') + '</button></div>' + rmBtn();
       const paths = String(l.audio_path).split('|').filter(Boolean);
       const allMp3 = paths.every(p => /\.mp3$/i.test(p));
       // MP3 already (or the demo): just try again. Anything else: convert to MP3 on this phone first,
@@ -95,9 +107,10 @@
       };
     } else {
       box.innerHTML = '<b>' + (he ? 'ההקלטה לא הגיעה' : 'The recording didn’t arrive') + '</b><p class="hint">' + (he ? 'אם הקלטת בטלפון הזה: פותחים את עמוד ההקלטה, ומה שנשאר בטלפון נשלח לבד. אם יש לך את הקובץ: + ← הקלטה שכבר יש לי.' : 'If you recorded on this phone: open Record, and anything left on the phone sends itself. If you have the file: + → A recording I have.') + '</p>' +
-        '<a class="btn accent" href="' + S.link('/record.html') + '">' + (he ? 'לעמוד ההקלטה' : 'Go to Record') + '</a>';
+        '<a class="btn accent" href="' + S.link('/record.html') + '">' + (he ? 'לעמוד ההקלטה' : 'Go to Record') + '</a>' + rmBtn();
     }
   }
+  wireRm();
   if (l.summary) S.renderRich($('#summary'), l.summary);
   else if (l.status === 'ready' && l.transcript) {
     $('#summary').innerHTML = '<p class="hint">' + (he ? 'אין עדיין סיכום.' : 'No summary yet.') + '</p><button class="btn" id="mksum" style="margin-top:8px">' + (he ? 'ליצור סיכום' : 'Make a summary') + '</button>';
